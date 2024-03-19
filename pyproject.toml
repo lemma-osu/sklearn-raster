@@ -1,0 +1,75 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "sknnr-spatial"
+dynamic = ["version"]
+description = "Spatial raster prediction with scikit-learn kNN estimators."
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [
+    { name = "Aaron Zuspan", email = "aaron.zuspan@oregonstate.edu" },
+    { name = "Matt Gregory", email = "matt.gregory@oregonstate.edu" }
+]
+keywords = []
+dependencies = [
+    "numpy",
+    "xarray",
+    "rioxarray",
+    "rasterio",
+    "dask[diagnostics,dataframe]",
+    "dask-ml",
+    "scikit-learn",
+    "scikit-learn-knn-regression @ git+https://github.com/lemma-osu/scikit-learn-knn-regression",
+]
+
+[project.urls]
+Homepage = "https://github.com/lemma-osu/sknnr-spatial"
+
+[tool.hatch.version]
+path = "src/sknnr_spatial/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/sknnr_spatial"]
+
+[tool.hatch.build.targets.sdist]
+include = ["/src"]
+
+[tool.hatch.envs.default]
+dependencies = [
+    "pre-commit",
+    "ipykernel",
+]
+
+[tool.hatch.envs.test]
+dependencies = [
+    "pytest",
+    "pytest-cov",
+]
+
+[tool.hatch.envs.test.scripts]
+all = "pytest . {args}"
+cov = "pytest . --cov=src/sknnr-spatial {args}"
+
+[tool.hatch.envs.docs]
+dependencies = [
+    "mkdocs",
+    "mkdocs-material",
+    "mkdocstrings[python]"
+]
+
+[tool.hatch.envs.docs.scripts]
+serve = "mkdocs serve --config-file docs/mkdocs.yml"
+build = "mkdocs build --config-file docs/mkdocs.yml"
+
+[tool.ruff]
+fix = true
+show-fixes = true
+
+[tool.ruff.lint]
+select = ["E", "I", "F", "B", "FA", "UP", "PT", "Q", "RET", "SIM", "PERF"]
+isort.known-first-party = ["sknnr_spatial"]
+
+[tool.hatch.metadata]
+allow-direct-references = true

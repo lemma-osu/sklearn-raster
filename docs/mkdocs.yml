@@ -1,0 +1,72 @@
+site_name: sknnr-spatial
+docs_dir: pages/
+repo_url: https://github.com/lemma-osu/sknnr-spatial
+repo_name: lemma-osu/sknnr-spatial
+
+nav:
+  - Home: index.md
+  - Contributing: contributing.md
+
+theme: 
+  name: material
+  features: 
+    - search.suggest
+    - search.highlight
+    - navigation.instant
+    - navigation.path
+    - content.code.copy
+    - content.code.annotate
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/weather-night
+        name: Dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/weather-sunny
+        name: Light mode
+
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [../src]
+          options:
+            show_source: false
+            inherited_members: true
+            undoc_members: true
+            docstring_style: numpy
+            show_if_no_docstring: true
+            show_signature_annotations: true
+            show_root_heading: true
+            show_category_heading: true
+            merge_init_into_class: true
+            signature_crossrefs: true
+
+markdown_extensions:
+  - abbr
+  - admonition
+  - tables
+  - footnotes
+  - toc:
+      permalink: true
+  - pymdownx.snippets:
+      auto_append:
+        - docs/abbreviations.md
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.superfences
+
+
+watch:
+  - ../src/
+  - ../README.md
+  - ../CONTRIBUTING.md
+  - ./abbreviations.md
