@@ -64,7 +64,7 @@ def load_swo_ecoplot(
     Returns
     -------
     tuple
-        Image data as either a numpy array or `xarray.Dataset`, and plot data as X and 
+        Image data as either a numpy array or `xarray.Dataset`, and plot data as X and
         y dataframes.
 
     Notes

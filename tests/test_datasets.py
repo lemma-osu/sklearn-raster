@@ -16,7 +16,11 @@ class DatasetConfiguration:
 
 CONFIGURATIONS = {
     "swo_ecoplot": DatasetConfiguration(
-        load_function=load_swo_ecoplot, image_size=(128,128), n_samples=3005, n_targets=25, n_features=18
+        load_function=load_swo_ecoplot,
+        image_size=(128, 128),
+        n_samples=3005,
+        n_targets=25,
+        n_features=18,
     ),
 }
 
@@ -24,9 +28,7 @@ CONFIGURATIONS = {
 @pytest.mark.parametrize(
     "configuration", CONFIGURATIONS.values(), ids=CONFIGURATIONS.keys()
 )
-@pytest.mark.parametrize(
-    "as_dataset", [False, True], ids=["as_array", "as_dataset"]
-)
+@pytest.mark.parametrize("as_dataset", [False, True], ids=["as_array", "as_dataset"])
 def test_load_dataset(configuration: DatasetConfiguration, as_dataset: bool):
     X_image, X, y = configuration.load_function(as_dataset=as_dataset)
 
@@ -35,6 +37,9 @@ def test_load_dataset(configuration: DatasetConfiguration, as_dataset: bool):
 
     if as_dataset:
         assert list(X.columns) == list(X_image.data_vars)
-        assert X_image.sizes == {"y": configuration.image_size[0], "x": configuration.image_size[1]}
+        assert X_image.sizes == {
+            "y": configuration.image_size[0],
+            "x": configuration.image_size[1],
+        }
     else:
         assert X_image.shape == (*configuration.image_size, configuration.n_features)
