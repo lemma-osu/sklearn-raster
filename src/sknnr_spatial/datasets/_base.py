@@ -28,7 +28,7 @@ def _load_rasters_to_dataset(
     return xr.merge(das)
 
 
-def _load_rasters_to_array(file_names: list[str], *, module_name: str) -> np.ndarray:
+def _load_rasters_to_array(file_names: list[str], *, module_name: str) -> NDArray:
     """Load a list of rasters from the data module as a numpy array."""
     arr = None
     for file_name in file_names:
@@ -79,7 +79,7 @@ def load_swo_ecoplot(
     Examples
     --------
 
-    >>> from sknnr_spatial.datasets import load_swo_ecoplot()
+    >>> from sknnr_spatial.datasets import load_swo_ecoplot
     >>> X_image, X, y = load_swo_ecoplot()
     >>> print(X_image.shape)
     (128, 128, 18)
@@ -89,6 +89,9 @@ def load_swo_ecoplot(
     Atzet, T, DE White, LA McCrimmon, PA Martinez, PR Fong, and VD Randall. 1996.
     Field guide to the forested plant associations of southwestern Oregon.
     USDA Forest Service. Pacific Northwest Region, Technical Paper R6-NR-ECOL-TP-17-96.
+
+    Zhu Z, CE Woodcock, P Olofsson. 2012. Continuous monitoring of forest disturbance
+    using all available Landsat imagery. Remote Sensing of Environment. 122:75–91.
     """
     X, y = sknnr.datasets.load_swo_ecoplot(return_X_y=True, as_frame=True)
     raster_names = [f"{var.lower()}.tif" for var in X.columns]

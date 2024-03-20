@@ -49,8 +49,8 @@ dependencies = [
 ]
 
 [tool.hatch.envs.test.scripts]
-all = "pytest . {args}"
-cov = "pytest . --cov=src/sknnr_spatial {args}"
+all = "pytest . {args} --doctest-modules"
+cov = "pytest . --cov=src/sknnr_spatial {args} --doctest-modules"
 
 [tool.hatch.envs.docs]
 dependencies = [
