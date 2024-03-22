@@ -21,7 +21,7 @@ dependencies = [
     "dask[diagnostics,dataframe]",
     "dask-ml",
     "scikit-learn",
-    "scikit-learn-knn-regression @ git+https://github.com/lemma-osu/scikit-learn-knn-regression",
+    "sknnr",
 ]
 
 [project.urls]
