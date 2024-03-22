@@ -19,7 +19,7 @@ dependencies = [
     "rioxarray",
     "rasterio",
     "dask[diagnostics,dataframe]",
-    "dask-ml",
+    "dask-ml>=2024.3.20",
     "scikit-learn",
     "scikit-learn-knn-regression @ git+https://github.com/lemma-osu/scikit-learn-knn-regression",
 ]
