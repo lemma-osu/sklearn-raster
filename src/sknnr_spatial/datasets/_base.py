@@ -19,10 +19,13 @@ def _load_rasters_to_dataset(
     """Load a list of rasters from the data module as an xarray Dataset."""
     das = []
     for file_name, var_name in zip(file_names, var_names):
-        with resources.files(module_name).joinpath(file_name).open("rb") as bin:
-            da = rioxarray.open_rasterio(bin, chunks=chunks)
+        path = resources.files(module_name).joinpath(file_name)
+        da = (
+            rioxarray.open_rasterio(path, chunks=chunks)
+            .to_dataset(dim="band")
+            .rename({1: var_name})
+        )
 
-        da = da.to_dataset(dim="band").rename({1: var_name})
         das.append(da)
 
     return xr.merge(das)
