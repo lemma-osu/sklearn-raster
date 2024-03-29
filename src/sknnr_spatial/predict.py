@@ -88,22 +88,17 @@ def _predict_from_dataarray(
     check_is_fitted(estimator)
     preprocessor = DataArrayPreprocessor(X_image, nodata_vals=nodata_vals)
 
-    n_outputs = y.shape[-1]
-
     y_pred = da.apply_gufunc(
         estimator.predict,
         "(x)->(y)",
         preprocessor.flat,
-        axis=preprocessor._band_dim,
+        axis=-1,
         output_dtypes=[float],
-        output_sizes={"y": n_outputs},
-        # TODO: See if there's any way to avoid this
+        output_sizes={"y": y.shape[-1]},
         allow_rechunk=True,
     )
 
-    print(y_pred.shape)
-
-    return preprocessor.unflatten(y_pred, n_outputs=n_outputs, apply_mask=True)
+    return preprocessor.unflatten(y_pred, var_names=y.columns, name="pred")
 
 
 @kneighbors.register(xr.DataArray)
@@ -111,12 +106,12 @@ def _kneighbors_from_dataarray(
     X_image: xr.DataArray,
     *,
     estimator: BaseEstimator,
-    return_distance=True,
-    return_dataframe_index=False,
     nodata_vals=None,
+    **kneighbors_kwargs
 ) -> xr.DataArray:
     check_is_fitted(estimator)
     preprocessor = DataArrayPreprocessor(X_image, nodata_vals=nodata_vals)
+    return_distance = kneighbors_kwargs.pop("return_distance", True)
 
     signature = "(x)->(k)"
     dtypes = [int]
@@ -127,6 +122,7 @@ def _kneighbors_from_dataarray(
         dtypes = [float, *dtypes]
 
     k = estimator.n_neighbors
+    var_names = [f"k{i + 1}" for i in range(k)]
 
     result = da.apply_gufunc(
         estimator.kneighbors,
@@ -134,19 +130,18 @@ def _kneighbors_from_dataarray(
         preprocessor.flat,
         output_dtypes=dtypes,
         output_sizes={"k": k},
-        axis=preprocessor._band_dim,
-        return_distance=return_distance,
-        return_dataframe_index=return_dataframe_index,
+        axis=-1,
         allow_rechunk=True,
+        **kneighbors_kwargs,
     )
 
     if return_distance:
         dist, nn = result
 
-        dist = preprocessor.unflatten(dist, n_outputs=k, apply_mask=True)
-        nn = preprocessor.unflatten(nn, n_outputs=k, apply_mask=True)
+        dist = preprocessor.unflatten(dist, var_names=var_names, name="dist")
+        nn = preprocessor.unflatten(nn, var_names=var_names, name="nn")
 
         return dist, nn
 
     else:
-        return preprocessor.unflatten(result, n_outputs=k, apply_mask=True)
+        return preprocessor.unflatten(result, var_names=var_names, name="nn")

@@ -12,14 +12,12 @@ ImageType = TypeVar("ImageType", NDArray, xr.DataArray)
 """
 TODO:
 
-- Unfortunately, probably go back to masking the flat array so that we can a) coerce to the same dimension order, b) avoid annoying broadcasting, c) avoid the nan_to_num that seems to be running eagerly for some reason, d) avoid 2d indexing issue when masking that forces us to use da.where that converts to Array
 - Maybe add a convenience function for accessing the 2D mask via unflattening
 """
 
 
 class _ImagePreprocessor(ABC):
     """The module used for array operations on the image type."""
-
     _backend: ModuleType
     """The dimension used for bands in the image shape."""
     _band_dim: int
@@ -42,10 +40,13 @@ class _ImagePreprocessor(ABC):
             as NoData.
         """
         self.image = image
+        self.flat = self._flatten()
+
         self.nodata_vals = self._validate_nodata_vals(nodata_vals)
         self.nodata_mask = self._get_nodata_mask()
-        self.flat = self._flatten()
-        self.flat = self._backend.nan_to_num(self.flat)
+
+        # TODO: Mask NaNs in the flat image
+        # self.flat = self._backend.nan_to_num(self.flat)
 
     @property
     def n_bands(self):
@@ -65,82 +66,78 @@ class _ImagePreprocessor(ABC):
 
     def _get_nodata_mask(self) -> ImageType | None:
         """
-        Get a mask of NoData values in the shape (y, x).
+        Get a mask of NoData values in the shape (pixels,) for the flat image.
         """
-        # If the image isn't float and no nodata was given, skip allocating a mask
-        if not (is_float := self.image.dtype.kind == "f") and self.nodata_vals is None:
+        # Skip allocating a mask if the image is float and nodata wasn't given
+        if not (is_float := self.flat.dtype.kind == "f") and self.nodata_vals is None:
             return None
 
-        mask = self._backend.zeros(self.image.shape, dtype=bool)
+        mask = self._backend.zeros(self.flat.shape, dtype=bool)
 
         # If it's floating point, always mask NaNs
         if is_float:
-            mask |= self._backend.isnan(self.image)
+            mask |= self._backend.isnan(self.flat)
 
         # If nodata was specified, mask those values
         if self.nodata_vals is not None:
-            mask |= self.image == self.nodata_vals
+            mask |= self.flat == self.nodata_vals
 
         # Set the mask where any band contains nodata
-        return mask.max(axis=self._band_dim)
+        return mask.max(axis=-1)
 
     def _validate_nodata_vals(
         self, nodata_vals: float | tuple[float] | NDArray | None
     ) -> NDArray | None:
         """
-        Check and process user-provided nodata values to the expected format.
+        Get an array of nodata values in the shape (bands,) based on user input.
+
+        Scalars are broadcast to all bands while sequences are checked against the 
+        number of bands and cast to ndarrays.
         """
         if nodata_vals is None:
             return None
+        
         if isinstance(nodata_vals, (float, int)) and not isinstance(nodata_vals, bool):
-            # Broadcast single values to all bands
             return np.full((self.n_bands,), nodata_vals)
+        
         if not hasattr(nodata_vals, "__len__") or isinstance(nodata_vals, (str, dict)):
             raise TypeError(
                 f"Invalid type `{type(nodata_vals).__name__}` for `nodata_vals`. "
                 "Provide a single number to apply to all bands, a sequence of numbers, "
                 "or None."
             )
+        
         if len(nodata_vals) != self.n_bands:
             raise ValueError(
                 f"Expected {self.n_bands} nodata values but got {len(nodata_vals)}. "
                 f"The length of `nodata_vals` must match the number of bands."
             )
 
-        nodata_array = np.asarray(nodata_vals, dtype=float)
+        return np.asarray(nodata_vals, dtype=float)
 
-        # Dask arrays are pickier about broadcasting than numpy arrays, so we need to
-        # create the y and x axes.
-        # TODO: Figure out if this is totally necessary, or if there's a cleaner way to do it. When I was masking the flat array, it didn't seem necessary
-        broadcast_shape = [1, 1, 1]
-        broadcast_shape[self._band_dim] = -1
-        return nodata_array.reshape(broadcast_shape)
-
-    def _fill_nodata(self, image: ImageType, nodata_fill_value=0.0) -> ImageType:
-        """Fill masked values in a flat image with a given value."""
+    def _fill_nodata(self, flat_image: ImageType, nodata_fill_value=0.0) -> ImageType:
+        """Fill values in a flat image based on the pre-calculated mask."""
         if self.nodata_mask is None:
-            return image
+            return flat_image
 
-        # TODO: Only cast to float if required by the fill value
-        image = image.astype(float)
-        # TODO: Dask doesn't support 2d indexing, so it looks like I need to use where
-        # image[:, self.nodata_mask] = nodata_fill_value
-        # TODO: This converts xr.DataArray to da.Array. Is that a problem?
-        image = self._backend.where(self.nodata_mask, nodata_fill_value, self.image)
+        if isinstance(nodata_fill_value, float):
+            flat_image = flat_image.astype(float)
 
-        return image
+        flat_image[self.nodata_mask, :] = nodata_fill_value
+
+        return flat_image
 
 
 class NDArrayPreprocessor(_ImagePreprocessor):
     """
-    Pre-process a multi-band NDArray for prediction with an sklearn estimator.
+    Pre-processor multi-band NumPy NDArrays.
     """
 
     _backend = np
     _band_dim = -1
 
     def _flatten(self) -> NDArray:
-        """Flatten the array from (x, y, bands) to (pixels, bands) and fill NaNs."""
+        """Flatten the array from (y, x, bands) to (pixels, bands)."""
         return self.image.reshape(-1, self.n_bands)
 
     def unflatten(self, flat_image: NDArray, apply_mask=True) -> NDArray:
@@ -153,31 +150,41 @@ class NDArrayPreprocessor(_ImagePreprocessor):
 
 
 class DataArrayPreprocessor(_ImagePreprocessor):
+    """
+    Pre-processor for multi-band xarray DataArrays.
+    """
     _backend = da
     _band_dim = 0
 
     def _flatten(self) -> xr.DataArray:
-        return self.image.data.reshape(self.n_bands, -1)
+        """Flatten the dataarray from (bands, y, x) to (pixels, bands)."""
+        # Dask can only reshape one dimension at a time, so the transpose is necessary 
+        # to get the correct dimension order
+        return self.image.data.reshape(self.n_bands, -1).T
 
-    # TODO: If possible, get it so that you can flatten and unflatten an image without modifying the chunks
     def unflatten(
-        self, flat_image: xr.DataArray, n_outputs, apply_mask=True
+        self, 
+        flat_image: xr.DataArray, 
+        apply_mask=True, 
+        var_names=None, 
+        name=None,
     ) -> xr.DataArray:
-        dims = dict(self.image.sizes)
-        dims.update({"variable": n_outputs})
+        if apply_mask:
+            flat_image = self._fill_nodata(flat_image, np.nan)
 
+        n_outputs = flat_image.shape[-1]
+        var_names = var_names if var_names is not None else range(n_outputs)
+
+        # Replace the original variable coordinates and dimensions
+        dims = {**self.image.sizes, "variable": n_outputs}
+        coords = {**self.image.coords, "variable": var_names}
         shape = list(dims.values())
 
-        coords = dict(self.image.coords)
-        coords.update({"variable": range(n_outputs)})
-
         unflattened = xr.DataArray(
-            flat_image.reshape(shape),
+            flat_image.T.reshape(shape),
             coords=coords,
             dims=dims,
+            name=name,
         )
-
-        if apply_mask:
-            unflattened = self._fill_nodata(unflattened, np.nan)
 
         return unflattened
