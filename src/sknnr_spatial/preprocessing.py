@@ -12,18 +12,58 @@ ImageType = TypeVar("ImageType", NDArray, xr.DataArray)
 """
 TODO:
 
-- Maybe add a convenience function for accessing the 2D mask via unflattening
-- Benchmark DataArrayPreprocessor with the flat band dim in axis 0 vs. axis 1. The "Best Practices" suggest that chunking should occur on axis 1. 
 - Consider using k as a coordinate and distance and nn as variables in the kneighbors output
 """
 
 
 class _ImagePreprocessor(ABC):
-    """The module used for array operations on the image type."""
+    """
+    A pre-processor for multi-channel image data in a machine learning workflow.
 
+    This class handles flattening an image from 3D pixel space (e.g. y, x, channel)
+    to 2D sample space (sample, channel) to allow prediction and other operations
+    with scikit-learn estimators designed for sample data, and unflattening to
+    convert scikit-learn outputs from sample space back to pixel space.
+
+    Pre-processing can also fill NaN values in sample space to allow prediction with
+    estimators that prohibit NaNs, and mask NoData values in sample space outputs
+    during unflattening to preserve NoData masks from the input image.
+
+    Parameters
+    ----------
+    image: ImageType
+        An image to be processed.
+    nodata_vals : float | tuple[float] | NDArray | None, default None
+        Values representing NoData in the image. This can be represented by a
+        single value or a sequence of values. If a single value is passed, it will
+        be applied to all bands. If a sequence is passed, there must be one element
+        for each band in the image. For float images, np.nan will always be treated
+        as NoData.
+    nan_fill : float | None, default 0.0
+        If not none, NaN values in the flattened image will be filled with this
+        value. This is important when passing flattened arrays into scikit-learn
+        estimators that prohibit NaN values.
+
+    Attributes
+    ----------
+    image : ImageType
+        The original, unmodified image used to construct the preprocessor.
+    flat : ImageType
+        A flat representation of the image, with the x and y dimensions flattened to a 
+        sample dimension.
+    n_bands : int
+        The number of bands present in the image.
+    band_dim : int
+        The dimension used for bands or features in the unmodified image.
+    flat_band_dim : int
+        The dimension used for bands or features in the flattened image.
+    """
+
+    # The module used for array operations on the image type.
     _backend: ModuleType
-    """The dimension used for bands in the image shape."""
-    _band_dim: int
+
+    band_dim: int
+    flat_band_dim = -1
 
     def __init__(
         self,
@@ -31,33 +71,6 @@ class _ImagePreprocessor(ABC):
         nodata_vals: float | tuple[float] | NDArray | None = None,
         nan_fill: float | None = 0.0,
     ):
-        """
-        A pre-processor for multi-channel image data in a machine learning workflow.
-
-        This class handles flattening an image from 3D pixel space (e.g. y, x, channel)
-        to 2D sample space (sample, channel) to allow prediction and other operations
-        with scikit-learn estimators designed for sample data, and unflattening to
-        convert scikit-learn outputs from sample space back to pixel space.
-
-        Pre-processing can also fill NaN values in sample space to allow prediction with
-        estimators that prohibit NaNs, and mask NoData values in sample space outputs
-        during unflattening to preserve NoData masks from the input image.
-
-        Parameters
-        ----------
-        image: ImageType
-            An image to be processed.
-        nodata_vals : float | tuple[float] | NDArray | None, default None
-            Values representing NoData in the image. This can be represented by a
-            single value or a sequence of values. If a single value is passed, it will
-            be applied to all bands. If a sequence is passed, there must be one element
-            for each band in the image. For float images, np.nan will always be treated
-            as NoData.
-        nan_fill : float | None, default 0.0
-            If not none, NaN values in the flattened image will be filled with this
-            value. This is important when passing flattened arrays into scikit-learn
-            estimators that prohibit NaN values.
-        """
         self.image = image
         self.flat = self._flatten()
 
@@ -68,8 +81,11 @@ class _ImagePreprocessor(ABC):
             self.flat[self._backend.isnan(self.flat)] = nan_fill
 
     @property
-    def n_bands(self):
-        return self.image.shape[self._band_dim]
+    def n_bands(self) -> int:
+        """
+        Return the number of bands in the image.
+        """
+        return self.image.shape[self.band_dim]
 
     @abstractmethod
     def _flatten(self) -> ImageType:
@@ -102,7 +118,7 @@ class _ImagePreprocessor(ABC):
             mask |= self.flat == self.nodata_vals
 
         # Set the mask where any band contains nodata
-        return mask.max(axis=-1)
+        return mask.max(axis=self.flat_band_dim)
 
     def _validate_nodata_vals(
         self, nodata_vals: float | tuple[float] | NDArray | None
@@ -153,7 +169,7 @@ class NDArrayPreprocessor(_ImagePreprocessor):
     """
 
     _backend = np
-    _band_dim = -1
+    band_dim = -1
 
     def _flatten(self) -> NDArray:
         """Flatten the array from (y, x, bands) to (pixels, bands)."""
@@ -163,9 +179,7 @@ class NDArrayPreprocessor(_ImagePreprocessor):
         if apply_mask:
             flat_image = self._fill_nodata(flat_image, np.nan)
 
-        unflattened = flat_image.reshape(*self.image.shape[:2], -1)
-
-        return unflattened
+        return flat_image.reshape(*self.image.shape[:2], -1)
 
 
 class DataArrayPreprocessor(_ImagePreprocessor):
@@ -174,12 +188,11 @@ class DataArrayPreprocessor(_ImagePreprocessor):
     """
 
     _backend = da
-    _band_dim = 0
+    band_dim = 0
 
     def _flatten(self) -> xr.DataArray:
         """Flatten the dataarray from (bands, y, x) to (pixels, bands)."""
-        # Dask can only reshape one dimension at a time, so the transpose is necessary
-        # to get the correct dimension order
+        # Dask can't reshape multiple dimensions at once, so transpose to swap axes
         return self.image.data.reshape(self.n_bands, -1).T
 
     def unflatten(
@@ -192,7 +205,7 @@ class DataArrayPreprocessor(_ImagePreprocessor):
         if apply_mask:
             flat_image = self._fill_nodata(flat_image, np.nan)
 
-        n_outputs = flat_image.shape[-1]
+        n_outputs = flat_image.shape[self.flat_band_dim]
         var_names = var_names if var_names is not None else range(n_outputs)
 
         # Replace the original variable coordinates and dimensions
@@ -200,11 +213,11 @@ class DataArrayPreprocessor(_ImagePreprocessor):
         coords = {**self.image.coords, "variable": var_names}
         shape = list(dims.values())
 
-        unflattened = xr.DataArray(
+        return xr.DataArray(
+            # Transpose the flat image from (pixels, bands) to (bands, pixels) prior
+            # to reshaping to match the expected output.
             flat_image.T.reshape(shape),
             coords=coords,
             dims=dims,
             name=name,
         )
-
-        return unflattened

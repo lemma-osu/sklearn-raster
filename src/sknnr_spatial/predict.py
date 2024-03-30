@@ -92,7 +92,7 @@ def _predict_from_dataarray(
         estimator.predict,
         "(x)->(y)",
         preprocessor.flat,
-        axis=-1,
+        axis=preprocessor.flat_band_dim,
         output_dtypes=[float],
         output_sizes={"y": y.shape[-1]},
         allow_rechunk=True,
@@ -130,7 +130,7 @@ def _kneighbors_from_dataarray(
         preprocessor.flat,
         output_dtypes=dtypes,
         output_sizes={"k": k},
-        axis=-1,
+        axis=preprocessor.flat_band_dim,
         allow_rechunk=True,
         **kneighbors_kwargs,
     )
