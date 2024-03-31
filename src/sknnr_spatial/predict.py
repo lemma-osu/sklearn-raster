@@ -14,7 +14,6 @@ from sknnr_spatial.preprocessing import DataArrayPreprocessor, NDArrayPreprocess
 
 """
 TODO:
-- Figure out if there's a way to get decent docstrings with single dispatch (unless I end up using a class wrapper)
 - Probably add an xr.Dataset version that preserves names
 """
 
@@ -46,7 +45,7 @@ def _predict_from_ndarray(
     check_is_fitted(estimator)
     preprocessor = NDArrayPreprocessor(X_image, nodata_vals=nodata_vals)
 
-    # TODO: Deal with sklearn warning about missing feature names if it was fitted with names
+    # TODO: Deal with sklearn warning about missing feature names
     y_pred_flat = estimator.predict(preprocessor.flat)
 
     return preprocessor.unflatten(y_pred_flat, apply_mask=True)
@@ -77,8 +76,7 @@ def _kneighbors_from_ndarray(
 
         return dist, nn
 
-    else:
-        return preprocessor.unflatten(result)
+    return preprocessor.unflatten(result)
 
 
 @predict.register(xr.DataArray)
@@ -107,31 +105,28 @@ def _kneighbors_from_dataarray(
     *,
     estimator: BaseEstimator,
     nodata_vals=None,
-    **kneighbors_kwargs
+    **kneighbors_kwargs,
 ) -> xr.DataArray:
     check_is_fitted(estimator)
     preprocessor = DataArrayPreprocessor(X_image, nodata_vals=nodata_vals)
     return_distance = kneighbors_kwargs.pop("return_distance", True)
 
-    signature = "(x)->(k)"
-    dtypes = [int]
-
-    # Modify the gufunc signature to include the distance output
-    if return_distance:
-        signature += ",(k)"
-        dtypes = [float, *dtypes]
-
     k = estimator.n_neighbors
     var_names = [f"k{i + 1}" for i in range(k)]
+
+    # Set the expected gufunc output depending on whether distances will be included
+    signature = "(x)->(k)" if not return_distance else "(x)->(k),(k)"
+    output_dtypes: list[type] = [int] if not return_distance else [float, int]
 
     result = da.apply_gufunc(
         estimator.kneighbors,
         signature,
         preprocessor.flat,
-        output_dtypes=dtypes,
         output_sizes={"k": k},
+        output_dtypes=output_dtypes,
         axis=preprocessor.flat_band_dim,
         allow_rechunk=True,
+        return_distance=return_distance,
         **kneighbors_kwargs,
     )
 
@@ -143,5 +138,4 @@ def _kneighbors_from_dataarray(
 
         return dist, nn
 
-    else:
-        return preprocessor.unflatten(result, var_names=var_names, name="nn")
+    return preprocessor.unflatten(result, var_names=var_names, name="nn")

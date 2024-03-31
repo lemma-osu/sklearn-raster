@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
+from collections.abc import Sized
 from types import ModuleType
 from typing import TypeVar
 
@@ -8,12 +11,6 @@ import xarray as xr
 from numpy.typing import NDArray
 
 ImageType = TypeVar("ImageType", NDArray, xr.DataArray)
-
-"""
-TODO:
-
-- Consider using k as a coordinate and distance and nn as variables in the kneighbors output
-"""
 
 
 class _ImagePreprocessor(ABC):
@@ -49,7 +46,7 @@ class _ImagePreprocessor(ABC):
     image : ImageType
         The original, unmodified image used to construct the preprocessor.
     flat : ImageType
-        A flat representation of the image, with the x and y dimensions flattened to a 
+        A flat representation of the image, with the x and y dimensions flattened to a
         sample dimension.
     n_bands : int
         The number of bands present in the image.
@@ -72,10 +69,10 @@ class _ImagePreprocessor(ABC):
         nan_fill: float | None = 0.0,
     ):
         self.image = image
-        self.flat = self._flatten()
+        self.flat = self._flatten(self.image)
 
         self.nodata_vals = self._validate_nodata_vals(nodata_vals)
-        self.nodata_mask = self._get_nodata_mask()
+        self.nodata_mask = self._get_nodata_mask(self.flat)
 
         if nan_fill is not None:
             self.flat[self._backend.isnan(self.flat)] = nan_fill
@@ -88,7 +85,7 @@ class _ImagePreprocessor(ABC):
         return self.image.shape[self.band_dim]
 
     @abstractmethod
-    def _flatten(self) -> ImageType:
+    def _flatten(self, image: ImageType) -> ImageType:
         """
         Ravel the image's x, y dimensions while keeping the band dimension.
         """
@@ -99,23 +96,25 @@ class _ImagePreprocessor(ABC):
         Reconstruct the x, y dimensions of a flattened image to the original shape.
         """
 
-    def _get_nodata_mask(self) -> ImageType | None:
+    def _get_nodata_mask(self, flat_image: ImageType) -> ImageType | None:
         """
         Get a mask of NoData values in the shape (pixels,) for the flat image.
+
+        NoData values are represented by True in the output array.
         """
         # Skip allocating a mask if the image is float and nodata wasn't given
-        if not (is_float := self.flat.dtype.kind == "f") and self.nodata_vals is None:
+        if not (is_float := flat_image.dtype.kind == "f") and self.nodata_vals is None:
             return None
 
-        mask = self._backend.zeros(self.flat.shape, dtype=bool)
+        mask = self._backend.zeros(flat_image.shape, dtype=bool)
 
         # If it's floating point, always mask NaNs
         if is_float:
-            mask |= self._backend.isnan(self.flat)
+            mask |= self._backend.isnan(flat_image)
 
         # If nodata was specified, mask those values
         if self.nodata_vals is not None:
-            mask |= self.flat == self.nodata_vals
+            mask |= flat_image == self.nodata_vals
 
         # Set the mask where any band contains nodata
         return mask.max(axis=self.flat_band_dim)
@@ -124,24 +123,28 @@ class _ImagePreprocessor(ABC):
         self, nodata_vals: float | tuple[float] | NDArray | None
     ) -> NDArray | None:
         """
-        Get an array of nodata values in the shape (bands,) based on user input.
+        Get an array of NoData values in the shape (bands,) based on user input.
 
         Scalars are broadcast to all bands while sequences are checked against the
-        number of bands and cast to ndarrays.
+        number of bands and cast to ndarrays. There is no need to specify np.nan as a
+        NoData value because it will be masked automatically for floating point images.
         """
         if nodata_vals is None:
             return None
 
+        # If it's a numeric scalar, broadcast it to all bands
         if isinstance(nodata_vals, (float, int)) and not isinstance(nodata_vals, bool):
             return np.full((self.n_bands,), nodata_vals)
 
-        if not hasattr(nodata_vals, "__len__") or isinstance(nodata_vals, (str, dict)):
+        # If it's not a scalar, it must be an interable
+        if not isinstance(nodata_vals, Sized) or isinstance(nodata_vals, (str, dict)):
             raise TypeError(
                 f"Invalid type `{type(nodata_vals).__name__}` for `nodata_vals`. "
                 "Provide a single number to apply to all bands, a sequence of numbers, "
                 "or None."
             )
 
+        # If it's an iterable, it must contain one element per band
         if len(nodata_vals) != self.n_bands:
             raise ValueError(
                 f"Expected {self.n_bands} nodata values but got {len(nodata_vals)}. "
@@ -171,9 +174,9 @@ class NDArrayPreprocessor(_ImagePreprocessor):
     _backend = np
     band_dim = -1
 
-    def _flatten(self) -> NDArray:
+    def _flatten(self, image: NDArray) -> NDArray:
         """Flatten the array from (y, x, bands) to (pixels, bands)."""
-        return self.image.reshape(-1, self.n_bands)
+        return image.reshape(-1, self.n_bands)
 
     def unflatten(self, flat_image: NDArray, apply_mask=True) -> NDArray:
         if apply_mask:
@@ -183,17 +186,14 @@ class NDArrayPreprocessor(_ImagePreprocessor):
 
 
 class DataArrayPreprocessor(_ImagePreprocessor):
-    """
-    Pre-processor for multi-band xarray DataArrays.
-    """
-
+    __doc__ = _ImagePreprocessor.__doc__
     _backend = da
     band_dim = 0
 
-    def _flatten(self) -> xr.DataArray:
+    def _flatten(self, image: xr.DataArray) -> xr.DataArray:
         """Flatten the dataarray from (bands, y, x) to (pixels, bands)."""
         # Dask can't reshape multiple dimensions at once, so transpose to swap axes
-        return self.image.data.reshape(self.n_bands, -1).T
+        return image.data.reshape(self.n_bands, -1).T
 
     def unflatten(
         self,
