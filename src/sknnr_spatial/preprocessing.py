@@ -186,7 +186,6 @@ class NDArrayPreprocessor(_ImagePreprocessor):
 
 
 class DataArrayPreprocessor(_ImagePreprocessor):
-    __doc__ = _ImagePreprocessor.__doc__
     _backend = da
     band_dim = 0
 
@@ -206,6 +205,7 @@ class DataArrayPreprocessor(_ImagePreprocessor):
             flat_image = self._fill_nodata(flat_image, np.nan)
 
         n_outputs = flat_image.shape[self.flat_band_dim]
+        # Default the variable coordinate to sequential numbers if not provided
         var_names = var_names if var_names is not None else range(n_outputs)
 
         # Replace the original variable coordinates and dimensions
