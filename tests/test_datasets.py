@@ -1,3 +1,4 @@
+import pickle
 from dataclasses import dataclass
 
 import pytest
@@ -36,6 +37,10 @@ def test_load_dataset(configuration: DatasetConfiguration, as_dataset: bool):
     assert y.shape == (configuration.n_samples, configuration.n_targets)
 
     if as_dataset:
+        # Some Dask schedulers require pickling, so ensure that the loaded dataset is
+        # pickleable during compute. We could try computing directly, but that is much
+        # slower.
+        assert pickle.dumps(X_image)
         assert list(X.columns) == list(X_image.data_vars)
         assert X_image.sizes == {
             "y": configuration.image_size[0],
