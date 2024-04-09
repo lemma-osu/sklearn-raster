@@ -63,7 +63,7 @@ def test_load_dataset(configuration: DatasetConfiguration, as_dataset: bool):
 
 
 def test_load_dataset_with_chunks():
-    """Test that the chunk size is respected when loading the as a dataset."""
+    """Test that the chunk size is respected when loading the image as a dataset."""
     chunks = {"x": (128,), "y": (128,)}
     X_image, _, _ = load_swo_ecoplot(as_dataset=True, chunks=chunks)
 

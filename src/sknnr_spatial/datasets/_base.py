@@ -42,7 +42,7 @@ _data_fetcher = pooch.create(
 def _load_rasters_to_dataset(
     file_paths: list[Path], *, var_names: list[str], chunks=None
 ) -> xr.Dataset:
-    """Load a list of rasters from the data module as an xarray Dataset."""
+    """Load a list of rasters as an xarray Dataset."""
     das = []
     for path, var_name in zip(file_paths, var_names):
         da = (
