@@ -25,7 +25,13 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/sknnr-spatial
-          key: ${{ hashFiles('**/_registry.py') }}
+          key: data-${{ hashFiles('**/_registry.py') }}
+
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ hashFiles('**/pyproject.toml') }}
 
       - name: Install dependencies
         run: |
