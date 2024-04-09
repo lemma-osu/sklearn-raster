@@ -9,6 +9,7 @@ import xarray as xr
 from numpy.typing import NDArray
 
 from sknnr_spatial import __version__
+from sknnr_spatial.datasets._registry import registry
 
 try:
     import pooch
@@ -26,12 +27,6 @@ except ImportError:
 # Location of data files. The `version` placeholder will be replaced by pooch.
 DATA_URL = "https://github.com/lemma-osu/sknnr-spatial/raw/{version}/src/sknnr_spatial/datasets/data"
 
-# Dataset files and checksums for fetching with Pooch. Use `openssl sha256 <filename>`
-# to generate checksums for new files.
-registry = {
-    "swo_ecoplot_128x128.zip": "md5:17bb5df154f944e24d1ae465b40eabb0",
-    "swo_ecoplot_2048x4096.zip": "md5:c5da200670f1e4426b5f0ad5145790f0",
-}
 
 _data_fetcher = pooch.create(
     base_url=DATA_URL,

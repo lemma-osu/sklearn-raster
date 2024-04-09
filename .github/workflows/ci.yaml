@@ -28,6 +28,12 @@ jobs:
 
       - name: Run tests
         run: hatch run test:all
+
+      - name: Cache data files
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/sknnr-spatial
+          key: ${{ hashFiles('**/_registry.py') }}
   lint:
     runs-on: ubuntu-latest
 
