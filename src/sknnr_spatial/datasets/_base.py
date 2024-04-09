@@ -144,10 +144,10 @@ def load_swo_ecoplot(
 
     if large_rasters:
         data_size = "2048x4096"
-        chunks = {"x": 1024, "y": 1024}
+        chunk_size = 1024
     else:
         data_size = "128x128"
-        chunks = {"x": 64, "y": 64}
+        chunk_size = 64
 
     data_id = f"swo_ecoplot_{data_size}.zip"
     data_paths = map(Path, _data_fetcher.fetch(data_id, processor=pooch.Unzip()))
@@ -159,7 +159,7 @@ def load_swo_ecoplot(
         X_image = _load_rasters_to_dataset(
             sorted_data_paths,
             var_names=X.columns,
-            chunks=chunks,
+            chunks={"x": chunk_size, "y": chunk_size} if chunks is None else chunks,
         )
     else:
         X_image = _load_rasters_to_array(sorted_data_paths)

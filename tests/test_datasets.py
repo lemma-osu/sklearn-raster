@@ -60,3 +60,18 @@ def test_load_dataset(configuration: DatasetConfiguration, as_dataset: bool):
         }
     else:
         assert X_image.shape == (*configuration.image_size, configuration.n_features)
+
+
+def test_load_dataset_with_chunks():
+    """Test that the chunk size is respected when loading the as a dataset."""
+    chunks = {"x": (128,), "y": (128,)}
+    X_image, _, _ = load_swo_ecoplot(as_dataset=True, chunks=chunks)
+
+    assert X_image.chunksizes == chunks
+
+
+def test_load_dataset_names_match():
+    """Test that the X names and order match between the image and dataframe."""
+    X_image, X, _ = load_swo_ecoplot(as_dataset=True)
+
+    assert list(X.columns) == list(X_image.data_vars)
