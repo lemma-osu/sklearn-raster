@@ -21,6 +21,18 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
+      - name: Cache data files
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/sknnr-spatial
+          key: data-${{ hashFiles('**/_registry.py') }}
+
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ hashFiles('**/pyproject.toml') }}
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
@@ -28,6 +40,7 @@ jobs:
 
       - name: Run tests
         run: hatch run test:all
+
   lint:
     runs-on: ubuntu-latest
 
