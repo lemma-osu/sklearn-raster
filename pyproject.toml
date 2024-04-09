@@ -15,7 +15,6 @@ authors = [
 keywords = []
 dependencies = [
     "numpy",
-    "xarray",
     "dask[diagnostics,dataframe]",
     "dask-ml>=2024.3.20",
     "scikit-learn",
@@ -24,6 +23,7 @@ dependencies = [
 [project.optional-dependencies]
 datasets = [
     "sknnr",
+    "xarray",
     "rioxarray", 
     "rasterio", 
     "pooch",

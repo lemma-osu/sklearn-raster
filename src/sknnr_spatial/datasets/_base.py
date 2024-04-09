@@ -5,7 +5,6 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-import xarray as xr
 from numpy.typing import NDArray
 
 from sknnr_spatial import __version__
@@ -16,6 +15,7 @@ try:
     import rasterio
     import rioxarray
     import sknnr.datasets
+    import xarray as xr
 except ImportError:
     msg = (
         "Using the datasets module to load data requires additional dependencies. "
