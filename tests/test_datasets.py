@@ -1,5 +1,6 @@
 import pickle
 from dataclasses import dataclass
+from typing import Any
 
 import pytest
 
@@ -9,7 +10,7 @@ from sknnr_spatial.datasets import load_swo_ecoplot
 @dataclass
 class DatasetConfiguration:
     load_function: callable
-    load_kwargs: dict
+    load_kwargs: dict[str, Any]
     image_size: tuple[int, int]
     n_samples: int
     n_targets: int
