@@ -15,13 +15,18 @@ authors = [
 keywords = []
 dependencies = [
     "numpy",
-    "xarray",
-    "rioxarray",
-    "rasterio",
     "dask[diagnostics,dataframe]",
     "dask-ml>=2024.3.20",
     "scikit-learn",
+]
+
+[project.optional-dependencies]
+datasets = [
     "sknnr",
+    "xarray",
+    "rioxarray", 
+    "rasterio", 
+    "pooch",
 ]
 
 [project.urls]
@@ -29,6 +34,9 @@ Homepage = "https://github.com/lemma-osu/sknnr-spatial"
 
 [tool.hatch.version]
 path = "src/sknnr_spatial/__init__.py"
+
+[tool.hatch.build]
+exclude = ["src/sknnr_spatial/datasets/data/"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/sknnr_spatial"]
@@ -40,12 +48,14 @@ include = ["/src"]
 dependencies = [
     "pre-commit",
     "ipykernel",
+    "sknnr-spatial[datasets]",
 ]
 
 [tool.hatch.envs.test]
 dependencies = [
     "pytest",
     "pytest-cov",
+    "sknnr-spatial[datasets]",
 ]
 
 [tool.hatch.envs.test.scripts]
