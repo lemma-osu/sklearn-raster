@@ -55,6 +55,7 @@ dependencies = [
 dependencies = [
     "pytest",
     "pytest-cov",
+    "sknnr-spatial[datasets]",
 ]
 
 [tool.hatch.envs.test.scripts]

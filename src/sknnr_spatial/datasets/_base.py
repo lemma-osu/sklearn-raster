@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -28,10 +29,8 @@ DATA_URL = "https://github.com/lemma-osu/sknnr-spatial/raw/{version}/src/sknnr_s
 # Dataset files and checksums for fetching with Pooch. Use `openssl sha256 <filename>`
 # to generate checksums for new files.
 registry = {
-    "swo_ecoplot_128x128.zip": "sha256:e95eab13a227322067efe6968966d16077129415fbbfdbfa"
-    "2326b3717042c641",
-    "swo_ecoplot_2048x4096.zip": "sha256:0a2f67a2849d78c3183ee1fc9f76ff107f4c63f262b623"
-    "06ca152de7f81710b3",
+    "swo_ecoplot_128x128.zip": "md5:17bb5df154f944e24d1ae465b40eabb0",
+    "swo_ecoplot_2048x4096.zip": "md5:c5da200670f1e4426b5f0ad5145790f0",
 }
 
 _data_fetcher = pooch.create(
@@ -46,7 +45,7 @@ _data_fetcher = pooch.create(
 
 
 def _load_rasters_to_dataset(
-    file_paths: list[str], *, var_names: list[str], chunks=None
+    file_paths: list[Path], *, var_names: list[str], chunks=None
 ) -> xr.Dataset:
     """Load a list of rasters from the data module as an xarray Dataset."""
     das = []
@@ -62,7 +61,7 @@ def _load_rasters_to_dataset(
     return xr.merge(das)
 
 
-def _load_rasters_to_array(file_paths: list[str]) -> NDArray:
+def _load_rasters_to_array(file_paths: list[Path]) -> NDArray:
     """Load a list of rasters as a numpy array."""
     arr = None
     for path in file_paths:
@@ -134,7 +133,7 @@ def load_swo_ecoplot(
     Load the 2048x4096 image data as an xarray Dataset:
 
     >>> X_image, X, y = load_swo_ecoplot(as_dataset=True, large_rasters=True)
-    >>> print(X_image.nbr.shape)
+    >>> print(X_image.NBR.shape)
     (2048, 4096)
 
     Reference
@@ -156,23 +155,18 @@ def load_swo_ecoplot(
         chunks = {"x": 64, "y": 64}
 
     data_id = f"swo_ecoplot_{data_size}.zip"
-    data_paths = _data_fetcher.fetch(data_id, processor=pooch.Unzip())
+    data_paths = map(Path, _data_fetcher.fetch(data_id, processor=pooch.Unzip()))
 
-    # Re-order the data paths to match the X columns. This assumes that they sort in the
-    # same order, which should be true as long as the file names and var names match.
-    path_map = dict(zip(sorted(X.columns), sorted(data_paths)))
-    data_paths = [path_map[var] for var in X.columns]
-
-    # TODO: This is currently broken because there are more paths than vars, causing
-    # them to mis-align. I need to get rid of the lat and lon rasters for this to work
+    # Sort data paths to match their order in the X dataframe
+    sorted_data_paths = sorted(data_paths, key=lambda x: X.columns.get_loc(x.stem))
 
     if as_dataset:
         X_image = _load_rasters_to_dataset(
-            data_paths,
+            sorted_data_paths,
             var_names=X.columns,
             chunks=chunks,
         )
     else:
-        X_image = _load_rasters_to_array(data_paths)
+        X_image = _load_rasters_to_array(sorted_data_paths)
 
     return X_image, X, y
