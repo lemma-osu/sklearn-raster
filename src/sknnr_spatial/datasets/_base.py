@@ -45,13 +45,7 @@ def _load_rasters_to_dataset(
     """Load a list of rasters as an xarray Dataset."""
     das = []
     for path, var_name in zip(file_paths, var_names):
-        da = (
-            rioxarray.open_rasterio(path, chunks=chunks)
-            .to_dataset(dim="band")
-            .rename({1: var_name})
-        )
-
-        das.append(da)
+        das.append(rioxarray.open_rasterio(path, chunks=chunks).rename(var_name))
 
     return xr.merge(das)
 
