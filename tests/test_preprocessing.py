@@ -3,11 +3,9 @@ import pytest
 import xarray as xr
 from numpy.testing import assert_array_equal
 
-from sknnr_spatial.preprocessing import (
-    DataArrayPreprocessor,
-    DatasetPreprocessor,
-    NDArrayPreprocessor,
-)
+from sknnr_spatial.image.dataarray import DataArrayPreprocessor
+from sknnr_spatial.image.dataset import DatasetPreprocessor
+from sknnr_spatial.image.ndarray import NDArrayPreprocessor
 
 """
 TODO
