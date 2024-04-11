@@ -10,7 +10,7 @@ import numpy as np
 import xarray as xr
 from numpy.typing import NDArray
 
-ImageType = TypeVar("ImageType", NDArray, xr.DataArray)
+ImageType = TypeVar("ImageType", NDArray, xr.DataArray, xr.Dataset)
 
 
 class _ImagePreprocessor(ABC):
@@ -91,7 +91,7 @@ class _ImagePreprocessor(ABC):
         """
 
     @abstractmethod
-    def unflatten(self, flat_image: ImageType, apply_mask: bool = True) -> ImageType:
+    def unflatten(self, flat_image: ImageType, *, apply_mask: bool = True) -> ImageType:
         """
         Reconstruct the x, y dimensions of a flattened image to the original shape.
         """
@@ -178,7 +178,7 @@ class NDArrayPreprocessor(_ImagePreprocessor):
         """Flatten the array from (y, x, bands) to (pixels, bands)."""
         return image.reshape(-1, self.n_bands)
 
-    def unflatten(self, flat_image: NDArray, apply_mask=True) -> NDArray:
+    def unflatten(self, flat_image: NDArray, *, apply_mask=True) -> NDArray:
         if apply_mask:
             flat_image = self._fill_nodata(flat_image, np.nan)
 
@@ -186,8 +186,30 @@ class NDArrayPreprocessor(_ImagePreprocessor):
 
 
 class DataArrayPreprocessor(_ImagePreprocessor):
+    """
+    Pre-processor for multi-band xr.DataArrays.
+    """
+
     _backend = da
     band_dim = 0
+
+    def _validate_nodata_vals(
+        self, nodata_vals: float | tuple[float] | NDArray | None
+    ) -> NDArray | None:
+        """
+        Get an array of NoData values in the shape (bands,) based on user input and
+        DataArray metadata.
+        """
+        # Defer to user-provided nodata values over stored attributes
+        if nodata_vals is not None:
+            return super()._validate_nodata_vals(nodata_vals)
+
+        # If present, broadcast the _FillValue attribute to all bands
+        fill_val = self.image.attrs.get("_FillValue")
+        if fill_val is not None:
+            return np.full((self.n_bands,), fill_val)
+
+        return None
 
     def _flatten(self, image: xr.DataArray) -> xr.DataArray:
         """Flatten the dataarray from (bands, y, x) to (pixels, bands)."""
@@ -197,9 +219,9 @@ class DataArrayPreprocessor(_ImagePreprocessor):
     def unflatten(
         self,
         flat_image: xr.DataArray,
+        *,
         apply_mask=True,
         var_names=None,
-        name=None,
     ) -> xr.DataArray:
         if apply_mask:
             flat_image = self._fill_nodata(flat_image, np.nan)
@@ -219,5 +241,61 @@ class DataArrayPreprocessor(_ImagePreprocessor):
             flat_image.T.reshape(shape),
             coords=coords,
             dims=dims,
-            name=name,
+        )
+
+
+class DatasetPreprocessor(DataArrayPreprocessor):
+    """
+    Pre-processor for multi-band xr.Datasets.
+
+    Unlike a DataArray, a Dataset will retrieve variable names and nodata values from
+    metadata, if possible.
+    """
+
+    def __init__(
+        self,
+        image: ImageType,
+        nodata_vals: float | tuple[float] | NDArray | None = None,
+        nan_fill: float | None = 0.0,
+    ):
+        # The image itself will be stored as a DataArray, but keep the Dataset for
+        # metadata like _FillValues.
+        self.dataset = image
+        super().__init__(image.to_dataarray(), nodata_vals, nan_fill)
+
+    def _validate_nodata_vals(
+        self, nodata_vals: float | tuple[float] | NDArray | None
+    ) -> NDArray | None:
+        """
+        Get an array of NoData values in the shape (bands,) based on user input and
+        Dataset metadata.
+        """
+        fill_vals = [
+            self.dataset[var].attrs.get("_FillValue") for var in self.dataset.data_vars
+        ]
+
+        # Defer to provided nodata vals first. Next, try using per-variable fill values.
+        # If at least one variable specifies a nodata value, use them all. Variables
+        # that didn't specify a fill value will be assigned None.
+        if nodata_vals is None and not all(v is None for v in fill_vals):
+            return np.array(fill_vals)
+
+        # Fall back to the DataArray logic for handling nodata
+        return super()._validate_nodata_vals(nodata_vals)
+
+    def unflatten(
+        self,
+        flat_image: xr.DataArray,
+        *,
+        apply_mask=True,
+        var_names=None,
+    ) -> xr.Dataset:
+        return (
+            super()
+            .unflatten(
+                flat_image,
+                apply_mask=apply_mask,
+                var_names=var_names,
+            )
+            .to_dataset(dim="variable")
         )

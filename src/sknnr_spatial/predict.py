@@ -10,29 +10,30 @@ from sklearn.base import BaseEstimator
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.utils.validation import check_is_fitted
 
-from sknnr_spatial.preprocessing import DataArrayPreprocessor, NDArrayPreprocessor
-
-"""
-TODO:
-- Probably add an xr.Dataset version that preserves names
-"""
+from sknnr_spatial.preprocessing import (
+    DataArrayPreprocessor,
+    DatasetPreprocessor,
+    NDArrayPreprocessor,
+)
 
 
 @singledispatch
 def predict(
-    X_image: NDArray | xr.DataArray, *, estimator: BaseEstimator, nodata_vals=None
+    X_image: NDArray | xr.DataArray | xr.Dataset,
+    *,
+    estimator: BaseEstimator,
+    nodata_vals=None,
 ) -> None:
     raise NotImplementedError
 
 
 @singledispatch
 def kneighbors(
-    X_image: NDArray | xr.DataArray,
+    X_image: NDArray | xr.DataArray | xr.Dataset,
     *,
     estimator: KNeighborsRegressor,
-    return_distance=True,
-    return_dataframe_index=False,
     nodata_vals=None,
+    **kneighbors_kwargs,
 ) -> None:
     raise NotImplementedError
 
@@ -56,17 +57,17 @@ def _kneighbors_from_ndarray(
     X_image: NDArray,
     *,
     estimator: KNeighborsRegressor,
-    return_distance=True,
-    return_dataframe_index=False,
     nodata_vals=None,
+    **kneighbors_kwargs,
 ) -> NDArray:
     check_is_fitted(estimator)
     preprocessor = NDArrayPreprocessor(X_image, nodata_vals=nodata_vals)
+    return_distance = kneighbors_kwargs.pop("return_distance", True)
 
     result = estimator.kneighbors(
         preprocessor.flat,
-        return_distance=return_distance,
-        return_dataframe_index=return_dataframe_index,
+        return_distance=True,
+        **kneighbors_kwargs,
     )
     if return_distance:
         dist, nn = result
@@ -83,8 +84,39 @@ def _kneighbors_from_ndarray(
 def _predict_from_dataarray(
     X_image: xr.DataArray, *, estimator: BaseEstimator, y, nodata_vals=None
 ) -> xr.DataArray:
+    return _predict_from_dask_backed_array(
+        X_image,
+        estimator=estimator,
+        y=y,
+        nodata_vals=nodata_vals,
+        preprocessor_cls=DataArrayPreprocessor,
+    )
+
+
+@predict.register(xr.Dataset)
+def _predict_from_dataset(
+    X_image: xr.Dataset, *, estimator: BaseEstimator, y, nodata_vals=None
+) -> xr.Dataset:
+    return _predict_from_dask_backed_array(
+        X_image,
+        estimator=estimator,
+        y=y,
+        nodata_vals=nodata_vals,
+        preprocessor_cls=DatasetPreprocessor,
+    )
+
+
+def _predict_from_dask_backed_array(
+    X_image: xr.DataArray | xr.Dataset,
+    *,
+    estimator: BaseEstimator,
+    y,
+    preprocessor_cls: type[DataArrayPreprocessor] | type[DatasetPreprocessor],
+    nodata_vals=None,
+):
+    """Generic predict wrapper for Dask-backed arrays."""
     check_is_fitted(estimator)
-    preprocessor = DataArrayPreprocessor(X_image, nodata_vals=nodata_vals)
+    preprocessor = preprocessor_cls(X_image, nodata_vals=nodata_vals)
 
     y_pred = da.apply_gufunc(
         estimator.predict,
@@ -96,19 +128,54 @@ def _predict_from_dataarray(
         allow_rechunk=True,
     )
 
-    return preprocessor.unflatten(y_pred, var_names=y.columns, name="pred")
+    return preprocessor.unflatten(y_pred, var_names=y.columns)
+
+
+@kneighbors.register(xr.Dataset)
+def _kneighbors_from_dataset(
+    X_image: xr.Dataset,
+    *,
+    estimator: KNeighborsRegressor,
+    nodata_vals=None,
+    **kneighbors_kwargs,
+) -> xr.Dataset:
+    return _kneighbors_from_dask_backed_array(
+        X_image,
+        estimator=estimator,
+        nodata_vals=nodata_vals,
+        preprocessor_cls=DatasetPreprocessor,
+        **kneighbors_kwargs,
+    )
 
 
 @kneighbors.register(xr.DataArray)
 def _kneighbors_from_dataarray(
+    X_image: xr.Dataset,
+    *,
+    estimator: KNeighborsRegressor,
+    nodata_vals=None,
+    **kneighbors_kwargs,
+) -> xr.Dataset:
+    return _kneighbors_from_dask_backed_array(
+        X_image,
+        estimator=estimator,
+        nodata_vals=nodata_vals,
+        preprocessor_cls=DataArrayPreprocessor,
+        **kneighbors_kwargs,
+    )
+
+
+def _kneighbors_from_dask_backed_array(
     X_image: xr.DataArray,
     *,
-    estimator: BaseEstimator,
+    estimator: KNeighborsRegressor,
+    preprocessor_cls: type[DataArrayPreprocessor] | type[DatasetPreprocessor],
     nodata_vals=None,
     **kneighbors_kwargs,
 ) -> xr.DataArray:
+    """Generic kneighbors wrapper for Dask-backed arrays."""
     check_is_fitted(estimator)
-    preprocessor = DataArrayPreprocessor(X_image, nodata_vals=nodata_vals)
+    preprocessor = preprocessor_cls(X_image, nodata_vals=nodata_vals)
     return_distance = kneighbors_kwargs.pop("return_distance", True)
 
     k = estimator.n_neighbors
@@ -133,9 +200,9 @@ def _kneighbors_from_dataarray(
     if return_distance:
         dist, nn = result
 
-        dist = preprocessor.unflatten(dist, var_names=var_names, name="dist")
-        nn = preprocessor.unflatten(nn, var_names=var_names, name="nn")
+        dist = preprocessor.unflatten(dist, var_names=var_names)
+        nn = preprocessor.unflatten(nn, var_names=var_names)
 
         return dist, nn
 
-    return preprocessor.unflatten(result, var_names=var_names, name="nn")
+    return preprocessor.unflatten(result, var_names=var_names)

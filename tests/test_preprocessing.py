@@ -1,12 +1,18 @@
 import numpy as np
 import pytest
+import xarray as xr
 from numpy.testing import assert_array_equal
 
-from sknnr_spatial.preprocessing import NDArrayPreprocessor
+from sknnr_spatial.preprocessing import (
+    DataArrayPreprocessor,
+    DatasetPreprocessor,
+    NDArrayPreprocessor,
+)
 
 """
 TODO
-- Figure out how to efficiently test the Dask preprocessor. We could easily swap Numpy arrays for Dask arrays, but xarray.DataArray is trickier
+- Figure out how to efficiently test the Dask preprocessor. We could easily swap Numpy 
+arrays for Dask arrays, but xarray.DataArray is trickier
 """
 
 
@@ -121,3 +127,65 @@ def test_nodata_multiple_values():
 
     preproc = NDArrayPreprocessor(a, nodata_vals=nodata_vals)
     assert preproc.nodata_vals.tolist() == nodata_vals
+
+
+@pytest.mark.parametrize("nodata_vals", [None, -32768])
+def test_nodata_dataarray_fillvalue(nodata_vals):
+    """Test that a _FillValue in a DataArray is broadcast if nodata is not provided."""
+    n_bands = 3
+    fill_val = -99
+
+    da = xr.DataArray(np.ones((n_bands, 2, 2))).assign_attrs({"_FillValue": fill_val})
+    preproc = DataArrayPreprocessor(da, nodata_vals=nodata_vals)
+
+    # _FillValue should be ignored if nodata_vals is provided
+    if nodata_vals is not None:
+        assert preproc.nodata_vals.tolist() == [nodata_vals] * n_bands
+    else:
+        assert preproc.nodata_vals.tolist() == [fill_val] * n_bands
+
+
+@pytest.mark.parametrize(
+    "nodata_vals", [None, -32768], ids=["without_nodata", "with_nodata"]
+)
+@pytest.mark.parametrize(
+    "fill_vals", [[1, 2, 3], [None, 1, None]], ids=["no_nones", "some_nones"]
+)
+def test_nodata_dataset_some_fillvalues(nodata_vals, fill_vals):
+    """Test that band-wise _FillValues are applied if some exist"""
+    n_bands = 3
+    das = [xr.DataArray(np.ones((n_bands, 2, 2))) for i in range(n_bands)]
+
+    # Assign per-band fill values
+    for i, fill_val in enumerate(fill_vals):
+        das[i] = das[i].assign_attrs({"_FillValue": fill_val}).rename(i)
+
+    ds = xr.merge(das)
+    preproc = DatasetPreprocessor(ds, nodata_vals=nodata_vals)
+
+    # _FillValue should be ignored if nodata_vals is provided
+    if nodata_vals is not None:
+        assert preproc.nodata_vals.tolist() == [nodata_vals] * n_bands
+    # Nodata vals should match the fill values, even if some are None
+    else:
+        assert preproc.nodata_vals.tolist() == fill_vals
+
+
+@pytest.mark.parametrize(
+    "nodata_vals", [None, -32768], ids=["without_nodata", "with_nodata"]
+)
+def test_nodata_dataset_global_fillvalue(nodata_vals):
+    """Test that a global _FillValue is broadcast if per-band don't exist."""
+    n_bands = 3
+    global_fill_val = 42
+    das = [xr.DataArray(np.ones((n_bands, 2, 2))).rename(i) for i in range(n_bands)]
+
+    ds = xr.merge(das).assign_attrs({"_FillValue": global_fill_val})
+    preproc = DatasetPreprocessor(ds, nodata_vals=nodata_vals)
+
+    # _FillValue should be ignored if nodata_vals is provided
+    if nodata_vals is not None:
+        assert preproc.nodata_vals.tolist() == [nodata_vals] * n_bands
+    # The global fill value should be used when per-band fill values are unavailable
+    else:
+        assert preproc.nodata_vals.tolist() == [global_fill_val] * n_bands
