@@ -1,10 +1,16 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import numpy as np
-from numpy.typing import NDArray
-from sklearn.base import BaseEstimator
-from sklearn.neighbors import KNeighborsRegressor
 from sklearn.utils.validation import check_is_fitted
 
 from ._base import ImagePreprocessor, kneighbors, predict
+
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
+    from sklearn.base import BaseEstimator
+    from sklearn.neighbors import KNeighborsRegressor
 
 
 class NDArrayPreprocessor(ImagePreprocessor):
@@ -17,7 +23,9 @@ class NDArrayPreprocessor(ImagePreprocessor):
 
     def _flatten(self, image: NDArray) -> NDArray:
         """Flatten the array from (y, x, bands) to (pixels, bands)."""
-        return image.reshape(-1, self.n_bands)
+        # Reshape typically returns a view rather than a copy. To avoid modifying the
+        # original input array during masking and filling, make the flat array a copy.
+        return image.reshape(-1, self.n_bands).copy()
 
     def unflatten(self, flat_image: NDArray, *, apply_mask=True) -> NDArray:
         if apply_mask:

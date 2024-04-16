@@ -4,15 +4,17 @@ from abc import ABC, abstractmethod
 from collections.abc import Sized
 from functools import singledispatch
 from types import ModuleType
-from typing import TypeVar
+from typing import TYPE_CHECKING
 
 import numpy as np
-import xarray as xr
 from numpy.typing import NDArray
-from sklearn.base import BaseEstimator
-from sklearn.neighbors import KNeighborsRegressor
 
-ImageType = TypeVar("ImageType", NDArray, xr.DataArray, xr.Dataset)
+if TYPE_CHECKING:
+    import xarray as xr
+    from sklearn.base import BaseEstimator
+    from sklearn.neighbors import KNeighborsRegressor
+
+    from ..types import ImageType
 
 
 class ImagePreprocessor(ABC):

@@ -3,24 +3,25 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import dask.array as da
-import xarray as xr
-from sklearn.base import BaseEstimator
-from sklearn.neighbors import KNeighborsRegressor
 from sklearn.utils.validation import check_is_fitted
 
 if TYPE_CHECKING:
+    from sklearn.base import BaseEstimator
+    from sklearn.neighbors import KNeighborsRegressor
+
+    from ..types import DaskBackedType
     from .dataarray import DataArrayPreprocessor
     from .dataset import DatasetPreprocessor
 
 
-def _predict_from_dask_backed_array(
-    X_image: xr.DataArray | xr.Dataset,
+def predict_from_dask_backed_array(
+    X_image: DaskBackedType,
     *,
     estimator: BaseEstimator,
     y,
     preprocessor_cls: type[DataArrayPreprocessor] | type[DatasetPreprocessor],
     nodata_vals=None,
-):
+) -> DaskBackedType:
     """Generic predict wrapper for Dask-backed arrays."""
     check_is_fitted(estimator)
     preprocessor = preprocessor_cls(X_image, nodata_vals=nodata_vals)
@@ -38,14 +39,14 @@ def _predict_from_dask_backed_array(
     return preprocessor.unflatten(y_pred, var_names=y.columns)
 
 
-def _kneighbors_from_dask_backed_array(
-    X_image: xr.DataArray,
+def kneighbors_from_dask_backed_array(
+    X_image: DaskBackedType,
     *,
     estimator: KNeighborsRegressor,
     preprocessor_cls: type[DataArrayPreprocessor] | type[DatasetPreprocessor],
     nodata_vals=None,
     **kneighbors_kwargs,
-) -> xr.DataArray:
+) -> DaskBackedType:
     """Generic kneighbors wrapper for Dask-backed arrays."""
     check_is_fitted(estimator)
     preprocessor = preprocessor_cls(X_image, nodata_vals=nodata_vals)
