@@ -177,7 +177,8 @@ def predict(
     estimator: BaseEstimator,
     nodata_vals=None,
 ) -> None:
-    raise NotImplementedError
+    msg = f"predict is not implemented for type `{X_image.__class__.__name__}`."
+    raise NotImplementedError(msg)
 
 
 @singledispatch
@@ -188,4 +189,5 @@ def kneighbors(
     nodata_vals=None,
     **kneighbors_kwargs,
 ) -> None:
-    raise NotImplementedError
+    msg = f"kneighbors is not implemented for type `{X_image.__class__.__name__}`."
+    raise NotImplementedError(msg)
