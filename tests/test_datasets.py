@@ -95,4 +95,4 @@ def test_load_dataset_missing_imports(missing_import):
         del sys.modules["sknnr_spatial.datasets._base"]
 
         with pytest.raises(ImportError, match=msg):
-            pass
+            from sknnr_spatial.datasets import load_swo_ecoplot  # noqa: F401

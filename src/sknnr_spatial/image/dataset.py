@@ -77,7 +77,7 @@ class DatasetPreprocessor(DataArrayPreprocessor):
 
 @predict.register(xr.Dataset)
 def _predict_from_dataset(
-    X_image: xr.Dataset, *, estimator: BaseEstimator, y, nodata_vals=None
+    X_image: xr.Dataset, *, estimator: BaseEstimator, y=None, nodata_vals=None
 ) -> xr.Dataset:
     return predict_from_dask_backed_array(
         X_image,

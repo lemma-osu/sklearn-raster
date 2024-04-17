@@ -79,7 +79,7 @@ class DataArrayPreprocessor(ImagePreprocessor):
 
 @predict.register(xr.DataArray)
 def _predict_from_dataarray(
-    X_image: xr.DataArray, *, estimator: BaseEstimator, y, nodata_vals=None
+    X_image: xr.DataArray, *, estimator: BaseEstimator, y=None, nodata_vals=None
 ) -> xr.DataArray:
     return predict_from_dask_backed_array(
         X_image,

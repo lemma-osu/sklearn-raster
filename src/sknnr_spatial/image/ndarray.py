@@ -62,7 +62,7 @@ def _kneighbors_from_ndarray(
 
     result = estimator.kneighbors(
         preprocessor.flat,
-        return_distance=True,
+        return_distance=return_distance,
         **kneighbors_kwargs,
     )
     if return_distance:
