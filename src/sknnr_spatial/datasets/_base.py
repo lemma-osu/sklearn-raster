@@ -67,7 +67,8 @@ def load_swo_ecoplot(
     large_rasters: bool = False,
     chunks: Any = None,
 ) -> tuple[NDArray | xr.Dataset, pd.DataFrame, pd.DataFrame]:
-    """Load the southwest Oregon (SWO) USFS Region 6 Ecoplot dataset.
+    """
+    Load the southwest Oregon (SWO) USFS Region 6 Ecoplot dataset.
 
     The dataset contains:
 

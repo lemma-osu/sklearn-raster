@@ -10,7 +10,6 @@ import numpy as np
 from numpy.typing import NDArray
 
 if TYPE_CHECKING:
-    import xarray as xr
     from sklearn.base import BaseEstimator
     from sklearn.neighbors import KNeighborsRegressor
 
@@ -19,10 +18,10 @@ if TYPE_CHECKING:
 
 class ImagePreprocessor(ABC):
     """
-    A pre-processor for multi-channel image data in a machine learning workflow.
+    A pre-processor for multi-band image data in a machine learning workflow.
 
-    This class handles flattening an image from 3D pixel space (e.g. y, x, channel)
-    to 2D sample space (sample, channel) to allow prediction and other operations
+    This class handles flattening an image from 3D pixel space (e.g. y, x, band)
+    to 2D sample space (sample, band) to allow prediction and other operations
     with scikit-learn estimators designed for sample data, and unflattening to
     convert scikit-learn outputs from sample space back to pixel space.
 
@@ -41,7 +40,7 @@ class ImagePreprocessor(ABC):
         for each band in the image. For float images, np.nan will always be treated
         as NoData.
     nan_fill : float | None, default 0.0
-        If not none, NaN values in the flattened image will be filled with this
+        If not None, NaN values in the flattened image will be filled with this
         value. This is important when passing flattened arrays into scikit-learn
         estimators that prohibit NaN values.
 
@@ -83,22 +82,15 @@ class ImagePreprocessor(ABC):
 
     @property
     def n_bands(self) -> int:
-        """
-        Return the number of bands in the image.
-        """
         return self.image.shape[self.band_dim]
 
     @abstractmethod
     def _flatten(self, image: ImageType) -> ImageType:
-        """
-        Ravel the image's x, y dimensions while keeping the band dimension.
-        """
+        """Ravel the image's x, y dimensions while keeping the band dimension."""
 
     @abstractmethod
     def unflatten(self, flat_image: ImageType, *, apply_mask: bool = True) -> ImageType:
-        """
-        Reconstruct the x, y dimensions of a flattened image to the original shape.
-        """
+        """Reconstruct the x, y dims of a flattened image to the original shape."""
 
     def _get_nodata_mask(self, flat_image: ImageType) -> ImageType | None:
         """
@@ -106,7 +98,7 @@ class ImagePreprocessor(ABC):
 
         NoData values are represented by True in the output array.
         """
-        # Skip allocating a mask if the image is float and nodata wasn't given
+        # Skip allocating a mask if the image is float and NoData wasn't given
         if not (is_float := flat_image.dtype.kind == "f") and self.nodata_vals is None:
             return None
 
@@ -116,11 +108,11 @@ class ImagePreprocessor(ABC):
         if is_float:
             mask |= self._backend.isnan(flat_image)
 
-        # If nodata was specified, mask those values
+        # If NoData was specified, mask those values
         if self.nodata_vals is not None:
             mask |= flat_image == self.nodata_vals
 
-        # Set the mask where any band contains nodata
+        # Set the mask where any band contains NoData
         return mask.max(axis=self.flat_band_dim)
 
     def _validate_nodata_vals(
@@ -140,7 +132,7 @@ class ImagePreprocessor(ABC):
         if isinstance(nodata_vals, (float, int)) and not isinstance(nodata_vals, bool):
             return np.full((self.n_bands,), nodata_vals)
 
-        # If it's not a scalar, it must be an interable
+        # If it's not a scalar, it must be an iterable
         if not isinstance(nodata_vals, Sized) or isinstance(nodata_vals, (str, dict)):
             raise TypeError(
                 f"Invalid type `{type(nodata_vals).__name__}` for `nodata_vals`. "
@@ -151,7 +143,7 @@ class ImagePreprocessor(ABC):
         # If it's an iterable, it must contain one element per band
         if len(nodata_vals) != self.n_bands:
             raise ValueError(
-                f"Expected {self.n_bands} nodata values but got {len(nodata_vals)}. "
+                f"Expected {self.n_bands} NoData values but got {len(nodata_vals)}. "
                 f"The length of `nodata_vals` must match the number of bands."
             )
 
@@ -172,7 +164,7 @@ class ImagePreprocessor(ABC):
 
 @singledispatch
 def predict(
-    X_image: NDArray | xr.DataArray | xr.Dataset,
+    X_image: ImageType,
     *,
     estimator: BaseEstimator,
     nodata_vals=None,
@@ -183,7 +175,7 @@ def predict(
 
 @singledispatch
 def kneighbors(
-    X_image: NDArray | xr.DataArray | xr.Dataset,
+    X_image: ImageType,
     *,
     estimator: KNeighborsRegressor,
     nodata_vals=None,

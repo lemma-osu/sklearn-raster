@@ -34,7 +34,6 @@ def predict_from_dask_backed_array(
 
     try:
         n_targets = _infer_num_targets(y, estimator)
-        target_names = _infer_target_names(y, n_targets)
     except TargetInferenceError:
         msg = (
             "The number of targets could not be inferred from the estimator. Pass a "
@@ -42,6 +41,7 @@ def predict_from_dask_backed_array(
         )
         raise ValueError(msg) from None
 
+    target_names = _infer_target_names(y, n_targets)
     y_pred = da.apply_gufunc(
         estimator.predict,
         "(x)->(y)",
@@ -107,10 +107,9 @@ def _infer_target_names(y: NDArray | pd.DataFrame | None, n_targets: int) -> lis
 
 
 def _infer_num_targets(y, estimator: BaseEstimator) -> int:
-    """
-    scikit-learn doesn't have a consistent standard for storing the number of targets
-    in a fitted estimator, but there are a number of common places we can look.
-    """
+    # scikit-learn doesn't have a consistent standard for storing the number of targets
+    # in a fitted estimator, but there are a number of common places we can look.
+
     if y is not None:
         return y.shape[-1]
 

@@ -14,9 +14,7 @@ if TYPE_CHECKING:
 
 
 class NDArrayPreprocessor(ImagePreprocessor):
-    """
-    Pre-processor multi-band NumPy NDArrays.
-    """
+    """Pre-processor for multi-band NumPy NDArrays."""
 
     _backend = np
     band_dim = -1

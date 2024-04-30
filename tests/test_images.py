@@ -12,7 +12,7 @@ from .image_utils import TestImageType, parametrize_image_types, unwrap, wrap
 
 @parametrize_image_types
 def test_input_array_not_mutated(image_type):
-    """Ensure that the preprocessing an image doesn't alter it."""
+    """Ensure that preprocessing an image doesn't alter it."""
     array = np.array([[[0, 1]], [[1, np.nan]]])
     original_array = array.copy()
 
@@ -101,10 +101,10 @@ def test_skip_nodata_mask_if_unneeded():
 
 
 def test_nodata_mask_one_band_masks_all():
-    """If one band is nodata, those pixels should be masked."""
+    """If one band is NoData, those pixels should be masked."""
     nodata = 99
 
-    # Build an array with nodata values for one of the 3 bands
+    # Build an array with NoData values for one of the 3 bands
     a = np.ones((2, 2, 3))
     a[..., 0] = nodata
 
@@ -117,7 +117,7 @@ def test_nodata_mask_one_band_masks_all():
 
 @pytest.mark.parametrize("nodata_vals", ["test", {}, False], ids=type)
 def test_nodata_validates_type(nodata_vals):
-    """Test that invalid nodata types are recognized."""
+    """Test that invalid NoData types are recognized."""
     a = np.zeros((2, 2, 3))
 
     with pytest.raises(TypeError, match=f"Invalid type `{type(nodata_vals).__name__}`"):
@@ -125,16 +125,16 @@ def test_nodata_validates_type(nodata_vals):
 
 
 def test_nodata_validates_length():
-    """Test that invalid nodata lengths are recognized."""
+    """Test that invalid NoData lengths are recognized."""
     n_bands = 3
     a = np.zeros((2, 2, n_bands))
 
-    with pytest.raises(ValueError, match=f"Expected {n_bands} nodata values but got 1"):
+    with pytest.raises(ValueError, match=f"Expected {n_bands} NoData values but got 1"):
         NDArrayPreprocessor(a, nodata_vals=[-32768])
 
 
 def test_nodata_single_value():
-    """Test that a single nodata value is broadcast to all bands."""
+    """Test that a single NoData value is broadcast to all bands."""
     n_bands = 3
     nodata_val = -32768
     a = np.zeros((2, 2, n_bands))
@@ -144,7 +144,7 @@ def test_nodata_single_value():
 
 
 def test_nodata_multiple_values():
-    """Test that multiple nodata values are correctly stored."""
+    """Test that multiple NoData values are correctly stored."""
     n_bands = 3
     nodata_vals = [-32768, 0, 255]
     a = np.zeros((2, 2, n_bands))
@@ -155,7 +155,7 @@ def test_nodata_multiple_values():
 
 @pytest.mark.parametrize("nodata_vals", [None, -32768])
 def test_nodata_dataarray_fillvalue(nodata_vals):
-    """Test that a _FillValue in a DataArray is broadcast if nodata is not provided."""
+    """Test that a _FillValue in a DataArray is broadcast if NoData is not provided."""
     n_bands = 3
     fill_val = -99
 

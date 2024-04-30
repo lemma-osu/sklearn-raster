@@ -19,9 +19,7 @@ if TYPE_CHECKING:
 
 
 class DataArrayPreprocessor(ImagePreprocessor):
-    """
-    Pre-processor for multi-band xr.DataArrays.
-    """
+    """Pre-processor for multi-band xr.DataArrays."""
 
     _backend = da
     band_dim = 0
@@ -33,7 +31,7 @@ class DataArrayPreprocessor(ImagePreprocessor):
         Get an array of NoData values in the shape (bands,) based on user input and
         DataArray metadata.
         """
-        # Defer to user-provided nodata values over stored attributes
+        # Defer to user-provided NoData values over stored attributes
         if nodata_vals is not None:
             return super()._validate_nodata_vals(nodata_vals)
 
@@ -85,8 +83,8 @@ def _predict_from_dataarray(
         X_image,
         estimator=estimator,
         y=y,
-        nodata_vals=nodata_vals,
         preprocessor_cls=DataArrayPreprocessor,
+        nodata_vals=nodata_vals,
     )
 
 
@@ -101,7 +99,7 @@ def _kneighbors_from_dataarray(
     return kneighbors_from_dask_backed_array(
         X_image,
         estimator=estimator,
-        nodata_vals=nodata_vals,
         preprocessor_cls=DataArrayPreprocessor,
+        nodata_vals=nodata_vals,
         **kneighbors_kwargs,
     )

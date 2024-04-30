@@ -22,7 +22,7 @@ class DatasetPreprocessor(DataArrayPreprocessor):
     """
     Pre-processor for multi-band xr.Datasets.
 
-    Unlike a DataArray, a Dataset will retrieve variable names and nodata values from
+    Unlike a DataArray, a Dataset will retrieve variable names and NoData values from
     metadata, if possible.
     """
 
@@ -48,13 +48,13 @@ class DatasetPreprocessor(DataArrayPreprocessor):
             self.dataset[var].attrs.get("_FillValue") for var in self.dataset.data_vars
         ]
 
-        # Defer to provided nodata vals first. Next, try using per-variable fill values.
-        # If at least one variable specifies a nodata value, use them all. Variables
+        # Defer to provided NoData vals first. Next, try using per-variable fill values.
+        # If at least one variable specifies a NoData value, use them all. Variables
         # that didn't specify a fill value will be assigned None.
         if nodata_vals is None and not all(v is None for v in fill_vals):
             return np.array(fill_vals)
 
-        # Fall back to the DataArray logic for handling nodata
+        # Fall back to the DataArray logic for handling NoData
         return super()._validate_nodata_vals(nodata_vals)
 
     def unflatten(
@@ -83,8 +83,8 @@ def _predict_from_dataset(
         X_image,
         estimator=estimator,
         y=y,
-        nodata_vals=nodata_vals,
         preprocessor_cls=DatasetPreprocessor,
+        nodata_vals=nodata_vals,
     )
 
 
@@ -99,7 +99,7 @@ def _kneighbors_from_dataset(
     return kneighbors_from_dask_backed_array(
         X_image,
         estimator=estimator,
-        nodata_vals=nodata_vals,
         preprocessor_cls=DatasetPreprocessor,
+        nodata_vals=nodata_vals,
         **kneighbors_kwargs,
     )
