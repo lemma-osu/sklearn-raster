@@ -7,7 +7,12 @@ from sklearn.neighbors import KNeighborsRegressor
 
 from sknnr_spatial import kneighbors, predict
 
-from .image_utils import parametrize_image_types, unwrap, wrap
+from .image_utils import (
+    parametrize_image_types,
+    parametrize_xarray_image_types,
+    unwrap,
+    wrap,
+)
 
 
 @pytest.fixture()
@@ -80,3 +85,22 @@ def test_predict_dataarray_with_custom_dim_name(dummy_model_data):
     y_pred = unwrap(predict(X_wrapped, estimator=estimator))
     assert y_pred.ndim == 3
     assert_array_equal(y_pred.shape, (X_image.shape[0], X_image.shape[1], y.shape[-1]))
+
+
+@parametrize_xarray_image_types
+@pytest.mark.parametrize("crs", ["EPSG:5070", None])
+def test_crs_preserved(dummy_model_data, image_type, crs):
+    """Test that the original image CRS is preserved."""
+    X_image, X, y = dummy_model_data
+    estimator = KNeighborsRegressor().fit(X, y)
+    X_wrapped = wrap(X_image, type=image_type.cls)
+
+    if crs:
+        X_wrapped = X_wrapped.rio.write_crs(crs)
+
+    y_pred = predict(X_wrapped, estimator=estimator)
+    dist, nn = kneighbors(X_wrapped, estimator=estimator, return_distance=True)
+
+    assert y_pred.rio.crs == crs
+    assert dist.rio.crs == crs
+    assert nn.rio.crs == crs

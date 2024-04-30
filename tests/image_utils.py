@@ -54,6 +54,15 @@ parametrize_image_types = pytest.mark.parametrize(
     ids=lambda t: t.name,
 )
 
+parametrize_xarray_image_types = pytest.mark.parametrize(
+    "image_type",
+    [
+        TestImageType(xr.DataArray, DataArrayPreprocessor),
+        TestImageType(xr.Dataset, DatasetPreprocessor),
+    ],
+    ids=lambda t: t.name,
+)
+
 
 def wrap(image: NDArray, type: type[ImageType]) -> ImageType:
     """Wrap a Numpy NDArray image (y, x, bands) into the specified type."""
