@@ -62,8 +62,9 @@ class DataArrayPreprocessor(ImagePreprocessor):
         var_names = var_names if var_names is not None else range(n_outputs)
 
         # Replace the original variable coordinates and dimensions
-        dims = {**self.image.sizes, "variable": n_outputs}
-        coords = {**self.image.coords, "variable": var_names}
+        band_dim_name = self.image.dims[self.band_dim]
+        dims = {**self.image.sizes, band_dim_name: n_outputs}
+        coords = {**self.image.coords, band_dim_name: var_names}
         shape = list(dims.values())
 
         return xr.DataArray(

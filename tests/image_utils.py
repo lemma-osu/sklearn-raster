@@ -93,7 +93,9 @@ def _unwrap_ndarray(image: np.ndarray) -> NDArray:
 
 @unwrap.register(xr.DataArray)
 def _unwrap_dataarray(image: xr.DataArray) -> NDArray:
-    return image.transpose("y", "x", "variable").values
+    band_dim_name = image.dims[0]
+
+    return image.transpose("y", "x", band_dim_name).values
 
 
 @unwrap.register(xr.Dataset)

@@ -1,5 +1,6 @@
 import numpy as np
 import pytest
+import xarray as xr
 from numpy.testing import assert_array_equal
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.neighbors import KNeighborsRegressor
@@ -68,3 +69,14 @@ def test_kneighbors_without_distance(dummy_model_data, image_type):
     assert nn.ndim == 3
 
     assert_array_equal(nn.shape, (X_image.shape[0], X_image.shape[1], k))
+
+
+def test_predict_dataarray_with_custom_dim_name(dummy_model_data):
+    """Test that predict works if the band dimension is not named "variable"."""
+    X_image, X, y = dummy_model_data
+    estimator = KNeighborsRegressor().fit(X, y)
+    X_wrapped = wrap(X_image, type=xr.DataArray).rename({"variable": "band"})
+
+    y_pred = unwrap(predict(X_wrapped, estimator=estimator))
+    assert y_pred.ndim == 3
+    assert_array_equal(y_pred.shape, (X_image.shape[0], X_image.shape[1], y.shape[-1]))
