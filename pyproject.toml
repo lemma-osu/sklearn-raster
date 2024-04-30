@@ -16,7 +16,6 @@ keywords = []
 dependencies = [
     "numpy",
     "dask[diagnostics,dataframe]",
-    "dask-ml>=2024.3.20",
     "scikit-learn",
 ]
 
