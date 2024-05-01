@@ -1,0 +1,105 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+import numpy as np
+import xarray as xr
+
+from ._base import kneighbors, predict
+from ._dask_backed import (
+    kneighbors_from_dask_backed_array,
+    predict_from_dask_backed_array,
+)
+from .dataarray import DataArrayPreprocessor
+
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
+    from sklearn.base import BaseEstimator
+    from sklearn.neighbors import KNeighborsRegressor
+
+
+class DatasetPreprocessor(DataArrayPreprocessor):
+    """
+    Pre-processor for multi-band xr.Datasets.
+
+    Unlike a DataArray, a Dataset will retrieve variable names and NoData values from
+    metadata, if possible.
+    """
+
+    def __init__(
+        self,
+        image: xr.Dataset,
+        nodata_vals: float | tuple[float] | NDArray | None = None,
+        nan_fill: float | None = 0.0,
+    ):
+        # The image itself will be stored as a DataArray, but keep the Dataset for
+        # metadata like _FillValues.
+        self.dataset = image
+        super().__init__(image.to_dataarray(), nodata_vals, nan_fill)
+
+    def _validate_nodata_vals(
+        self, nodata_vals: float | tuple[float] | NDArray | None
+    ) -> NDArray | None:
+        """
+        Get an array of NoData values in the shape (bands,) based on user input and
+        Dataset metadata.
+        """
+        fill_vals = [
+            self.dataset[var].attrs.get("_FillValue") for var in self.dataset.data_vars
+        ]
+
+        # Defer to provided NoData vals first. Next, try using per-variable fill values.
+        # If at least one variable specifies a NoData value, use them all. Variables
+        # that didn't specify a fill value will be assigned None.
+        if nodata_vals is None and not all(v is None for v in fill_vals):
+            return np.array(fill_vals)
+
+        # Fall back to the DataArray logic for handling NoData
+        return super()._validate_nodata_vals(nodata_vals)
+
+    def unflatten(
+        self,
+        flat_image: xr.DataArray,
+        *,
+        apply_mask=True,
+        var_names=None,
+    ) -> xr.Dataset:
+        return (
+            super()
+            .unflatten(
+                flat_image,
+                apply_mask=apply_mask,
+                var_names=var_names,
+            )
+            .to_dataset(dim="variable")
+        )
+
+
+@predict.register(xr.Dataset)
+def _predict_from_dataset(
+    X_image: xr.Dataset, *, estimator: BaseEstimator, y=None, nodata_vals=None
+) -> xr.Dataset:
+    return predict_from_dask_backed_array(
+        X_image,
+        estimator=estimator,
+        y=y,
+        preprocessor_cls=DatasetPreprocessor,
+        nodata_vals=nodata_vals,
+    )
+
+
+@kneighbors.register(xr.Dataset)
+def _kneighbors_from_dataset(
+    X_image: xr.Dataset,
+    *,
+    estimator: KNeighborsRegressor,
+    nodata_vals=None,
+    **kneighbors_kwargs,
+) -> xr.Dataset:
+    return kneighbors_from_dask_backed_array(
+        X_image,
+        estimator=estimator,
+        preprocessor_cls=DatasetPreprocessor,
+        nodata_vals=nodata_vals,
+        **kneighbors_kwargs,
+    )

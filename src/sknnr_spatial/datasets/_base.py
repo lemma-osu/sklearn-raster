@@ -45,12 +45,7 @@ def _load_rasters_to_dataset(
     """Load a list of rasters as an xarray Dataset."""
     das = []
     for path, var_name in zip(file_paths, var_names):
-        da = (
-            rioxarray.open_rasterio(path, chunks=chunks)
-            .to_dataset(dim="band")
-            .rename({1: var_name})
-        )
-
+        da = rioxarray.open_rasterio(path, chunks=chunks).rename(var_name).squeeze()
         das.append(da)
 
     return xr.merge(das)
@@ -72,7 +67,8 @@ def load_swo_ecoplot(
     large_rasters: bool = False,
     chunks: Any = None,
 ) -> tuple[NDArray | xr.Dataset, pd.DataFrame, pd.DataFrame]:
-    """Load the southwest Oregon (SWO) USFS Region 6 Ecoplot dataset.
+    """
+    Load the southwest Oregon (SWO) USFS Region 6 Ecoplot dataset.
 
     The dataset contains:
 

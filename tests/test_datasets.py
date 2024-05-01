@@ -1,6 +1,8 @@
 import pickle
+import sys
 from dataclasses import dataclass
 from typing import Any
+from unittest import mock
 
 import pytest
 
@@ -76,3 +78,21 @@ def test_load_dataset_names_match():
     X_image, X, _ = load_swo_ecoplot(as_dataset=True)
 
     assert list(X.columns) == list(X_image.data_vars)
+
+
+@pytest.mark.parametrize("missing_import", ["rioxarray", "rasterio", "sknnr", "pooch"])
+def test_load_dataset_missing_imports(missing_import):
+    import re
+
+    msg = re.escape("install them with `pip install sknnr-spatial[datasets]`")
+
+    with mock.patch.dict(sys.modules):
+        sys.modules[missing_import] = None
+
+        # This is pretty brittle, but it currently does the job of "un-importing"
+        # the datasets module to force Python to re-import and run the dependency check
+        del sys.modules["sknnr_spatial.datasets"]
+        del sys.modules["sknnr_spatial.datasets._base"]
+
+        with pytest.raises(ImportError, match=msg):
+            from sknnr_spatial.datasets import load_swo_ecoplot  # noqa: F401
