@@ -94,22 +94,17 @@ def test_crs_preserved(dummy_model_data, image_type, crs):
     assert nn.rio.crs == crs
 
 
-def test_predict_non_image_data(dummy_model_data):
-    """Test that predicting with non-image data falls back to the wrapped estimator."""
+def test_with_non_image_data(dummy_model_data):
+    """Test that non-image data falls back to the wrapped estimator behavior."""
     _, X, y = dummy_model_data
     estimator = KNeighborsRegressor().fit(X, y)
     reference_pred = estimator.predict(X)
-
-    check_pred = wrap(clone(estimator)).fit(X, y).predict(X)
-    assert_array_equal(reference_pred, check_pred)
-
-
-def test_kneighbors_non_image_data(dummy_model_data):
-    """Test that kneighbors with non-image data falls back to the wrapped estimator."""
-    _, X, y = dummy_model_data
-    estimator = KNeighborsRegressor().fit(X, y)
     ref_dist, ref_nn = estimator.kneighbors(X)
 
-    check_dist, check_nn = wrap(clone(estimator)).fit(X, y).kneighbors(X)
+    wrapped = wrap(clone(estimator)).fit(X, y)
+    check_pred = wrapped.predict(X)
+    check_dist, check_nn = wrapped.kneighbors(X)
+
+    assert_array_equal(reference_pred, check_pred)
     assert_array_equal(ref_dist, check_dist)
     assert_array_equal(ref_nn, check_nn)

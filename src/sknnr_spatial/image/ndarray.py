@@ -10,7 +10,9 @@ from ._base import ImagePreprocessor, kneighbors, predict
 if TYPE_CHECKING:
     from numpy.typing import NDArray
     from sklearn.base import BaseEstimator
-    from sklearn.neighbors import KNeighborsRegressor
+    from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
+
+    from ..estimator import ImageEstimator
 
 
 class NDArrayPreprocessor(ImagePreprocessor):
@@ -34,14 +36,14 @@ class NDArrayPreprocessor(ImagePreprocessor):
 
 @predict.register(np.ndarray)
 def _predict_from_ndarray(
-    X_image: NDArray, *, estimator: BaseEstimator, nodata_vals=None
+    X_image: NDArray, *, estimator: ImageEstimator[BaseEstimator], nodata_vals=None
 ) -> NDArray:
     """Predict attributes from an array of X_image."""
     check_is_fitted(estimator)
     preprocessor = NDArrayPreprocessor(X_image, nodata_vals=nodata_vals)
 
     # TODO: Deal with sklearn warning about missing feature names
-    y_pred_flat = estimator.predict(preprocessor.flat)
+    y_pred_flat = estimator._wrapped.predict(preprocessor.flat)
 
     return preprocessor.unflatten(y_pred_flat, apply_mask=True)
 
@@ -50,7 +52,7 @@ def _predict_from_ndarray(
 def _kneighbors_from_ndarray(
     X_image: NDArray,
     *,
-    estimator: KNeighborsRegressor,
+    estimator: ImageEstimator[KNeighborsRegressor | KNeighborsClassifier],
     nodata_vals=None,
     **kneighbors_kwargs,
 ) -> NDArray:
@@ -58,7 +60,7 @@ def _kneighbors_from_ndarray(
     preprocessor = NDArrayPreprocessor(X_image, nodata_vals=nodata_vals)
     return_distance = kneighbors_kwargs.pop("return_distance", True)
 
-    result = estimator.kneighbors(
+    result = estimator._wrapped.kneighbors(
         preprocessor.flat,
         return_distance=return_distance,
         **kneighbors_kwargs,

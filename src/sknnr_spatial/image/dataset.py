@@ -15,7 +15,9 @@ from .dataarray import DataArrayPreprocessor
 if TYPE_CHECKING:
     from numpy.typing import NDArray
     from sklearn.base import BaseEstimator
-    from sklearn.neighbors import KNeighborsRegressor
+    from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
+
+    from ..estimator import ImageEstimator
 
 
 class DatasetPreprocessor(DataArrayPreprocessor):
@@ -77,7 +79,11 @@ class DatasetPreprocessor(DataArrayPreprocessor):
 
 @predict.register(xr.Dataset)
 def _predict_from_dataset(
-    X_image: xr.Dataset, *, estimator: BaseEstimator, y=None, nodata_vals=None
+    X_image: xr.Dataset,
+    *,
+    estimator: ImageEstimator[BaseEstimator],
+    y=None,
+    nodata_vals=None,
 ) -> xr.Dataset:
     return predict_from_dask_backed_array(
         X_image,
@@ -92,7 +98,7 @@ def _predict_from_dataset(
 def _kneighbors_from_dataset(
     X_image: xr.Dataset,
     *,
-    estimator: KNeighborsRegressor,
+    estimator: ImageEstimator[KNeighborsRegressor | KNeighborsClassifier],
     nodata_vals=None,
     **kneighbors_kwargs,
 ) -> xr.Dataset:

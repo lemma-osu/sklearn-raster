@@ -9,8 +9,9 @@ if TYPE_CHECKING:
     import pandas as pd
     from numpy.typing import NDArray
     from sklearn.base import BaseEstimator
-    from sklearn.neighbors import KNeighborsRegressor
+    from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
 
+    from ..estimator import ImageEstimator
     from ..types import DaskBackedType
     from .dataarray import DataArrayPreprocessor
     from .dataset import DatasetPreprocessor
@@ -23,7 +24,7 @@ class TargetInferenceError(Exception):
 def predict_from_dask_backed_array(
     X_image: DaskBackedType,
     *,
-    estimator: BaseEstimator,
+    estimator: ImageEstimator[BaseEstimator],
     y=None,
     preprocessor_cls: type[DataArrayPreprocessor] | type[DatasetPreprocessor],
     nodata_vals=None,
@@ -43,7 +44,7 @@ def predict_from_dask_backed_array(
 
     target_names = _infer_target_names(y, n_targets)
     y_pred = da.apply_gufunc(
-        estimator.predict,
+        estimator._wrapped.predict,
         "(x)->(y)",
         preprocessor.flat,
         axis=preprocessor.flat_band_dim,
@@ -58,7 +59,7 @@ def predict_from_dask_backed_array(
 def kneighbors_from_dask_backed_array(
     X_image: DaskBackedType,
     *,
-    estimator: KNeighborsRegressor,
+    estimator: ImageEstimator[KNeighborsRegressor | KNeighborsClassifier],
     preprocessor_cls: type[DataArrayPreprocessor] | type[DatasetPreprocessor],
     nodata_vals=None,
     **kneighbors_kwargs,
@@ -76,7 +77,7 @@ def kneighbors_from_dask_backed_array(
     output_dtypes: list[type] = [int] if not return_distance else [float, int]
 
     result = da.apply_gufunc(
-        estimator.kneighbors,
+        estimator._wrapped.kneighbors,
         signature,
         preprocessor.flat,
         output_sizes={"k": k},

@@ -12,8 +12,9 @@ from numpy.typing import NDArray
 
 if TYPE_CHECKING:
     from sklearn.base import BaseEstimator
-    from sklearn.neighbors import KNeighborsRegressor
+    from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
 
+    from ..estimator import ImageEstimator
     from ..types import ImageType
 
 
@@ -167,7 +168,7 @@ class ImagePreprocessor(ABC):
 def predict(
     X_image: ImageType,
     *,
-    estimator: BaseEstimator,
+    estimator: ImageEstimator[BaseEstimator],
     nodata_vals=None,
 ) -> None:
     msg = f"predict is not implemented for type `{X_image.__class__.__name__}`."
@@ -178,7 +179,7 @@ def predict(
 def kneighbors(
     X_image: ImageType,
     *,
-    estimator: KNeighborsRegressor,
+    estimator: ImageEstimator[KNeighborsRegressor | KNeighborsClassifier],
     nodata_vals=None,
     **kneighbors_kwargs,
 ) -> None:
