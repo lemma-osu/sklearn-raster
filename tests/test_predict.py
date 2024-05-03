@@ -1,7 +1,7 @@
-import numpy as np
 import pytest
 import xarray as xr
 from numpy.testing import assert_array_equal
+from sklearn.base import clone
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.neighbors import KNeighborsRegressor
 
@@ -13,18 +13,6 @@ from .image_utils import (
     unwrap_image,
     wrap_image,
 )
-
-
-@pytest.fixture()
-def dummy_model_data():
-    n_features = 5
-    n_rows = 10
-
-    X_image = np.random.rand(8, 16, n_features)
-    X = np.random.rand(n_rows, n_features)
-    y = np.random.rand(n_rows, 3)
-
-    return X_image, X, y
 
 
 @parametrize_image_types
@@ -104,3 +92,24 @@ def test_crs_preserved(dummy_model_data, image_type, crs):
     assert y_pred.rio.crs == crs
     assert dist.rio.crs == crs
     assert nn.rio.crs == crs
+
+
+def test_predict_non_image_data(dummy_model_data):
+    """Test that predicting with non-image data falls back to the wrapped estimator."""
+    _, X, y = dummy_model_data
+    estimator = KNeighborsRegressor().fit(X, y)
+    reference_pred = estimator.predict(X)
+
+    check_pred = wrap(clone(estimator)).fit(X, y).predict(X)
+    assert_array_equal(reference_pred, check_pred)
+
+
+def test_kneighbors_non_image_data(dummy_model_data):
+    """Test that kneighbors with non-image data falls back to the wrapped estimator."""
+    _, X, y = dummy_model_data
+    estimator = KNeighborsRegressor().fit(X, y)
+    ref_dist, ref_nn = estimator.kneighbors(X)
+
+    check_dist, check_nn = wrap(clone(estimator)).fit(X, y).kneighbors(X)
+    assert_array_equal(ref_dist, check_dist)
+    assert_array_equal(ref_nn, check_nn)

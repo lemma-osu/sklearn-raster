@@ -1,4 +1,4 @@
-from .wrapper import wrap
+from .estimator import wrap
 
 __version__ = "0.1.0+dev"
 

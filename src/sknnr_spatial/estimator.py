@@ -41,22 +41,20 @@ class _AttrWrapper:
 
 class SpatialEstimator(_AttrWrapper):
     def __init__(self, wrapped: BaseEstimator):
-        self._wrapped = self._reset_estimator(wrapped)
+        super().__init__(self._reset_estimator(wrapped))
 
     @staticmethod
     def _reset_estimator(estimator: BaseEstimator) -> BaseEstimator:
         """Take an estimator and reset and warn if it was previously fitted."""
-        try:
-            check_is_fitted(estimator)
+        if is_fitted(estimator):
             warn(
                 "Wrapping estimator that has already been fit. The estimator must be "
                 "fit again after wrapping.",
                 stacklevel=2,
             )
-
             return clone(estimator)
-        except NotFittedError:
-            return estimator
+
+        return estimator
 
     @_AttrWrapper.check_for_wrapped_method
     def fit(self, X, y=None, **kwargs) -> SpatialEstimator:
@@ -89,3 +87,11 @@ class SpatialEstimator(_AttrWrapper):
 
 def wrap(estimator: BaseEstimator) -> SpatialEstimator:
     return SpatialEstimator(estimator)
+
+
+def is_fitted(estimator: BaseEstimator) -> bool:
+    try:
+        check_is_fitted(estimator)
+        return True
+    except NotFittedError:
+        return False
