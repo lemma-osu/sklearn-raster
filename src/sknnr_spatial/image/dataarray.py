@@ -89,7 +89,6 @@ def _predict_from_dataarray(
     return predict_from_dask_backed_array(
         X_image,
         estimator=estimator,
-        y=y,
         preprocessor_cls=DataArrayPreprocessor,
         nodata_vals=nodata_vals,
     )

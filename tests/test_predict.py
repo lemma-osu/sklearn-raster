@@ -17,22 +17,35 @@ from .image_utils import (
 
 @parametrize_image_types
 @pytest.mark.parametrize("estimator", [KNeighborsRegressor, RandomForestRegressor])
-def test_predict(dummy_model_data, image_type, estimator):
+@pytest.mark.parametrize("single_output", [True, False], ids=["single", "multi"])
+@pytest.mark.parametrize("squeeze", [True, False], ids=["squeezed", "unsqueezed"])
+def test_predict(dummy_model_data, image_type, estimator, single_output, squeeze):
     """Test that predict works with all image types and a few estimators."""
     X_image, X, y = dummy_model_data
+
+    if single_output:
+        y = y[:, :1]
+    if squeeze:
+        y = y.squeeze()
+
     estimator = wrap(estimator()).fit(X, y)
 
     X_wrapped = wrap_image(X_image, type=image_type.cls)
     y_pred = unwrap_image(estimator.predict(X_wrapped))
 
     assert y_pred.ndim == 3
-    assert_array_equal(y_pred.shape, (X_image.shape[0], X_image.shape[1], y.shape[-1]))
+    expected_shape = (
+        X_image.shape[0],
+        X_image.shape[1],
+        1 if single_output else y.shape[-1],
+    )
+    assert_array_equal(y_pred.shape, expected_shape)
 
 
 @parametrize_image_types
-def test_kneighbors_with_distance(dummy_model_data, image_type):
+@pytest.mark.parametrize("k", [1, 3], ids=lambda k: f"k{k}")
+def test_kneighbors_with_distance(dummy_model_data, image_type, k):
     """Test kneighbors works with all image types when returning distance."""
-    k = 3
     X_image, X, y = dummy_model_data
     estimator = wrap(KNeighborsRegressor(n_neighbors=k)).fit(X, y)
 
@@ -49,9 +62,9 @@ def test_kneighbors_with_distance(dummy_model_data, image_type):
 
 
 @parametrize_image_types
-def test_kneighbors_without_distance(dummy_model_data, image_type):
+@pytest.mark.parametrize("k", [1, 3], ids=lambda k: f"k{k}")
+def test_kneighbors_without_distance(dummy_model_data, image_type, k):
     """Test kneighbors works with all image types when NOT returning distance."""
-    k = 3
     X_image, X, y = dummy_model_data
     estimator = wrap(KNeighborsRegressor(n_neighbors=k)).fit(X, y)
 

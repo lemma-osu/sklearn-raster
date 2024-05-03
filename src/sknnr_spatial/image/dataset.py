@@ -82,13 +82,11 @@ def _predict_from_dataset(
     X_image: xr.Dataset,
     *,
     estimator: ImageEstimator[BaseEstimator],
-    y=None,
     nodata_vals=None,
 ) -> xr.Dataset:
     return predict_from_dask_backed_array(
         X_image,
         estimator=estimator,
-        y=y,
         preprocessor_cls=DatasetPreprocessor,
         nodata_vals=nodata_vals,
     )

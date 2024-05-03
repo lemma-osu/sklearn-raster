@@ -6,8 +6,6 @@ import dask.array as da
 from sklearn.utils.validation import check_is_fitted
 
 if TYPE_CHECKING:
-    import pandas as pd
-    from numpy.typing import NDArray
     from sklearn.base import BaseEstimator
     from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
 
@@ -25,35 +23,36 @@ def predict_from_dask_backed_array(
     X_image: DaskBackedType,
     *,
     estimator: ImageEstimator[BaseEstimator],
-    y=None,
     preprocessor_cls: type[DataArrayPreprocessor] | type[DatasetPreprocessor],
     nodata_vals=None,
 ) -> DaskBackedType:
     """Generic predict wrapper for Dask-backed arrays."""
     check_is_fitted(estimator)
     preprocessor = preprocessor_cls(X_image, nodata_vals=nodata_vals)
+    meta = estimator._wrapped_meta
 
-    try:
-        n_targets = _infer_num_targets(y, estimator)
-    except TargetInferenceError:
-        msg = (
-            "The number of targets could not be inferred from the estimator. Pass a "
-            "`y` array or dataframe used to fit the estimator."
-        )
-        raise ValueError(msg) from None
+    if single_output := meta.n_targets == 1:
+        signature = "(x)->()"
+        output_sizes = {}
+    else:
+        signature = "(x)->(y)"
+        output_sizes = {"y": meta.n_targets}
 
-    target_names = _infer_target_names(y, n_targets)
     y_pred = da.apply_gufunc(
         estimator._wrapped.predict,
-        "(x)->(y)",
+        signature,
         preprocessor.flat,
         axis=preprocessor.flat_band_dim,
         output_dtypes=[float],
-        output_sizes={"y": n_targets},
+        output_sizes=output_sizes,
         allow_rechunk=True,
     )
 
-    return preprocessor.unflatten(y_pred, var_names=target_names)
+    # Reshape from (n_samples,) to (n_samples, 1)
+    if single_output:
+        y_pred = y_pred.reshape(-1, 1)
+
+    return preprocessor.unflatten(y_pred, var_names=list(meta.target_names))
 
 
 def kneighbors_from_dask_backed_array(
@@ -97,43 +96,3 @@ def kneighbors_from_dask_backed_array(
         return dist, nn
 
     return preprocessor.unflatten(result, var_names=var_names)
-
-
-def _infer_target_names(y: NDArray | pd.DataFrame | None, n_targets: int) -> list[str]:
-    # Create sequential numeric target names
-    if y is None or not hasattr(y, "columns"):
-        return [f"b{i}" for i in range(n_targets)]
-
-    return y.columns
-
-
-def _infer_num_targets(y, estimator: BaseEstimator) -> int:
-    # scikit-learn doesn't have a consistent standard for storing the number of targets
-    # in a fitted estimator, but there are a number of common places we can look.
-
-    if y is not None:
-        return y.shape[-1]
-
-    tags = estimator._get_tags() if hasattr(estimator, "_get_tags") else {}
-
-    # Single output estimators can only be trained with a single feature
-    if tags.get("multioutput") is False:
-        return 1
-
-    # KNeighborsRegressor
-    if hasattr(estimator, "_y"):
-        return estimator._y.shape[-1]
-
-    # RandomForestRegressor
-    if hasattr(estimator, "n_outputs_"):
-        return estimator.n_outputs_
-
-    # LinearRegressor
-    if hasattr(estimator, "intercept_"):
-        return estimator.intercept_.shape[0]
-
-    msg = (
-        "The number of targets could not be inferred from estimator of type "
-        f"`{estimator.__class__.name__}`."
-    )
-    raise TargetInferenceError(msg)

@@ -45,6 +45,10 @@ def _predict_from_ndarray(
     # TODO: Deal with sklearn warning about missing feature names
     y_pred_flat = estimator._wrapped.predict(preprocessor.flat)
 
+    # Reshape from (n_samples,) to (n_samples, 1)
+    if estimator._wrapped_meta.n_targets == 1:
+        y_pred_flat = y_pred_flat.reshape(-1, 1)
+
     return preprocessor.unflatten(y_pred_flat, apply_mask=True)
 
 

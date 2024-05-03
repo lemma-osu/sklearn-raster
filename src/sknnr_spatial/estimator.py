@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from functools import wraps
-from typing import Callable, Generic
+from typing import TYPE_CHECKING, Callable, Generic
 from warnings import warn
 
 from sklearn.base import BaseEstimator, clone
@@ -9,6 +10,18 @@ from sklearn.utils.validation import NotFittedError, check_is_fitted
 
 from .image._base import is_image_type, kneighbors, predict
 from .types import AnyType, EstimatorType
+
+if TYPE_CHECKING:
+    import numpy as np
+    import pandas as pd
+
+
+@dataclass
+class FittedMetadata:
+    """Metadata from a fitted estimator."""
+
+    n_targets: int
+    target_names: tuple[str, ...]
 
 
 class _AttrWrapper(Generic[AnyType]):
@@ -54,6 +67,7 @@ class ImageEstimator(_AttrWrapper[EstimatorType]):
     """
 
     _wrapped: EstimatorType
+    _wrapped_meta: FittedMetadata
 
     def __init__(self, wrapped: EstimatorType):
         super().__init__(self._reset_estimator(wrapped))
@@ -71,11 +85,42 @@ class ImageEstimator(_AttrWrapper[EstimatorType]):
 
         return estimator
 
+    def _get_n_targets(self, y: np.ndarray | pd.DataFrame | pd.Series) -> int:
+        """Get the number of targets used to fit the estimator."""
+        if y.ndim == 1:
+            return 1
+
+        return y.shape[-1]
+
+    def _get_target_names(
+        self, y: np.ndarray | pd.DataFrame | pd.Series
+    ) -> tuple[str, ...]:
+        """Get the target names used to fit the estimator, if available."""
+        # Dataframe
+        if hasattr(y, "columns"):
+            return tuple(y.columns)
+
+        # Series
+        if hasattr(y, "name"):
+            return tuple([y.name])
+
+        # Default to sequential identifiers
+        return tuple([f"b{i}" for i in range(self._get_n_targets(y))])
+
     @_AttrWrapper._check_for_wrapped_method
     def fit(self, X, y=None, **kwargs) -> ImageEstimator[EstimatorType]:
         """Fit the wrapped estimator and return the wrapper."""
+        # Squeeze extra y dimensions. This will convert from shape (n_samples, 1) which
+        # causes inconsistent output shapes with different sklearn estimators, to
+        # (n_samples,), which has a consistent output shape.
+        y = y.squeeze()
         self._wrapped = self._wrapped.fit(X, y, **kwargs)
-        # TODO: Store all needed metadata, e.g. n targets, target names, etc.
+
+        self._wrapped_meta = FittedMetadata(
+            n_targets=self._get_n_targets(y),
+            target_names=self._get_target_names(y),
+        )
+
         # TODO: Override the builtin feature name warning somehow
         return self
 
