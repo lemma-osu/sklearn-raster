@@ -7,6 +7,7 @@ from types import ModuleType
 from typing import TYPE_CHECKING
 
 import numpy as np
+import xarray as xr
 from numpy.typing import NDArray
 
 if TYPE_CHECKING:
@@ -183,3 +184,22 @@ def kneighbors(
 ) -> None:
     msg = f"kneighbors is not implemented for type `{X_image.__class__.__name__}`."
     raise NotImplementedError(msg)
+
+
+@singledispatch
+def is_image_type(_):
+    """Check if the given X data is an image."""
+    return False
+
+
+@is_image_type.register(np.ndarray)
+@is_image_type.register(xr.DataArray)
+def _is_image_type_array(X):
+    # Feature array images must have exactly 3 dimensions: (y, x, band) or (band, y, x)
+    return X.ndim == 3
+
+
+@is_image_type.register(xr.Dataset)
+def _is_image_type_dataset(X):
+    # Feature Dataset images must have exactly 2 dimensions: (x, y)
+    return len(X.dims) == 2
