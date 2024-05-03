@@ -1,3 +1,5 @@
+import numpy as np
+import pandas as pd
 import pytest
 import xarray as xr
 from numpy.testing import assert_array_equal
@@ -121,3 +123,33 @@ def test_with_non_image_data(dummy_model_data):
     assert_array_equal(reference_pred, check_pred)
     assert_array_equal(ref_dist, check_dist)
     assert_array_equal(ref_nn, check_nn)
+
+
+@parametrize_xarray_image_types
+@pytest.mark.parametrize(
+    "fit_with", [np.ndarray, pd.DataFrame, pd.Series], ids=lambda x: x.__name__
+)
+def test_predicted_var_names(dummy_model_data, image_type, fit_with):
+    """Test that variable names are correctly set in a Dataset or DataArray."""
+    X_image, X, y = dummy_model_data
+
+    if fit_with is np.ndarray:
+        expected_var_names = [0, 1, 2]
+    elif fit_with in [pd.DataFrame, pd.Series]:
+        expected_var_names = ["A", "B", "C"]
+        y = pd.DataFrame(y, columns=expected_var_names)
+
+        if fit_with is pd.Series:
+            y = y["A"]
+            expected_var_names = ["A"]
+
+    estimator = wrap(KNeighborsRegressor()).fit(X, y)
+    X_wrapped = wrap_image(X_image, type=image_type.cls)
+
+    y_pred = estimator.predict(X_wrapped)
+    if image_type.cls is xr.DataArray:
+        var_names = y_pred["variable"].values
+    elif image_type.cls is xr.Dataset:
+        var_names = y_pred.data_vars
+
+    assert list(var_names) == expected_var_names

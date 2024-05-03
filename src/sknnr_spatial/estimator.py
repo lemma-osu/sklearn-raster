@@ -21,7 +21,7 @@ class FittedMetadata:
     """Metadata from a fitted estimator."""
 
     n_targets: int
-    target_names: tuple[str, ...]
+    target_names: tuple[str | int, ...]
 
 
 class _AttrWrapper(Generic[AnyType]):
@@ -94,7 +94,7 @@ class ImageEstimator(_AttrWrapper[EstimatorType]):
 
     def _get_target_names(
         self, y: np.ndarray | pd.DataFrame | pd.Series
-    ) -> tuple[str, ...]:
+    ) -> tuple[str | int, ...]:
         """Get the target names used to fit the estimator, if available."""
         # Dataframe
         if hasattr(y, "columns"):
@@ -105,7 +105,7 @@ class ImageEstimator(_AttrWrapper[EstimatorType]):
             return tuple([y.name])
 
         # Default to sequential identifiers
-        return tuple([f"b{i}" for i in range(self._get_n_targets(y))])
+        return tuple(range(self._get_n_targets(y)))
 
     @_AttrWrapper._check_for_wrapped_method
     def fit(self, X, y=None, **kwargs) -> ImageEstimator[EstimatorType]:
