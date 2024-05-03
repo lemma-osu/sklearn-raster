@@ -82,3 +82,9 @@ isort.known-first-party = ["sknnr_spatial"]
 
 [tool.hatch.metadata]
 allow-direct-references = true
+
+[tool.coverage.report]
+exclude_also = [
+    # Ignore TYPE_CHECKING blocks
+    "if TYPE_CHECKING:"
+]
