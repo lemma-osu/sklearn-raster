@@ -187,20 +187,13 @@ def kneighbors(
     raise NotImplementedError(msg)
 
 
-@singledispatch
-def is_image_type(_):
-    """Check if the given X data is an image."""
-    return False
-
-
-@is_image_type.register(np.ndarray)
-@is_image_type.register(xr.DataArray)
-def _is_image_type_array(X):
+def is_image_type(X: ImageType) -> bool:
     # Feature array images must have exactly 3 dimensions: (y, x, band) or (band, y, x)
-    return X.ndim == 3
+    if isinstance(X, (np.ndarray, xr.DataArray)):
+        return X.ndim == 3
 
-
-@is_image_type.register(xr.Dataset)
-def _is_image_type_dataset(X):
     # Feature Dataset images must have exactly 2 dimensions: (x, y)
-    return len(X.dims) == 2
+    if isinstance(X, xr.Dataset):
+        return len(X.dims) == 2
+
+    return False
