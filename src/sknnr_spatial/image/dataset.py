@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
 
     from ..estimator import ImageEstimator
+    from ..types import NoDataType
 
 
 class DatasetPreprocessor(DataArrayPreprocessor):
@@ -31,7 +32,7 @@ class DatasetPreprocessor(DataArrayPreprocessor):
     def __init__(
         self,
         image: xr.Dataset,
-        nodata_vals: float | tuple[float] | NDArray | None = None,
+        nodata_vals: NoDataType = None,
         nan_fill: float | None = 0.0,
     ):
         # The image itself will be stored as a DataArray, but keep the Dataset for
@@ -39,9 +40,7 @@ class DatasetPreprocessor(DataArrayPreprocessor):
         self.dataset = image
         super().__init__(image.to_dataarray(), nodata_vals, nan_fill)
 
-    def _validate_nodata_vals(
-        self, nodata_vals: float | tuple[float] | NDArray | None
-    ) -> NDArray | None:
+    def _validate_nodata_vals(self, nodata_vals: NoDataType) -> NDArray | None:
         """
         Get an array of NoData values in the shape (bands,) based on user input and
         Dataset metadata.
@@ -82,7 +81,7 @@ def _predict_from_dataset(
     X_image: xr.Dataset,
     *,
     estimator: ImageEstimator[BaseEstimator],
-    nodata_vals=None,
+    nodata_vals: NoDataType = None,
 ) -> xr.Dataset:
     return predict_from_dask_backed_array(
         X_image,
@@ -97,9 +96,9 @@ def _kneighbors_from_dataset(
     X_image: xr.Dataset,
     *,
     estimator: ImageEstimator[KNeighborsRegressor | KNeighborsClassifier],
-    nodata_vals=None,
+    nodata_vals: NoDataType = None,
     **kneighbors_kwargs,
-) -> xr.Dataset:
+) -> xr.Dataset | tuple[xr.Dataset, xr.Dataset]:
     return kneighbors_from_dask_backed_array(
         X_image,
         estimator=estimator,

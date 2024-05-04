@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
 
     from ..estimator import ImageEstimator
-    from ..types import DaskBackedType
+    from ..types import DaskBackedType, NoDataType
     from .dataarray import DataArrayPreprocessor
     from .dataset import DatasetPreprocessor
 
@@ -24,7 +24,7 @@ def predict_from_dask_backed_array(
     *,
     estimator: ImageEstimator[BaseEstimator],
     preprocessor_cls: type[DataArrayPreprocessor] | type[DatasetPreprocessor],
-    nodata_vals=None,
+    nodata_vals: NoDataType = None,
 ) -> DaskBackedType:
     """Generic predict wrapper for Dask-backed arrays."""
     check_is_fitted(estimator)
@@ -60,7 +60,7 @@ def kneighbors_from_dask_backed_array(
     *,
     estimator: ImageEstimator[KNeighborsRegressor | KNeighborsClassifier],
     preprocessor_cls: type[DataArrayPreprocessor] | type[DatasetPreprocessor],
-    nodata_vals=None,
+    nodata_vals: NoDataType = None,
     **kneighbors_kwargs,
 ) -> DaskBackedType:
     """Generic kneighbors wrapper for Dask-backed arrays."""

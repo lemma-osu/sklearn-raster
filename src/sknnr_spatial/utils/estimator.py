@@ -4,7 +4,7 @@ from typing import Callable, Generic
 from sklearn.base import BaseEstimator
 from sklearn.utils.validation import NotFittedError, check_is_fitted
 
-from ..types import AnyType
+from ..types import AnyType, ImageType
 from .image import is_image_type
 
 
@@ -43,11 +43,11 @@ def check_is_x_image(func: Callable) -> Callable:
     """Decorator that calls the wrapped method for non-image X arrays."""
 
     @wraps(func)
-    def wrapper(self: AttrWrapper, X, *args, **kwargs):
-        if not is_image_type(X):
-            return getattr(self._wrapped, func.__name__)(X, *args, **kwargs)
+    def wrapper(self: AttrWrapper, X_image: ImageType, *args, **kwargs):
+        if not is_image_type(X_image):
+            return getattr(self._wrapped, func.__name__)(X_image, *args, **kwargs)
 
-        return func(self, X, *args, **kwargs)
+        return func(self, X_image, *args, **kwargs)
 
     return wrapper
 

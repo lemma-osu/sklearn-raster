@@ -19,6 +19,8 @@ if TYPE_CHECKING:
     import numpy as np
     import pandas as pd
 
+    from .types import ImageType, NoDataType
+
 
 @dataclass
 class FittedMetadata:
@@ -98,13 +100,19 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
 
     @check_wrapper_implements
     @check_is_x_image
-    def predict(self, X):
-        return predict(X, estimator=self)
+    def predict(
+        self, X_image: ImageType, *, nodata_vals: NoDataType = None
+    ) -> ImageType:
+        return predict(X_image, estimator=self, nodata_vals=nodata_vals)
 
     @check_wrapper_implements
     @check_is_x_image
-    def kneighbors(self, X, return_distance=True, **kwargs):
-        return kneighbors(X, return_distance=return_distance, estimator=self, **kwargs)
+    def kneighbors(
+        self, X_image: ImageType, *, nodata_vals: NoDataType = None, **kneighbors_kwargs
+    ) -> ImageType | tuple[ImageType, ImageType]:
+        return kneighbors(
+            X_image, estimator=self, nodata_vals=nodata_vals, **kneighbors_kwargs
+        )
 
 
 def wrap(estimator: EstimatorType) -> ImageEstimator[EstimatorType]:

@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
 
     from ..estimator import ImageEstimator
-    from ..types import ImageType
+    from ..types import ImageType, NoDataType
 
 
 class ImagePreprocessor(ABC):
@@ -69,7 +69,7 @@ class ImagePreprocessor(ABC):
     def __init__(
         self,
         image: ImageType,
-        nodata_vals: float | tuple[float] | NDArray | None = None,
+        nodata_vals: NoDataType = None,
         nan_fill: float | None = 0.0,
     ):
         self.image = image
@@ -116,9 +116,7 @@ class ImagePreprocessor(ABC):
         # Set the mask where any band contains NoData
         return mask.max(axis=self.flat_band_dim)
 
-    def _validate_nodata_vals(
-        self, nodata_vals: float | tuple[float] | NDArray | None
-    ) -> NDArray | None:
+    def _validate_nodata_vals(self, nodata_vals: NoDataType) -> NDArray | None:
         """
         Get an array of NoData values in the shape (bands,) based on user input.
 
@@ -168,7 +166,7 @@ def predict(
     X_image: ImageType,
     *,
     estimator: ImageEstimator[BaseEstimator],
-    nodata_vals=None,
+    nodata_vals: NoDataType = None,
 ) -> None:
     msg = f"predict is not implemented for type `{X_image.__class__.__name__}`."
     raise NotImplementedError(msg)
@@ -179,7 +177,7 @@ def kneighbors(
     X_image: ImageType,
     *,
     estimator: ImageEstimator[KNeighborsRegressor | KNeighborsClassifier],
-    nodata_vals=None,
+    nodata_vals: NoDataType = None,
     **kneighbors_kwargs,
 ) -> None:
     msg = f"kneighbors is not implemented for type `{X_image.__class__.__name__}`."

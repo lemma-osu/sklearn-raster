@@ -13,6 +13,7 @@ if TYPE_CHECKING:
     from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
 
     from ..estimator import ImageEstimator
+    from ..types import NoDataType
 
 
 class NDArrayPreprocessor(ImagePreprocessor):
@@ -36,7 +37,10 @@ class NDArrayPreprocessor(ImagePreprocessor):
 
 @predict.register(np.ndarray)
 def _predict_from_ndarray(
-    X_image: NDArray, *, estimator: ImageEstimator[BaseEstimator], nodata_vals=None
+    X_image: NDArray,
+    *,
+    estimator: ImageEstimator[BaseEstimator],
+    nodata_vals: NoDataType = None,
 ) -> NDArray:
     """Predict attributes from an array of X_image."""
     check_is_fitted(estimator)
@@ -57,9 +61,9 @@ def _kneighbors_from_ndarray(
     X_image: NDArray,
     *,
     estimator: ImageEstimator[KNeighborsRegressor | KNeighborsClassifier],
-    nodata_vals=None,
+    nodata_vals: NoDataType = None,
     **kneighbors_kwargs,
-) -> NDArray:
+) -> NDArray | tuple[NDArray, NDArray]:
     check_is_fitted(estimator)
     preprocessor = NDArrayPreprocessor(X_image, nodata_vals=nodata_vals)
     return_distance = kneighbors_kwargs.pop("return_distance", True)
