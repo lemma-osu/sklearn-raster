@@ -1,15 +1,19 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from functools import wraps
-from typing import TYPE_CHECKING, Callable, Generic
+from typing import TYPE_CHECKING
 from warnings import warn
 
-from sklearn.base import BaseEstimator, clone
-from sklearn.utils.validation import NotFittedError, check_is_fitted
+from sklearn.base import clone
 
-from .image._base import is_image_type, kneighbors, predict
-from .types import AnyType, EstimatorType
+from .image._base import kneighbors, predict
+from .types import EstimatorType
+from .utils.estimator import (
+    AttrWrapper,
+    check_is_x_image,
+    check_wrapper_implements,
+    is_fitted,
+)
 
 if TYPE_CHECKING:
     import numpy as np
@@ -24,38 +28,7 @@ class FittedMetadata:
     target_names: tuple[str | int, ...]
 
 
-class _AttrWrapper(Generic[AnyType]):
-    """A transparent object wrapper that accesses a wrapped object's attributes."""
-
-    _wrapped: AnyType
-
-    def __init__(self, wrapped: AnyType):
-        self._wrapped = wrapped
-
-    def __getattr__(self, name: str):
-        return getattr(self._wrapped, name)
-
-    @property
-    def __dict__(self):
-        return self._wrapped.__dict__
-
-    @staticmethod
-    def _check_for_wrapped_method(func: Callable) -> Callable:
-        """Check that the method is implemented by the caller's wrapped instance."""
-
-        @wraps(func)
-        def wrapper(self: _AttrWrapper, *args, **kwargs):
-            if not hasattr(self._wrapped, func.__name__):
-                wrapped_class = self._wrapped.__class__.__name__
-                msg = f"{wrapped_class} does not implement {func.__name__}."
-                raise NotImplementedError(msg)
-
-            return func(self, *args, **kwargs)
-
-        return wrapper
-
-
-class ImageEstimator(_AttrWrapper[EstimatorType]):
+class ImageEstimator(AttrWrapper[EstimatorType]):
     """
     An sklearn-compatible estimator wrapper with overriden methods for image data.
 
@@ -107,7 +80,7 @@ class ImageEstimator(_AttrWrapper[EstimatorType]):
         # Default to sequential identifiers
         return tuple(range(self._get_n_targets(y)))
 
-    @_AttrWrapper._check_for_wrapped_method
+    @check_wrapper_implements
     def fit(self, X, y=None, **kwargs) -> ImageEstimator[EstimatorType]:
         """Fit the wrapped estimator and return the wrapper."""
         # Squeeze extra y dimensions. This will convert from shape (n_samples, 1) which
@@ -121,25 +94,16 @@ class ImageEstimator(_AttrWrapper[EstimatorType]):
             target_names=self._get_target_names(y),
         )
 
-        # TODO: Override the builtin feature name warning somehow
         return self
 
-    @_AttrWrapper._check_for_wrapped_method
+    @check_wrapper_implements
+    @check_is_x_image
     def predict(self, X):
-        # Allow predicting with non-image data using the wrapped estimator
-        if not is_image_type(X):
-            return self._wrapped.predict(X)
-
         return predict(X, estimator=self)
 
-    @_AttrWrapper._check_for_wrapped_method
+    @check_wrapper_implements
+    @check_is_x_image
     def kneighbors(self, X, return_distance=True, **kwargs):
-        # Allow kneighbors with non-image data using the wrapped estimator
-        if not is_image_type(X):
-            return self._wrapped.kneighbors(
-                X, return_distance=return_distance, **kwargs
-            )
-
         return kneighbors(X, return_distance=return_distance, estimator=self, **kwargs)
 
 
@@ -176,12 +140,3 @@ def wrap(estimator: EstimatorType) -> ImageEstimator[EstimatorType]:
     (128, 128, 25)
     """
     return ImageEstimator(estimator)
-
-
-def is_fitted(estimator: BaseEstimator) -> bool:
-    """Return whether an estimator is fitted or not."""
-    try:
-        check_is_fitted(estimator)
-        return True
-    except NotFittedError:
-        return False
