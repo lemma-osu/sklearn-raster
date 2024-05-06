@@ -2,19 +2,20 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Sized
-from functools import singledispatch
 from types import ModuleType
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Generic
 
 import numpy as np
 from numpy.typing import NDArray
+
+from ..types import ImageType
 
 if TYPE_CHECKING:
     from sklearn.base import BaseEstimator
     from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
 
     from ..estimator import ImageEstimator
-    from ..types import ImageType, NoDataType
+    from ..types import NoDataType
 
 
 class ImagePreprocessor(ABC):
@@ -161,24 +162,27 @@ class ImagePreprocessor(ABC):
         return flat_image
 
 
-@singledispatch
-def predict(
-    X_image: ImageType,
-    *,
-    estimator: ImageEstimator[BaseEstimator],
-    nodata_vals: NoDataType = None,
-) -> None:
-    msg = f"predict is not implemented for type `{X_image.__class__.__name__}`."
-    raise NotImplementedError(msg)
+class ImageWrapper(ABC, Generic[ImageType]):
+    """A wrapper around an image that provides sklearn methods."""
 
+    preprocessor_cls: type[ImagePreprocessor]
 
-@singledispatch
-def kneighbors(
-    X_image: ImageType,
-    *,
-    estimator: ImageEstimator[KNeighborsRegressor | KNeighborsClassifier],
-    nodata_vals: NoDataType = None,
-    **kneighbors_kwargs,
-) -> None:
-    msg = f"kneighbors is not implemented for type `{X_image.__class__.__name__}`."
-    raise NotImplementedError(msg)
+    def __init__(self, image: ImageType, nodata_vals: NoDataType = None):
+        self.image = image
+        self.nodata_vals = nodata_vals
+        self.preprocessor = self.preprocessor_cls(image, nodata_vals=nodata_vals)
+
+    @abstractmethod
+    def predict(
+        self,
+        *,
+        estimator: ImageEstimator[BaseEstimator],
+    ) -> ImageType: ...
+
+    @abstractmethod
+    def kneighbors(
+        self,
+        *,
+        estimator: ImageEstimator[KNeighborsRegressor | KNeighborsClassifier],
+        **kneighbors_kwargs,
+    ) -> ImageType | tuple[ImageType, ImageType]: ...

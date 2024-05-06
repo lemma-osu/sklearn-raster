@@ -5,19 +5,12 @@ from typing import TYPE_CHECKING
 import numpy as np
 import xarray as xr
 
-from ._base import kneighbors, predict
-from ._dask_backed import (
-    kneighbors_from_dask_backed_array,
-    predict_from_dask_backed_array,
-)
+from ._dask_backed import DaskBackedWrapper
 from .dataarray import DataArrayPreprocessor
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
-    from sklearn.base import BaseEstimator
-    from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
 
-    from ..estimator import ImageEstimator
     from ..types import NoDataType
 
 
@@ -76,33 +69,7 @@ class DatasetPreprocessor(DataArrayPreprocessor):
         )
 
 
-@predict.register(xr.Dataset)
-def _predict_from_dataset(
-    X_image: xr.Dataset,
-    *,
-    estimator: ImageEstimator[BaseEstimator],
-    nodata_vals: NoDataType = None,
-) -> xr.Dataset:
-    return predict_from_dask_backed_array(
-        X_image,
-        estimator=estimator,
-        preprocessor_cls=DatasetPreprocessor,
-        nodata_vals=nodata_vals,
-    )
+class DatasetWrapper(DaskBackedWrapper[xr.Dataset]):
+    """A wrapper around a Dataset that provides sklearn methods."""
 
-
-@kneighbors.register(xr.Dataset)
-def _kneighbors_from_dataset(
-    X_image: xr.Dataset,
-    *,
-    estimator: ImageEstimator[KNeighborsRegressor | KNeighborsClassifier],
-    nodata_vals: NoDataType = None,
-    **kneighbors_kwargs,
-) -> xr.Dataset | tuple[xr.Dataset, xr.Dataset]:
-    return kneighbors_from_dask_backed_array(
-        X_image,
-        estimator=estimator,
-        preprocessor_cls=DatasetPreprocessor,
-        nodata_vals=nodata_vals,
-        **kneighbors_kwargs,
-    )
+    preprocessor_cls = DatasetPreprocessor

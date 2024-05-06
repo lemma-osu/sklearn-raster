@@ -6,7 +6,6 @@ from warnings import warn
 
 from sklearn.base import clone
 
-from .image._base import kneighbors, predict
 from .types import EstimatorType
 from .utils.estimator import (
     AttrWrapper,
@@ -14,6 +13,7 @@ from .utils.estimator import (
     check_wrapper_implements,
     is_fitted,
 )
+from .utils.image import get_image_wrapper
 
 if TYPE_CHECKING:
     import numpy as np
@@ -143,7 +143,8 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
         y_image : Numpy or Xarray image with 3 dimensions (y, x, targets)
             The predicted values.
         """
-        return predict(X_image, estimator=self, nodata_vals=nodata_vals)
+        wrapper = get_image_wrapper(X_image)(X_image, nodata_vals=nodata_vals)
+        return wrapper.predict(estimator=self)
 
     @check_wrapper_implements
     @check_is_x_image
@@ -181,9 +182,8 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
         neigh_ind : Numpy or Xarray image with 3 dimensions (y, x, neighbor)
             Indices of the nearest points in the population matrix.
         """
-        return kneighbors(
-            X_image, estimator=self, nodata_vals=nodata_vals, **kneighbors_kwargs
-        )
+        wrapper = get_image_wrapper(X_image)(X_image, nodata_vals=nodata_vals)
+        return wrapper.kneighbors(estimator=self, **kneighbors_kwargs)
 
 
 def wrap(estimator: EstimatorType) -> ImageEstimator[EstimatorType]:

@@ -94,6 +94,8 @@ def test_predict_dataarray_with_custom_dim_name(dummy_model_data):
 @pytest.mark.parametrize("crs", ["EPSG:5070", None])
 def test_crs_preserved(dummy_model_data, image_type, crs):
     """Test that the original image CRS is preserved."""
+    import rioxarray  # noqa: F401
+
     X_image, X, y = dummy_model_data
     estimator = wrap(KNeighborsRegressor()).fit(X, y)
     X_wrapped = wrap_image(X_image, type=image_type.cls)

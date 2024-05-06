@@ -1,7 +1,10 @@
 import numpy as np
 import xarray as xr
 
-from ..types import ImageType
+from ..image._base import ImageType, ImageWrapper
+from ..image.dataarray import DataArrayWrapper
+from ..image.dataset import DatasetWrapper
+from ..image.ndarray import NDArrayWrapper
 
 
 def is_image_type(X: ImageType) -> bool:
@@ -14,3 +17,15 @@ def is_image_type(X: ImageType) -> bool:
         return len(X.dims) == 2
 
     return False
+
+
+def get_image_wrapper(x_image: ImageType) -> type[ImageWrapper]:
+    """Get an ImageWrapper subclass for a given image."""
+    if isinstance(x_image, np.ndarray):
+        return NDArrayWrapper
+    if isinstance(x_image, xr.DataArray):
+        return DataArrayWrapper
+    if isinstance(x_image, xr.Dataset):
+        return DatasetWrapper
+
+    raise TypeError(f"Unsupported image type: {type(x_image).__name__}")

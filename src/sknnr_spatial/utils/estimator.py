@@ -4,7 +4,8 @@ from typing import Callable, Generic
 from sklearn.base import BaseEstimator
 from sklearn.utils.validation import NotFittedError, check_is_fitted
 
-from ..types import AnyType, ImageType
+from ..image._base import ImageType
+from ..types import AnyType
 from .image import is_image_type
 
 
