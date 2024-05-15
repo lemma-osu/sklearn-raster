@@ -10,7 +10,7 @@ from ._base import ImageWrapper
 
 if TYPE_CHECKING:
     from sklearn.base import BaseEstimator
-    from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
+    from sklearn.neighbors._base import KNeighborsMixin
 
     from ..estimator import ImageEstimator
     from .dataarray import DataArrayPreprocessor
@@ -58,11 +58,10 @@ class DaskBackedWrapper(ImageWrapper[DaskBackedType]):
     def kneighbors(
         self,
         *,
-        estimator: ImageEstimator[KNeighborsRegressor | KNeighborsClassifier],
+        estimator: ImageEstimator[KNeighborsMixin],
         **kneighbors_kwargs,
     ) -> DaskBackedType | tuple[DaskBackedType, DaskBackedType]:
         """Generic kneighbors wrapper for Dask-backed arrays."""
-        check_is_fitted(estimator)
         return_distance = kneighbors_kwargs.pop("return_distance", True)
 
         k = estimator.n_neighbors

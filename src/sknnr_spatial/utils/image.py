@@ -1,3 +1,5 @@
+from typing import Any
+
 import numpy as np
 import xarray as xr
 
@@ -7,7 +9,7 @@ from ..image.dataset import DatasetWrapper
 from ..image.ndarray import NDArrayWrapper
 
 
-def is_image_type(X: ImageType) -> bool:
+def is_image_type(X: Any) -> bool:
     # Feature array images must have exactly 3 dimensions: (y, x, band) or (band, y, x)
     if isinstance(X, (np.ndarray, xr.DataArray)):
         return X.ndim == 3
@@ -19,13 +21,13 @@ def is_image_type(X: ImageType) -> bool:
     return False
 
 
-def get_image_wrapper(x_image: ImageType) -> type[ImageWrapper]:
+def get_image_wrapper(X_image: ImageType) -> type[ImageWrapper]:
     """Get an ImageWrapper subclass for a given image."""
-    if isinstance(x_image, np.ndarray):
+    if isinstance(X_image, np.ndarray):
         return NDArrayWrapper
-    if isinstance(x_image, xr.DataArray):
+    if isinstance(X_image, xr.DataArray):
         return DataArrayWrapper
-    if isinstance(x_image, xr.Dataset):
+    if isinstance(X_image, xr.Dataset):
         return DatasetWrapper
 
-    raise TypeError(f"Unsupported image type: {type(x_image).__name__}")
+    raise TypeError(f"Unsupported image type: {type(X_image).__name__}")

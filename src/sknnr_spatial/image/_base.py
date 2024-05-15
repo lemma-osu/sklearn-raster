@@ -12,7 +12,7 @@ from ..types import ImageType
 
 if TYPE_CHECKING:
     from sklearn.base import BaseEstimator
-    from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
+    from sklearn.neighbors._base import KNeighborsMixin
 
     from ..estimator import ImageEstimator
     from ..types import NoDataType
@@ -183,6 +183,6 @@ class ImageWrapper(ABC, Generic[ImageType]):
     def kneighbors(
         self,
         *,
-        estimator: ImageEstimator[KNeighborsRegressor | KNeighborsClassifier],
+        estimator: ImageEstimator[KNeighborsMixin],
         **kneighbors_kwargs,
     ) -> ImageType | tuple[ImageType, ImageType]: ...

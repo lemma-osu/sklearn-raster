@@ -4,13 +4,12 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 from numpy.typing import NDArray
-from sklearn.utils.validation import check_is_fitted
 
 from ._base import ImagePreprocessor, ImageWrapper
 
 if TYPE_CHECKING:
     from sklearn.base import BaseEstimator
-    from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
+    from sklearn.neighbors._base import KNeighborsMixin
 
     from ..estimator import ImageEstimator
 
@@ -43,8 +42,6 @@ class NDArrayWrapper(ImageWrapper[NDArray]):
         estimator: ImageEstimator[BaseEstimator],
     ) -> NDArray:
         """Predict attributes from an array of X_image."""
-        check_is_fitted(estimator)
-
         # TODO: Deal with sklearn warning about missing feature names
         y_pred_flat = estimator._wrapped.predict(self.preprocessor.flat)
 
@@ -57,10 +54,9 @@ class NDArrayWrapper(ImageWrapper[NDArray]):
     def kneighbors(
         self,
         *,
-        estimator: ImageEstimator[KNeighborsRegressor | KNeighborsClassifier],
+        estimator: ImageEstimator[KNeighborsMixin],
         **kneighbors_kwargs,
     ) -> NDArray | tuple[NDArray, NDArray]:
-        check_is_fitted(estimator)
         return_distance = kneighbors_kwargs.pop("return_distance", True)
 
         result = estimator._wrapped.kneighbors(

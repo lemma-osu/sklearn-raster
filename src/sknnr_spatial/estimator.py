@@ -9,8 +9,8 @@ from sklearn.base import clone
 from .types import EstimatorType
 from .utils.estimator import (
     AttrWrapper,
-    check_is_x_image,
     check_wrapper_implements,
+    image_or_fallback,
     is_fitted,
 )
 from .utils.image import get_image_wrapper
@@ -91,11 +91,13 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
         ----------
         X : {array-like, sparse matrix} of shape (n_samples, n_features)
             The training input samples.
-
         y : array-like of shape (n_samples,) or (n_samples, n_outputs)
             The target values (class labels in classification, real numbers in
             regression). Single-output targets of shape (n_samples, 1) will be squeezed
             to shape (n_samples,) to allow consistent prediction across all estimators.
+        **kwargs : dict
+            Additional keyword arguments passed to the estimator's fit method, e.g.
+            `sample_weight`.
 
         Returns
         -------
@@ -116,7 +118,7 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
         return self
 
     @check_wrapper_implements
-    @check_is_x_image
+    @image_or_fallback
     def predict(
         self, X_image: ImageType, *, nodata_vals: NoDataType = None
     ) -> ImageType:
@@ -147,7 +149,7 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
         return wrapper.predict(estimator=self)
 
     @check_wrapper_implements
-    @check_is_x_image
+    @image_or_fallback
     def kneighbors(
         self, X_image: ImageType, *, nodata_vals: NoDataType = None, **kneighbors_kwargs
     ) -> ImageType | tuple[ImageType, ImageType]:

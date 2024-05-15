@@ -6,6 +6,7 @@ from numpy.testing import assert_array_equal
 from sklearn.base import clone
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.neighbors import KNeighborsRegressor
+from sklearn.utils.validation import NotFittedError
 
 from sknnr_spatial import wrap
 
@@ -155,3 +156,16 @@ def test_predicted_var_names(dummy_model_data, image_type, fit_with):
         var_names = y_pred.data_vars
 
     assert list(var_names) == expected_var_names
+
+
+def test_raises_if_not_fitted(dummy_model_data):
+    """Test that wrapped methods raise correctly if the estimator is not fitted."""
+    X_image, _, _ = dummy_model_data
+    estimator = KNeighborsRegressor()
+    wrapped = wrap(estimator)
+
+    with pytest.raises(NotFittedError):
+        wrapped.predict(X_image)
+
+    with pytest.raises(NotFittedError):
+        wrapped.kneighbors(X_image)

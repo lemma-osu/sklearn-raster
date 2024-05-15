@@ -40,7 +40,7 @@ def check_wrapper_implements(func: Callable) -> Callable:
     return wrapper
 
 
-def check_is_x_image(func: Callable) -> Callable:
+def image_or_fallback(func: Callable) -> Callable:
     """Decorator that calls the wrapped method for non-image X arrays."""
 
     @wraps(func)
