@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal, overload
 
 import numpy as np
 import pandas as pd
@@ -60,6 +60,22 @@ def _load_rasters_to_array(file_paths: list[Path]) -> NDArray:
             arr = band if arr is None else np.dstack((arr, band))
 
     return arr
+
+
+@overload
+def load_swo_ecoplot(
+    as_dataset: Literal[True],
+    large_rasters: bool = False,
+    chunks: Any = None,
+) -> tuple[xr.Dataset, pd.DataFrame, pd.DataFrame]: ...
+
+
+@overload
+def load_swo_ecoplot(
+    as_dataset: Literal[False],
+    large_rasters: bool = False,
+    chunks: Any = None,
+) -> tuple[NDArray, pd.DataFrame, pd.DataFrame]: ...
 
 
 def load_swo_ecoplot(
