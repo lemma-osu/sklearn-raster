@@ -1,5 +1,5 @@
 from functools import wraps
-from typing import Callable, Generic
+from typing import Callable, Concatenate, Generic, ParamSpec, TypeVar
 
 from sklearn.base import BaseEstimator
 from sklearn.utils.validation import NotFittedError, check_is_fitted
@@ -7,6 +7,9 @@ from sklearn.utils.validation import NotFittedError, check_is_fitted
 from ..image._base import ImageType
 from ..types import AnyType
 from .image import is_image_type
+
+RT = TypeVar("RT")
+P = ParamSpec("P")
 
 
 class AttrWrapper(Generic[AnyType]):
@@ -25,7 +28,15 @@ class AttrWrapper(Generic[AnyType]):
         return self._wrapped.__dict__
 
 
-def check_wrapper_implements(func: Callable) -> Callable:
+# Callable that takes an AttrWrapper instance and other generic parameters and returns a
+# generic type.
+GenericWrappedCallable = Callable[Concatenate[AttrWrapper, P], RT]
+# Callable that takes an AttrWrapper instance, an ImageType, and other generic
+# parameters and returns a generic type.
+GenericWrappedImageCallable = Callable[Concatenate[AttrWrapper, ImageType, P], RT]
+
+
+def check_wrapper_implements(func: GenericWrappedCallable) -> GenericWrappedCallable:
     """Decorator that raises if the wrapped instance doesn't implement the method."""
 
     @wraps(func)
@@ -40,7 +51,7 @@ def check_wrapper_implements(func: Callable) -> Callable:
     return wrapper
 
 
-def image_or_fallback(func: Callable) -> Callable:
+def image_or_fallback(func: GenericWrappedImageCallable) -> GenericWrappedImageCallable:
     """Decorator that calls the wrapped method for non-image X arrays."""
 
     @wraps(func)
