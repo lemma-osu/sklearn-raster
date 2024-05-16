@@ -7,7 +7,12 @@ from sknnr_spatial.image.dataarray import DataArrayPreprocessor
 from sknnr_spatial.image.dataset import DatasetPreprocessor
 from sknnr_spatial.image.ndarray import NDArrayPreprocessor
 
-from .image_utils import TestImageType, parametrize_image_types, unwrap, wrap
+from .image_utils import (
+    TestImageType,
+    parametrize_image_types,
+    unwrap_image,
+    wrap_image,
+)
 
 
 @parametrize_image_types
@@ -16,7 +21,7 @@ def test_input_array_not_mutated(image_type):
     array = np.array([[[0, 1]], [[1, np.nan]]])
     original_array = array.copy()
 
-    img = wrap(array, type=image_type.cls)
+    img = wrap_image(array, type=image_type.cls)
 
     preprocessor = image_type.preprocessor(img, nodata_vals=0)
     preprocessor.unflatten(preprocessor.flat)
@@ -29,19 +34,19 @@ def test_flat_nans_filled(image_type: TestImageType):
     """NaNs in the flat image should always be filled."""
     fill_value = 42.0
 
-    with_nans = wrap(
+    with_nans = wrap_image(
         np.array([[[1, np.nan, 1], [1, 1, 1]], [[1, 1, 1], [1, 1, np.nan]]]),
         type=image_type.cls,
     )
 
-    filled = wrap(
+    filled = wrap_image(
         np.array([[[1, fill_value, 1], [1, 1, 1]], [[1, 1, 1], [1, 1, fill_value]]]),
         type=image_type.cls,
     )
 
     preprocessor = image_type.preprocessor
-    flat_with_nans = unwrap(preprocessor(with_nans, nan_fill=fill_value).flat)
-    flat_filled = unwrap(preprocessor(filled, nan_fill=fill_value).flat)
+    flat_with_nans = unwrap_image(preprocessor(with_nans, nan_fill=fill_value).flat)
+    flat_filled = unwrap_image(preprocessor(filled, nan_fill=fill_value).flat)
 
     assert_array_equal(flat_with_nans, flat_filled)
 
@@ -52,10 +57,10 @@ def test_flatten(image_type: TestImageType):
     n_bands = 3
     array = np.ones((2, 2, n_bands))
 
-    img = wrap(array, type=image_type.cls)
+    img = wrap_image(array, type=image_type.cls)
 
     preprocessor = image_type.preprocessor(img)
-    flat = unwrap(preprocessor.flat)
+    flat = unwrap_image(preprocessor.flat)
 
     assert flat.shape == (4, n_bands)
     assert_array_equal(flat, np.ones((4, n_bands)))
@@ -68,10 +73,10 @@ def test_flatten_is_reversible(image_type: TestImageType, dtype, nodata_vals):
     """Unflattening a flattened image should return the original image."""
     array = np.random.randint(0, 1e4, (2, 2, 3)).astype(dtype)
 
-    img = wrap(array, type=image_type.cls)
+    img = wrap_image(array, type=image_type.cls)
     preprocessor = image_type.preprocessor(img, nodata_vals=nodata_vals)
 
-    unflattened = unwrap(preprocessor.unflatten(preprocessor.flat))
+    unflattened = unwrap_image(preprocessor.unflatten(preprocessor.flat))
 
     assert_array_equal(unflattened, array)
 
@@ -83,10 +88,10 @@ def test_unflatten_masks_nans(image_type):
     array = np.random.rand(2, 2, 1)
     array[0, 0, 0] = np.nan
 
-    img = wrap(array, type=image_type.cls)
+    img = wrap_image(array, type=image_type.cls)
     preprocessor = image_type.preprocessor(img)
 
-    unflattened = unwrap(preprocessor.unflatten(preprocessor.flat))
+    unflattened = unwrap_image(preprocessor.unflatten(preprocessor.flat))
 
     assert_array_equal(unflattened, array)
 
@@ -220,6 +225,6 @@ def test_wrappers(image_type):
     """Confirm that the test wrappers function as expected."""
     array = np.random.rand(32, 16, 3)
 
-    wrapped = wrap(array, type=image_type.cls)
+    wrapped = wrap_image(array, type=image_type.cls)
     assert isinstance(wrapped, image_type.cls)
-    assert_array_equal(unwrap(wrapped), array)
+    assert_array_equal(unwrap_image(wrapped), array)

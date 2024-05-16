@@ -7,9 +7,9 @@ modified, unwrapped back to a Numpy array, and compared to another array.
 
 >>> from numpy.testing import assert_array_equal
 >>> array = np.ones((8, 8, 3))
->>> wrapped = wrap(np.ones((8, 8, 3)), type=xr.Dataset)
+>>> wrapped = wrap_image(np.ones((8, 8, 3)), type=xr.Dataset)
 >>> wrapped += 1
->>> assert_array_equal(unwrap(wrapped), array + 1)
+>>> assert_array_equal(unwrap_image(wrapped), array + 1)
 
 The advantage of this system is that you can easily parameterize over multiple types by
 changing the `type` parameter, without having to modify the test code.
@@ -64,7 +64,7 @@ parametrize_xarray_image_types = pytest.mark.parametrize(
 )
 
 
-def wrap(image: NDArray, type: type[ImageType]) -> ImageType:
+def wrap_image(image: NDArray, type: type[ImageType]) -> ImageType:
     """Wrap a Numpy NDArray image (y, x, bands) into the specified type."""
     if type is np.ndarray:
         return image
@@ -84,35 +84,35 @@ def wrap(image: NDArray, type: type[ImageType]) -> ImageType:
         )
 
     if type is xr.Dataset:
-        return wrap(image, xr.DataArray).to_dataset(dim="variable")
+        return wrap_image(image, xr.DataArray).to_dataset(dim="variable")
 
     raise ValueError(f"Unsupported image type: {type}")
 
 
 @singledispatch
-def unwrap(image: ImageType) -> NDArray:
+def unwrap_image(image: ImageType) -> NDArray:
     """Unwrap an image to a Numpy NDArray in the shape (y, x, band)."""
     raise NotImplementedError()
 
 
-@unwrap.register(np.ndarray)
+@unwrap_image.register(np.ndarray)
 def _unwrap_ndarray(image: np.ndarray) -> NDArray:
     return image
 
 
-@unwrap.register(xr.DataArray)
+@unwrap_image.register(xr.DataArray)
 def _unwrap_dataarray(image: xr.DataArray) -> NDArray:
     band_dim_name = image.dims[0]
 
     return image.transpose("y", "x", band_dim_name).values
 
 
-@unwrap.register(xr.Dataset)
+@unwrap_image.register(xr.Dataset)
 def _unwrap_dataset(image: xr.Dataset) -> NDArray:
-    return unwrap(image.to_dataarray())
+    return unwrap_image(image.to_dataarray())
 
 
-@unwrap.register(da.Array)
+@unwrap_image.register(da.Array)
 def _unwrap_dask_array(image: da.Array) -> NDArray:
     # We don't support Dask array image inputs, but they're used internally for flat
     # arrays, which we need to be able to unwrap for testing.

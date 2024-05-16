@@ -2,18 +2,20 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Sized
-from functools import singledispatch
 from types import ModuleType
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Generic
 
 import numpy as np
 from numpy.typing import NDArray
 
+from ..types import ImageType
+
 if TYPE_CHECKING:
     from sklearn.base import BaseEstimator
-    from sklearn.neighbors import KNeighborsRegressor
+    from sklearn.neighbors._base import KNeighborsMixin
 
-    from ..types import ImageType
+    from ..estimator import ImageEstimator
+    from ..types import NoDataType
 
 
 class ImagePreprocessor(ABC):
@@ -68,7 +70,7 @@ class ImagePreprocessor(ABC):
     def __init__(
         self,
         image: ImageType,
-        nodata_vals: float | tuple[float] | NDArray | None = None,
+        nodata_vals: NoDataType = None,
         nan_fill: float | None = 0.0,
     ):
         self.image = image
@@ -115,9 +117,7 @@ class ImagePreprocessor(ABC):
         # Set the mask where any band contains NoData
         return mask.max(axis=self.flat_band_dim)
 
-    def _validate_nodata_vals(
-        self, nodata_vals: float | tuple[float] | NDArray | None
-    ) -> NDArray | None:
+    def _validate_nodata_vals(self, nodata_vals: NoDataType) -> NDArray | None:
         """
         Get an array of NoData values in the shape (bands,) based on user input.
 
@@ -162,24 +162,27 @@ class ImagePreprocessor(ABC):
         return flat_image
 
 
-@singledispatch
-def predict(
-    X_image: ImageType,
-    *,
-    estimator: BaseEstimator,
-    nodata_vals=None,
-) -> None:
-    msg = f"predict is not implemented for type `{X_image.__class__.__name__}`."
-    raise NotImplementedError(msg)
+class ImageWrapper(ABC, Generic[ImageType]):
+    """A wrapper around an image that provides sklearn methods."""
 
+    preprocessor_cls: type[ImagePreprocessor]
 
-@singledispatch
-def kneighbors(
-    X_image: ImageType,
-    *,
-    estimator: KNeighborsRegressor,
-    nodata_vals=None,
-    **kneighbors_kwargs,
-) -> None:
-    msg = f"kneighbors is not implemented for type `{X_image.__class__.__name__}`."
-    raise NotImplementedError(msg)
+    def __init__(self, image: ImageType, nodata_vals: NoDataType = None):
+        self.image = image
+        self.nodata_vals = nodata_vals
+        self.preprocessor = self.preprocessor_cls(image, nodata_vals=nodata_vals)
+
+    @abstractmethod
+    def predict(
+        self,
+        *,
+        estimator: ImageEstimator[BaseEstimator],
+    ) -> ImageType: ...
+
+    @abstractmethod
+    def kneighbors(
+        self,
+        *,
+        estimator: ImageEstimator[KNeighborsMixin],
+        **kneighbors_kwargs,
+    ) -> ImageType | tuple[ImageType, ImageType]: ...

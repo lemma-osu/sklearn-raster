@@ -3,14 +3,15 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import numpy as np
-from sklearn.utils.validation import check_is_fitted
+from numpy.typing import NDArray
 
-from ._base import ImagePreprocessor, kneighbors, predict
+from ._base import ImagePreprocessor, ImageWrapper
 
 if TYPE_CHECKING:
-    from numpy.typing import NDArray
     from sklearn.base import BaseEstimator
-    from sklearn.neighbors import KNeighborsRegressor
+    from sklearn.neighbors._base import KNeighborsMixin
+
+    from ..estimator import ImageEstimator
 
 
 class NDArrayPreprocessor(ImagePreprocessor):
@@ -32,43 +33,43 @@ class NDArrayPreprocessor(ImagePreprocessor):
         return flat_image.reshape(*self.image.shape[:2], -1)
 
 
-@predict.register(np.ndarray)
-def _predict_from_ndarray(
-    X_image: NDArray, *, estimator: BaseEstimator, nodata_vals=None
-) -> NDArray:
-    """Predict attributes from an array of X_image."""
-    check_is_fitted(estimator)
-    preprocessor = NDArrayPreprocessor(X_image, nodata_vals=nodata_vals)
+class NDArrayWrapper(ImageWrapper[NDArray]):
+    preprocessor_cls = NDArrayPreprocessor
 
-    # TODO: Deal with sklearn warning about missing feature names
-    y_pred_flat = estimator.predict(preprocessor.flat)
+    def predict(
+        self,
+        *,
+        estimator: ImageEstimator[BaseEstimator],
+    ) -> NDArray:
+        """Predict attributes from an array of X_image."""
+        # TODO: Deal with sklearn warning about missing feature names
+        y_pred_flat = estimator._wrapped.predict(self.preprocessor.flat)
 
-    return preprocessor.unflatten(y_pred_flat, apply_mask=True)
+        # Reshape from (n_samples,) to (n_samples, 1)
+        if estimator._wrapped_meta.n_targets == 1:
+            y_pred_flat = y_pred_flat.reshape(-1, 1)
 
+        return self.preprocessor.unflatten(y_pred_flat, apply_mask=True)
 
-@kneighbors.register(np.ndarray)
-def _kneighbors_from_ndarray(
-    X_image: NDArray,
-    *,
-    estimator: KNeighborsRegressor,
-    nodata_vals=None,
-    **kneighbors_kwargs,
-) -> NDArray:
-    check_is_fitted(estimator)
-    preprocessor = NDArrayPreprocessor(X_image, nodata_vals=nodata_vals)
-    return_distance = kneighbors_kwargs.pop("return_distance", True)
-
-    result = estimator.kneighbors(
-        preprocessor.flat,
-        return_distance=return_distance,
+    def kneighbors(
+        self,
+        *,
+        estimator: ImageEstimator[KNeighborsMixin],
         **kneighbors_kwargs,
-    )
-    if return_distance:
-        dist, nn = result
+    ) -> NDArray | tuple[NDArray, NDArray]:
+        return_distance = kneighbors_kwargs.pop("return_distance", True)
 
-        dist = preprocessor.unflatten(dist)
-        nn = preprocessor.unflatten(nn)
+        result = estimator._wrapped.kneighbors(
+            self.preprocessor.flat,
+            return_distance=return_distance,
+            **kneighbors_kwargs,
+        )
+        if return_distance:
+            dist, nn = result
 
-        return dist, nn
+            dist = self.preprocessor.unflatten(dist)
+            nn = self.preprocessor.unflatten(nn)
 
-    return preprocessor.unflatten(result)
+            return dist, nn
+
+        return self.preprocessor.unflatten(result)

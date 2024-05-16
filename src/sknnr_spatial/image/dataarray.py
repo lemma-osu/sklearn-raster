@@ -6,16 +6,13 @@ import dask.array as da
 import numpy as np
 import xarray as xr
 
-from ._base import ImagePreprocessor, kneighbors, predict
-from ._dask_backed import (
-    kneighbors_from_dask_backed_array,
-    predict_from_dask_backed_array,
-)
+from ._base import ImagePreprocessor
+from ._dask_backed import DaskBackedWrapper
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
-    from sklearn.base import BaseEstimator
-    from sklearn.neighbors import KNeighborsRegressor
+
+    from ..types import NoDataType
 
 
 class DataArrayPreprocessor(ImagePreprocessor):
@@ -24,9 +21,7 @@ class DataArrayPreprocessor(ImagePreprocessor):
     _backend = da
     band_dim = 0
 
-    def _validate_nodata_vals(
-        self, nodata_vals: float | tuple[float] | NDArray | None
-    ) -> NDArray | None:
+    def _validate_nodata_vals(self, nodata_vals: NoDataType) -> NDArray | None:
         """
         Get an array of NoData values in the shape (bands,) based on user input and
         DataArray metadata.
@@ -76,31 +71,7 @@ class DataArrayPreprocessor(ImagePreprocessor):
         )
 
 
-@predict.register(xr.DataArray)
-def _predict_from_dataarray(
-    X_image: xr.DataArray, *, estimator: BaseEstimator, y=None, nodata_vals=None
-) -> xr.DataArray:
-    return predict_from_dask_backed_array(
-        X_image,
-        estimator=estimator,
-        y=y,
-        preprocessor_cls=DataArrayPreprocessor,
-        nodata_vals=nodata_vals,
-    )
+class DataArrayWrapper(DaskBackedWrapper[xr.DataArray]):
+    """A wrapper around a DataArray that provides sklearn methods."""
 
-
-@kneighbors.register(xr.DataArray)
-def _kneighbors_from_dataarray(
-    X_image: xr.Dataset,
-    *,
-    estimator: KNeighborsRegressor,
-    nodata_vals=None,
-    **kneighbors_kwargs,
-) -> xr.Dataset:
-    return kneighbors_from_dask_backed_array(
-        X_image,
-        estimator=estimator,
-        preprocessor_cls=DataArrayPreprocessor,
-        nodata_vals=nodata_vals,
-        **kneighbors_kwargs,
-    )
+    preprocessor_cls = DataArrayPreprocessor

@@ -5,17 +5,13 @@ from typing import TYPE_CHECKING
 import numpy as np
 import xarray as xr
 
-from ._base import kneighbors, predict
-from ._dask_backed import (
-    kneighbors_from_dask_backed_array,
-    predict_from_dask_backed_array,
-)
+from ._dask_backed import DaskBackedWrapper
 from .dataarray import DataArrayPreprocessor
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
-    from sklearn.base import BaseEstimator
-    from sklearn.neighbors import KNeighborsRegressor
+
+    from ..types import NoDataType
 
 
 class DatasetPreprocessor(DataArrayPreprocessor):
@@ -29,7 +25,7 @@ class DatasetPreprocessor(DataArrayPreprocessor):
     def __init__(
         self,
         image: xr.Dataset,
-        nodata_vals: float | tuple[float] | NDArray | None = None,
+        nodata_vals: NoDataType = None,
         nan_fill: float | None = 0.0,
     ):
         # The image itself will be stored as a DataArray, but keep the Dataset for
@@ -37,9 +33,7 @@ class DatasetPreprocessor(DataArrayPreprocessor):
         self.dataset = image
         super().__init__(image.to_dataarray(), nodata_vals, nan_fill)
 
-    def _validate_nodata_vals(
-        self, nodata_vals: float | tuple[float] | NDArray | None
-    ) -> NDArray | None:
+    def _validate_nodata_vals(self, nodata_vals: NoDataType) -> NDArray | None:
         """
         Get an array of NoData values in the shape (bands,) based on user input and
         Dataset metadata.
@@ -75,31 +69,7 @@ class DatasetPreprocessor(DataArrayPreprocessor):
         )
 
 
-@predict.register(xr.Dataset)
-def _predict_from_dataset(
-    X_image: xr.Dataset, *, estimator: BaseEstimator, y=None, nodata_vals=None
-) -> xr.Dataset:
-    return predict_from_dask_backed_array(
-        X_image,
-        estimator=estimator,
-        y=y,
-        preprocessor_cls=DatasetPreprocessor,
-        nodata_vals=nodata_vals,
-    )
+class DatasetWrapper(DaskBackedWrapper[xr.Dataset]):
+    """A wrapper around a Dataset that provides sklearn methods."""
 
-
-@kneighbors.register(xr.Dataset)
-def _kneighbors_from_dataset(
-    X_image: xr.Dataset,
-    *,
-    estimator: KNeighborsRegressor,
-    nodata_vals=None,
-    **kneighbors_kwargs,
-) -> xr.Dataset:
-    return kneighbors_from_dask_backed_array(
-        X_image,
-        estimator=estimator,
-        preprocessor_cls=DatasetPreprocessor,
-        nodata_vals=nodata_vals,
-        **kneighbors_kwargs,
-    )
+    preprocessor_cls = DatasetPreprocessor
