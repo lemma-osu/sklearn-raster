@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal, overload
 from warnings import warn
 
 from sklearn.base import clone
@@ -153,8 +153,37 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
 
     @check_wrapper_implements
     @image_or_fallback
+    @overload
     def kneighbors(
-        self, X_image: ImageType, *, nodata_vals: NoDataType = None, **kneighbors_kwargs
+        self,
+        X_image: ImageType,
+        *,
+        return_distance: Literal[False] = False,
+        nodata_vals: NoDataType = None,
+        **kneighbors_kwargs,
+    ) -> ImageType: ...
+
+    @check_wrapper_implements
+    @image_or_fallback
+    @overload
+    def kneighbors(
+        self,
+        X_image: ImageType,
+        *,
+        return_distance: Literal[True] = True,
+        nodata_vals: NoDataType = None,
+        **kneighbors_kwargs,
+    ) -> tuple[ImageType, ImageType]: ...
+
+    @check_wrapper_implements
+    @image_or_fallback
+    def kneighbors(
+        self,
+        X_image: ImageType,
+        *,
+        return_distance: bool = True,
+        nodata_vals: NoDataType = None,
+        **kneighbors_kwargs,
     ) -> ImageType | tuple[ImageType, ImageType]:
         """
         Find the K-neighbors of each pixel in an image.
@@ -187,6 +216,8 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
         neigh_ind : Numpy or Xarray image with 3 dimensions (y, x, neighbor)
             Indices of the nearest points in the population matrix.
         """
+        kneighbors_kwargs["return_distance"] = return_distance
+
         wrapper = get_image_wrapper(X_image)(X_image, nodata_vals=nodata_vals)
         return wrapper.kneighbors(estimator=self, **kneighbors_kwargs)
 
