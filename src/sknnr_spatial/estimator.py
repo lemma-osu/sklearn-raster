@@ -60,9 +60,10 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
 
         return estimator
 
-    def _get_n_targets(self, y: np.ndarray | pd.DataFrame | pd.Series) -> int:
+    def _get_n_targets(self, y: np.ndarray | pd.DataFrame | pd.Series | None) -> int:
         """Get the number of targets used to fit the estimator."""
-        if y.ndim == 1:
+        # Unsupervised and single-output estimators should both return a single target
+        if y is None or y.ndim == 1:
             return 1
 
         return y.shape[-1]
@@ -104,10 +105,12 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
         self : ImageEstimator
             The wrapper around the fitted estimator.
         """
-        # Squeeze extra y dimensions. This will convert from shape (n_samples, 1) which
-        # causes inconsistent output shapes with different sklearn estimators, to
-        # (n_samples,), which has a consistent output shape.
-        y = y.squeeze()
+        if y is not None:
+            # Squeeze extra y dimensions. This will convert from shape (n_samples, 1)
+            # which causes inconsistent output shapes with different sklearn estimators,
+            # to (n_samples,), which has a consistent output shape.
+            y = y.squeeze()
+
         self._wrapped = self._wrapped.fit(X, y, **kwargs)
 
         self._wrapped_meta = FittedMetadata(
