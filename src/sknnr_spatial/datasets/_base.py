@@ -64,7 +64,7 @@ def _load_rasters_to_array(file_paths: list[Path]) -> NDArray:
 
 @overload
 def load_swo_ecoplot(
-    as_dataset: Literal[True],
+    as_dataset: Literal[True] = True,
     large_rasters: bool = False,
     chunks: Any = None,
 ) -> tuple[xr.Dataset, pd.DataFrame, pd.DataFrame]: ...
@@ -72,7 +72,7 @@ def load_swo_ecoplot(
 
 @overload
 def load_swo_ecoplot(
-    as_dataset: Literal[False],
+    as_dataset: Literal[False] = False,
     large_rasters: bool = False,
     chunks: Any = None,
 ) -> tuple[NDArray, pd.DataFrame, pd.DataFrame]: ...
