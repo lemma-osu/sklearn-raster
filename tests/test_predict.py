@@ -4,8 +4,9 @@ import pytest
 import xarray as xr
 from numpy.testing import assert_array_equal
 from sklearn.base import clone
+from sklearn.cluster import AffinityPropagation, KMeans, MeanShift
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.neighbors import KNeighborsRegressor
+from sklearn.neighbors import KNeighborsRegressor, NearestNeighbors
 from sklearn.utils.validation import NotFittedError
 
 from sknnr_spatial import wrap
@@ -46,6 +47,22 @@ def test_predict(dummy_model_data, image_type, estimator, single_output, squeeze
 
 
 @parametrize_image_types
+@pytest.mark.parametrize("estimator", [KMeans, MeanShift, AffinityPropagation])
+def test_predict_unsupervised(dummy_model_data, image_type, estimator):
+    """Test that predict works with all image types with unsupervised estimators."""
+    X_image, X, _ = dummy_model_data
+
+    estimator = wrap(estimator()).fit(X)
+
+    X_wrapped = wrap_image(X_image, type=image_type.cls)
+    y_pred = unwrap_image(estimator.predict(X_wrapped))
+
+    assert y_pred.ndim == 3
+    expected_shape = (X_image.shape[0], X_image.shape[1], 1)
+    assert_array_equal(y_pred.shape, expected_shape)
+
+
+@parametrize_image_types
 @pytest.mark.parametrize("k", [1, 3], ids=lambda k: f"k{k}")
 def test_kneighbors_with_distance(dummy_model_data, image_type, k):
     """Test kneighbors works with all image types when returning distance."""
@@ -77,6 +94,25 @@ def test_kneighbors_without_distance(dummy_model_data, image_type, k):
 
     assert nn.ndim == 3
 
+    assert_array_equal(nn.shape, (X_image.shape[0], X_image.shape[1], k))
+
+
+@parametrize_image_types
+@pytest.mark.parametrize("k", [1, 3], ids=lambda k: f"k{k}")
+def test_kneighbors_unsupervised(dummy_model_data, image_type, k):
+    """Test kneighbors works with all image types when unsupervised."""
+    X_image, X, _ = dummy_model_data
+    estimator = wrap(NearestNeighbors(n_neighbors=k)).fit(X)
+
+    X_wrapped = wrap_image(X_image, type=image_type.cls)
+    dist, nn = estimator.kneighbors(X_wrapped, return_distance=True)
+    dist = unwrap_image(dist)
+    nn = unwrap_image(nn)
+
+    assert dist.ndim == 3
+    assert nn.ndim == 3
+
+    assert_array_equal(dist.shape, (X_image.shape[0], X_image.shape[1], k))
     assert_array_equal(nn.shape, (X_image.shape[0], X_image.shape[1], k))
 
 

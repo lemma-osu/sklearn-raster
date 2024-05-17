@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import dask.array as da
+import numpy as np
 from sklearn.utils.validation import check_is_fitted
 
 from ..types import DaskBackedType
@@ -15,6 +16,12 @@ if TYPE_CHECKING:
     from ..estimator import ImageEstimator
     from .dataarray import DataArrayPreprocessor
     from .dataset import DatasetPreprocessor
+
+ESTIMATOR_OUTPUT_DTYPES: dict[str, np.dtype] = {
+    "classifier": np.int32,
+    "clusterer": np.int32,
+    "regressor": np.float64,
+}
 
 
 class DaskBackedWrapper(ImageWrapper[DaskBackedType]):
@@ -39,12 +46,17 @@ class DaskBackedWrapper(ImageWrapper[DaskBackedType]):
             signature = "(x)->(y)"
             output_sizes = {"y": meta.n_targets}
 
+        # Any estimator with an undefined type should fall back to floating
+        # point for safety.
+        estimator_type = getattr(estimator, "_estimator_type", "")
+        output_dtype = ESTIMATOR_OUTPUT_DTYPES.get(estimator_type, np.float64)
+
         y_pred = da.apply_gufunc(
             estimator._wrapped.predict,
             signature,
             self.preprocessor.flat,
             axis=self.preprocessor.flat_band_dim,
-            output_dtypes=[float],
+            output_dtypes=[output_dtype],
             output_sizes=output_sizes,
             allow_rechunk=True,
         )
