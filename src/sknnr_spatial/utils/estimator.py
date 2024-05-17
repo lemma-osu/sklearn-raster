@@ -28,19 +28,16 @@ class AttrWrapper(Generic[AnyType]):
         return self._wrapped.__dict__
 
 
-# Callable that takes an AttrWrapper instance and other generic parameters and returns a
-# generic type.
-GenericWrappedCallable = Callable[Concatenate[AttrWrapper, P], RT]
-# Callable that takes an AttrWrapper instance, an ImageType, and other generic
-# parameters and returns a generic type.
-GenericWrappedImageCallable = Callable[Concatenate[AttrWrapper, ImageType, P], RT]
+GenericWrapper = TypeVar("GenericWrapper", bound=AttrWrapper)
 
 
-def check_wrapper_implements(func: GenericWrappedCallable) -> GenericWrappedCallable:
+def check_wrapper_implements(
+    func: Callable[Concatenate[GenericWrapper, P], RT],
+) -> Callable[Concatenate[GenericWrapper, P], RT]:
     """Decorator that raises if the wrapped instance doesn't implement the method."""
 
     @wraps(func)
-    def wrapper(self: AttrWrapper, *args, **kwargs):
+    def wrapper(self: GenericWrapper, *args, **kwargs):
         if not hasattr(self._wrapped, func.__name__):
             wrapped_class = self._wrapped.__class__.__name__
             msg = f"{wrapped_class} does not implement {func.__name__}."
@@ -51,11 +48,13 @@ def check_wrapper_implements(func: GenericWrappedCallable) -> GenericWrappedCall
     return wrapper
 
 
-def image_or_fallback(func: GenericWrappedImageCallable) -> GenericWrappedImageCallable:
+def image_or_fallback(
+    func: Callable[Concatenate[GenericWrapper, ImageType, P], RT],
+) -> Callable[Concatenate[GenericWrapper, ImageType, P], RT]:
     """Decorator that calls the wrapped method for non-image X arrays."""
 
     @wraps(func)
-    def wrapper(self: AttrWrapper, X_image: ImageType, *args, **kwargs):
+    def wrapper(self: GenericWrapper, X_image: ImageType, *args, **kwargs):
         if not is_image_type(X_image):
             return getattr(self._wrapped, func.__name__)(X_image, *args, **kwargs)
 
