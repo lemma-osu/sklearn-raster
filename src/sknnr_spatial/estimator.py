@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Literal, overload
+from typing import TYPE_CHECKING
 from warnings import warn
 
 from sklearn.base import clone
+from typing_extensions import Literal, overload
 
 from .types import EstimatorType
 from .utils.estimator import (

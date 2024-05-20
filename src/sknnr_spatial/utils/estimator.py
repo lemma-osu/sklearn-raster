@@ -1,8 +1,9 @@
 from functools import wraps
-from typing import Callable, Concatenate, Generic, ParamSpec, TypeVar
+from typing import Callable, Generic
 
 from sklearn.base import BaseEstimator
 from sklearn.utils.validation import NotFittedError, check_is_fitted
+from typing_extensions import Concatenate, ParamSpec, TypeVar
 
 from ..image._base import ImageType
 from ..types import AnyType

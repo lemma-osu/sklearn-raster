@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Literal, overload
 
 import numpy as np
 import pandas as pd
 from numpy.typing import NDArray
+from typing_extensions import Any, Literal, overload
 
 from sknnr_spatial import __version__
 from sknnr_spatial.datasets._registry import registry

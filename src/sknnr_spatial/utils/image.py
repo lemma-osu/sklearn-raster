@@ -1,7 +1,6 @@
-from typing import Any
-
 import numpy as np
 import xarray as xr
+from typing_extensions import Any
 
 from ..image._base import ImageType, ImageWrapper
 from ..image.dataarray import DataArrayWrapper
