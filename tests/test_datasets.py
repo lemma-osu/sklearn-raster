@@ -1,10 +1,10 @@
 import pickle
 import sys
 from dataclasses import dataclass
-from typing import Any
 from unittest import mock
 
 import pytest
+from typing_extensions import Any
 
 from sknnr_spatial.datasets import load_swo_ecoplot
 

@@ -184,5 +184,7 @@ class ImageWrapper(ABC, Generic[ImageType]):
         self,
         *,
         estimator: ImageEstimator[KNeighborsMixin],
+        n_neighbors: int | None = None,
+        return_distance: bool = True,
         **kneighbors_kwargs,
     ) -> ImageType | tuple[ImageType, ImageType]: ...

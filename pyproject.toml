@@ -17,6 +17,7 @@ dependencies = [
     "numpy",
     "dask[diagnostics,dataframe]",
     "scikit-learn",
+    "typing-extensions",
 ]
 
 [project.optional-dependencies]

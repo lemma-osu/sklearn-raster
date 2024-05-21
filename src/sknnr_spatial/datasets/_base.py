@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
 
 import numpy as np
 import pandas as pd
 from numpy.typing import NDArray
+from typing_extensions import Any, Literal, overload
 
 from sknnr_spatial import __version__
 from sknnr_spatial.datasets._registry import registry
@@ -60,6 +60,22 @@ def _load_rasters_to_array(file_paths: list[Path]) -> NDArray:
             arr = band if arr is None else np.dstack((arr, band))
 
     return arr
+
+
+@overload
+def load_swo_ecoplot(
+    as_dataset: Literal[True],
+    large_rasters: bool = False,
+    chunks: Any = None,
+) -> tuple[xr.Dataset, pd.DataFrame, pd.DataFrame]: ...
+
+
+@overload
+def load_swo_ecoplot(
+    as_dataset: Literal[False] = False,
+    large_rasters: bool = False,
+    chunks: Any = None,
+) -> tuple[NDArray, pd.DataFrame, pd.DataFrame]: ...
 
 
 def load_swo_ecoplot(

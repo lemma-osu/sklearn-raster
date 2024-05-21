@@ -71,12 +71,13 @@ class DaskBackedWrapper(ImageWrapper[DaskBackedType]):
         self,
         *,
         estimator: ImageEstimator[KNeighborsMixin],
+        n_neighbors: int | None = None,
+        return_distance: bool = True,
         **kneighbors_kwargs,
     ) -> DaskBackedType | tuple[DaskBackedType, DaskBackedType]:
         """Generic kneighbors wrapper for Dask-backed arrays."""
-        return_distance = kneighbors_kwargs.pop("return_distance", True)
+        k = n_neighbors if n_neighbors is not None else estimator.n_neighbors
 
-        k = estimator.n_neighbors
         var_names = [f"k{i + 1}" for i in range(k)]
 
         # Set the expected gufunc output depending on whether distances will be included
@@ -91,6 +92,7 @@ class DaskBackedWrapper(ImageWrapper[DaskBackedType]):
             output_dtypes=output_dtypes,
             axis=self.preprocessor.flat_band_dim,
             allow_rechunk=True,
+            n_neighbors=n_neighbors,
             return_distance=return_distance,
             **kneighbors_kwargs,
         )

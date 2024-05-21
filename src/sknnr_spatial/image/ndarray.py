@@ -55,12 +55,13 @@ class NDArrayWrapper(ImageWrapper[NDArray]):
         self,
         *,
         estimator: ImageEstimator[KNeighborsMixin],
+        n_neighbors: int | None = None,
+        return_distance: bool = True,
         **kneighbors_kwargs,
     ) -> NDArray | tuple[NDArray, NDArray]:
-        return_distance = kneighbors_kwargs.pop("return_distance", True)
-
         result = estimator._wrapped.kneighbors(
             self.preprocessor.flat,
+            n_neighbors=n_neighbors,
             return_distance=return_distance,
             **kneighbors_kwargs,
         )
