@@ -98,6 +98,22 @@ def test_kneighbors_without_distance(dummy_model_data, image_type, k):
 
 
 @parametrize_image_types
+@pytest.mark.parametrize("n_neighbors", [1, 5], ids=lambda k: f"n_neighbors={k}")
+def test_kneighbors_with_n_neighbors(dummy_model_data, image_type, n_neighbors):
+    """Test kneighbors returns n_neighbors when specified."""
+    X_image, X, y = dummy_model_data
+    estimator = wrap(KNeighborsRegressor(n_neighbors=3)).fit(X, y)
+
+    X_wrapped = wrap_image(X_image, type=image_type.cls)
+    nn = estimator.kneighbors(X_wrapped, n_neighbors=n_neighbors, return_distance=False)
+    nn = unwrap_image(nn)
+
+    assert nn.ndim == 3
+
+    assert_array_equal(nn.shape, (X_image.shape[0], X_image.shape[1], n_neighbors))
+
+
+@parametrize_image_types
 @pytest.mark.parametrize("k", [1, 3], ids=lambda k: f"k{k}")
 def test_kneighbors_unsupervised(dummy_model_data, image_type, k):
     """Test kneighbors works with all image types when unsupervised."""
