@@ -159,6 +159,7 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
         self,
         X_image: ImageType,
         *,
+        n_neighbors: int | None = None,
         return_distance: Literal[False] = False,
         nodata_vals: NoDataType = None,
         **kneighbors_kwargs,
@@ -171,6 +172,7 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
         self,
         X_image: ImageType,
         *,
+        n_neighbors: int | None = None,
         return_distance: Literal[True] = True,
         nodata_vals: NoDataType = None,
         **kneighbors_kwargs,
@@ -182,6 +184,7 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
         self,
         X_image: ImageType,
         *,
+        n_neighbors: int | None = None,
         return_distance: bool = True,
         nodata_vals: NoDataType = None,
         **kneighbors_kwargs,
@@ -201,13 +204,18 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
         X_image : Numpy or Xarray image with 3 dimensions (y, x, band)
             The input image. Features in the band dimension should correspond with the
             features used to fit the estimator.
+        n_neighbors : int, optional
+            Number of neighbors required for each sample. The default is the value
+            passed to the wrapped estimator's constructor.
+        return_distance : bool, default=True
+            If True, return distances to the neighbors of each sample. If False, return
+            indices only.
         nodata_vals : float or sequence of floats, optional
             NoData values to mask in the output image. A single value will be broadcast
             to all bands while sequences of values will be assigned band-wise. If None,
             values will be inferred if possible based on image metadata.
         **kneighbors_kwargs
-            Additional arguments passed to the estimator's kneighbors method, e.g.
-            `return_distance`.
+            Additional arguments passed to the estimator's kneighbors method.
 
         Returns
         -------
@@ -217,10 +225,13 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
         neigh_ind : Numpy or Xarray image with 3 dimensions (y, x, neighbor)
             Indices of the nearest points in the population matrix.
         """
-        kneighbors_kwargs["return_distance"] = return_distance
-
         wrapper = get_image_wrapper(X_image)(X_image, nodata_vals=nodata_vals)
-        return wrapper.kneighbors(estimator=self, **kneighbors_kwargs)
+        return wrapper.kneighbors(
+            estimator=self,
+            n_neighbors=n_neighbors,
+            return_distance=return_distance,
+            **kneighbors_kwargs,
+        )
 
 
 def wrap(estimator: EstimatorType) -> ImageEstimator[EstimatorType]:
