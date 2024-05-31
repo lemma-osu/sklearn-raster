@@ -19,6 +19,7 @@ class NDArrayPreprocessor(ImagePreprocessor):
 
     _backend = np
     band_dim = -1
+    band_names = np.array([])
 
     def _flatten(self, image: NDArray) -> NDArray:
         """Flatten the array from (y, x, bands) to (pixels, bands)."""

@@ -66,6 +66,7 @@ class ImagePreprocessor(ABC):
 
     band_dim: int
     flat_band_dim = -1
+    band_names: NDArray
 
     def __init__(
         self,

@@ -4,7 +4,9 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from warnings import warn
 
+import numpy as np
 from sklearn.base import clone
+from sklearn.utils.validation import _get_feature_names, check_is_fitted
 from typing_extensions import Literal, overload
 
 from .types import EstimatorType
@@ -17,8 +19,8 @@ from .utils.estimator import (
 from .utils.image import get_image_wrapper
 
 if TYPE_CHECKING:
-    import numpy as np
     import pandas as pd
+    from numpy.typing import NDArray
 
     from .types import ImageType, NoDataType
 
@@ -29,6 +31,7 @@ class FittedMetadata:
 
     n_targets: int
     target_names: tuple[str | int, ...]
+    feature_names: NDArray
 
 
 class ImageEstimator(AttrWrapper[EstimatorType]):
@@ -112,11 +115,17 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
             # to (n_samples,), which has a consistent output shape.
             y = y.squeeze()
 
-        self._wrapped = self._wrapped.fit(X, y, **kwargs)
+        # Cast X to array before fitting to prevent the estimator from storing feature
+        # names. We implement our own feature name checks that are image-compatible.
+        self._wrapped = self._wrapped.fit(np.asarray(X), y, **kwargs)
+        fitted_feature_names = _get_feature_names(X)
 
         self._wrapped_meta = FittedMetadata(
             n_targets=self._get_n_targets(y),
             target_names=self._get_target_names(y),
+            feature_names=fitted_feature_names
+            if fitted_feature_names is not None
+            else np.array([]),
         )
 
         return self
@@ -150,6 +159,8 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
             The predicted values.
         """
         wrapper = get_image_wrapper(X_image)(X_image, nodata_vals=nodata_vals)
+        self._check_feature_names(wrapper.preprocessor.band_names)
+
         return wrapper.predict(estimator=self)
 
     @check_wrapper_implements
@@ -226,12 +237,73 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
             Indices of the nearest points in the population matrix.
         """
         wrapper = get_image_wrapper(X_image)(X_image, nodata_vals=nodata_vals)
+        self._check_feature_names(wrapper.preprocessor.band_names)
+
         return wrapper.kneighbors(
             estimator=self,
             n_neighbors=n_neighbors,
             return_distance=return_distance,
             **kneighbors_kwargs,
         )
+
+    def _check_feature_names(self, image_feature_names: NDArray) -> None:
+        """Check that image feature names match feature names seen during fitting."""
+        check_is_fitted(self._wrapped)
+        fitted_feature_names = self._wrapped_meta.feature_names
+
+        no_fitted_names = len(fitted_feature_names) == 0
+        no_image_names = len(image_feature_names) == 0
+
+        if no_fitted_names and no_image_names:
+            return
+
+        if no_fitted_names:
+            warn(
+                f"X_image has feature names, but {self._wrapped.__class__.__name__} was"
+                " fitted without feature names",
+                stacklevel=2,
+            )
+            return
+
+        if no_image_names:
+            warn(
+                "X_image does not have valid feature names, but"
+                f" {self._wrapped.__class__.__name__} was fitted with feature names",
+                stacklevel=2,
+            )
+            return
+
+        if len(fitted_feature_names) != len(image_feature_names) or np.any(
+            fitted_feature_names != image_feature_names
+        ):
+            msg = "Image band names should match those that were passed during fit.\n"
+            fitted_feature_names_set = set(fitted_feature_names)
+            image_feature_names_set = set(image_feature_names)
+
+            unexpected_names = sorted(
+                image_feature_names_set - fitted_feature_names_set
+            )
+            missing_names = sorted(fitted_feature_names_set - image_feature_names_set)
+
+            def add_names(names):
+                max_n_names = 5
+                if len(names) > max_n_names:
+                    names = [*names[: max_n_names + 1], "..."]
+
+                return "".join([f"- {name}\n" for name in names])
+
+            if unexpected_names:
+                msg += "Band names unseen at fit time:\n"
+                msg += add_names(unexpected_names)
+
+            if missing_names:
+                msg += "Band names seen at fit time, yet now missing:\n"
+                msg += add_names(missing_names)
+
+            if not missing_names and not unexpected_names:
+                msg += "Band names must be in the same order as they were in fit.\n"
+
+            raise ValueError(msg)
 
 
 def wrap(estimator: EstimatorType) -> ImageEstimator[EstimatorType]:
