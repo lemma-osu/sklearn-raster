@@ -11,14 +11,14 @@ from sklearn.utils.validation import NotFittedError
 
 from sknnr_spatial import wrap
 
-from .image_utils import parametrize_model_data, unwrap_image
+from .image_utils import ModelData, parametrize_model_data, unwrap_image
 
 
 @parametrize_model_data()
 @pytest.mark.parametrize("estimator", [KNeighborsRegressor, RandomForestRegressor])
 @pytest.mark.parametrize("single_output", [True, False], ids=["single", "multi"])
 @pytest.mark.parametrize("squeeze", [True, False], ids=["squeezed", "unsqueezed"])
-def test_predict(model_data, estimator, single_output, squeeze):
+def test_predict(model_data: ModelData, estimator, single_output, squeeze):
     """Test that predict works with all image types and a few estimators."""
     X_image, X, y = model_data.set(single_output=single_output, squeeze=squeeze)
 
@@ -37,7 +37,7 @@ def test_predict(model_data, estimator, single_output, squeeze):
 
 @parametrize_model_data()
 @pytest.mark.parametrize("estimator", [KMeans, MeanShift, AffinityPropagation])
-def test_predict_unsupervised(model_data, estimator):
+def test_predict_unsupervised(model_data: ModelData, estimator):
     """Test that predict works with all image types with unsupervised estimators."""
     X_image, X, _ = model_data
 
@@ -52,7 +52,7 @@ def test_predict_unsupervised(model_data, estimator):
 
 @parametrize_model_data()
 @pytest.mark.parametrize("k", [1, 3], ids=lambda k: f"k{k}")
-def test_kneighbors_with_distance(model_data, k):
+def test_kneighbors_with_distance(model_data: ModelData, k):
     """Test kneighbors works with all image types when returning distance."""
     X_image, X, y = model_data
 
@@ -71,7 +71,7 @@ def test_kneighbors_with_distance(model_data, k):
 
 @parametrize_model_data()
 @pytest.mark.parametrize("k", [1, 3], ids=lambda k: f"k{k}")
-def test_kneighbors_without_distance(model_data, k):
+def test_kneighbors_without_distance(model_data: ModelData, k):
     """Test kneighbors works with all image types when NOT returning distance."""
     X_image, X, y = model_data
     estimator = wrap(KNeighborsRegressor(n_neighbors=k)).fit(X, y)
@@ -86,7 +86,7 @@ def test_kneighbors_without_distance(model_data, k):
 
 @parametrize_model_data()
 @pytest.mark.parametrize("n_neighbors", [1, 5], ids=lambda k: f"n_neighbors={k}")
-def test_kneighbors_with_n_neighbors(model_data, n_neighbors):
+def test_kneighbors_with_n_neighbors(model_data: ModelData, n_neighbors):
     """Test kneighbors returns n_neighbors when specified."""
     X_image, X, y = model_data
 
@@ -102,7 +102,7 @@ def test_kneighbors_with_n_neighbors(model_data, n_neighbors):
 
 @parametrize_model_data()
 @pytest.mark.parametrize("k", [1, 3], ids=lambda k: f"k{k}")
-def test_kneighbors_unsupervised(model_data, k):
+def test_kneighbors_unsupervised(model_data: ModelData, k):
     """Test kneighbors works with all image types when unsupervised."""
     X_image, X, y = model_data
 
@@ -120,7 +120,7 @@ def test_kneighbors_unsupervised(model_data, k):
 
 
 @parametrize_model_data(image_types=(xr.DataArray,))
-def test_predict_dataarray_with_custom_dim_name(model_data):
+def test_predict_dataarray_with_custom_dim_name(model_data: ModelData):
     """Test that predict works if the band dimension is not named "variable"."""
     X_image, X, y = model_data
 
@@ -136,7 +136,7 @@ def test_predict_dataarray_with_custom_dim_name(model_data):
 
 @parametrize_model_data(image_types=(xr.DataArray, xr.Dataset))
 @pytest.mark.parametrize("crs", ["EPSG:5070", None])
-def test_crs_preserved(model_data, crs):
+def test_crs_preserved(model_data: ModelData, crs):
     """Test that the original image CRS is preserved."""
     # rioxarray must be imported to register the rio accessor
     import rioxarray  # noqa: F401
@@ -158,7 +158,7 @@ def test_crs_preserved(model_data, crs):
 
 
 @parametrize_model_data(image_types=(np.ndarray,))
-def test_with_non_image_data(model_data):
+def test_with_non_image_data(model_data: ModelData):
     """Test that non-image data falls back to the wrapped estimator behavior."""
     _, X, y = model_data
 
@@ -179,7 +179,7 @@ def test_with_non_image_data(model_data):
 @pytest.mark.parametrize(
     "fit_with", [np.ndarray, pd.DataFrame, pd.Series], ids=lambda x: x.__name__
 )
-def test_predicted_var_names(model_data, fit_with):
+def test_predicted_var_names(model_data: ModelData, fit_with):
     """Test that variable names are correctly set in a Dataset or DataArray."""
     X_image, X, y = model_data
 
@@ -207,7 +207,7 @@ def test_predicted_var_names(model_data, fit_with):
 
 
 @parametrize_model_data()
-def test_raises_if_not_fitted(model_data):
+def test_raises_if_not_fitted(model_data: ModelData):
     """Test that wrapped methods raise correctly if the estimator is not fitted."""
     X_image, _, _ = model_data
     estimator = KNeighborsRegressor()
@@ -218,3 +218,45 @@ def test_raises_if_not_fitted(model_data):
 
     with pytest.raises(NotFittedError):
         wrapped.kneighbors(X_image)
+
+
+@parametrize_model_data(image_types=(np.ndarray,))
+def test_predict_warns_missing_feature_names(model_data: ModelData):
+    """Test that predict warns when feature names are missing."""
+    # Retrieve model data with and without feature names
+    X_image_unnamed, X_unnamed, y = model_data
+    X_image_named, X_named, _ = model_data.set(image_type=xr.DataArray)
+
+    estimator_fit_with_names = wrap(RandomForestRegressor()).fit(X_named, y)
+    estimator_fit_without_names = wrap(RandomForestRegressor()).fit(X_unnamed, y)
+
+    with pytest.warns(match="was fitted with feature names"):
+        estimator_fit_with_names.predict(X_image_unnamed)
+
+    with pytest.warns(match="was fitted without feature names"):
+        estimator_fit_without_names.predict(X_image_named)
+
+
+@parametrize_model_data(
+    X_image=np.random.random((2, 2, 10)), image_types=(xr.DataArray,)
+)
+def test_predict_raises_mismatched_feature_names(model_data: ModelData):
+    """Test that predict raises when feature names are mismatched."""
+    # Retrieve model data with and without feature names
+    X_image, X, y = model_data
+
+    # Fit the estimator with different names than the image
+    rename_map = {k: k + "_different" for k in X.columns}
+    X_renamed = X.rename(columns=rename_map)
+    estimator = wrap(RandomForestRegressor()).fit(X_renamed, y)
+
+    with pytest.raises(ValueError, match="Band names unseen at fit time"):
+        estimator.predict(X_image)
+
+    # Fit the estimator with same names in a different order than the image
+    rename_map = dict(zip(X.columns, X.columns[::-1]))
+    X_flipped = X.rename(columns=rename_map)
+    estimator = wrap(RandomForestRegressor()).fit(X_flipped, y)
+
+    with pytest.raises(ValueError, match="must be in the same order"):
+        estimator.predict(X_image)
