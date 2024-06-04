@@ -2,7 +2,7 @@ import numpy as np
 import xarray as xr
 from typing_extensions import Any
 
-from ..image._base import ImageType, ImageWrapper
+from ..image._base import ImagePreprocessor, ImageType, ImageWrapper
 from ..image.dataarray import DataArrayWrapper
 from ..image.dataset import DatasetWrapper
 from ..image.ndarray import NDArrayWrapper
@@ -30,3 +30,8 @@ def get_image_wrapper(X_image: ImageType) -> type[ImageWrapper]:
         return DatasetWrapper
 
     raise TypeError(f"Unsupported image type: {type(X_image).__name__}")
+
+
+def get_image_preprocessor(X_image: ImageType) -> type[ImagePreprocessor]:
+    """Get an ImagePreprocessor subclass for a given image."""
+    return get_image_wrapper(X_image).preprocessor_cls

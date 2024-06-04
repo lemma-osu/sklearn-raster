@@ -329,13 +329,13 @@ def wrap(estimator: EstimatorType) -> ImageEstimator[EstimatorType]:
 
     >>> from sklearn.neighbors import KNeighborsRegressor
     >>> from sknnr_spatial.datasets import load_swo_ecoplot
-    >>> X_img, X, y = load_swo_ecoplot()
+    >>> X_img, X, y = load_swo_ecoplot(as_dataset=True)
     >>> est = wrap(KNeighborsRegressor(n_neighbors=3)).fit(X, y)
 
     Use a wrapped estimator to predict from image data stored in Numpy or Xarray arrays:
 
     >>> pred = est.predict(X_img)
-    >>> pred.shape
-    (128, 128, 25)
+    >>> pred.PSME_COV.shape
+    (128, 128)
     """
     return ImageEstimator(estimator)
