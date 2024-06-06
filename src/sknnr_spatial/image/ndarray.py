@@ -43,7 +43,6 @@ class NDArrayWrapper(ImageWrapper[NDArray]):
         estimator: ImageEstimator[BaseEstimator],
     ) -> NDArray:
         """Predict attributes from an array of X_image."""
-        # TODO: Deal with sklearn warning about missing feature names
         y_pred_flat = estimator._wrapped.predict(self.preprocessor.flat)
 
         # Reshape from (n_samples,) to (n_samples, 1)
