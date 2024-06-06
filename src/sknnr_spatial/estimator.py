@@ -267,7 +267,7 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
 
         if no_image_names:
             warn(
-                "X_image does not have valid feature names, but"
+                "X_image does not have feature names, but"
                 f" {self._wrapped.__class__.__name__} was fitted with feature names",
                 stacklevel=2,
             )
