@@ -64,7 +64,7 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
 
         return estimator
 
-    def _get_n_targets(self, y: np.ndarray | pd.DataFrame | pd.Series | None) -> int:
+    def _get_n_targets(self, y: NDArray | pd.DataFrame | pd.Series | None) -> int:
         """Get the number of targets used to fit the estimator."""
         # Unsupervised and single-output estimators should both return a single target
         if y is None or y.ndim == 1:
@@ -73,7 +73,7 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
         return y.shape[-1]
 
     def _get_target_names(
-        self, y: np.ndarray | pd.DataFrame | pd.Series
+        self, y: NDArray | pd.DataFrame | pd.Series
     ) -> tuple[str | int, ...]:
         """Get the target names used to fit the estimator, if available."""
         # Dataframe
