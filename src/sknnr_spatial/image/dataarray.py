@@ -21,6 +21,11 @@ class DataArrayPreprocessor(ImagePreprocessor):
     _backend = da
     band_dim = 0
 
+    @property
+    def band_names(self) -> NDArray:
+        band_dim_name = self.image.dims[self.band_dim]
+        return self.image[band_dim_name].values
+
     def _validate_nodata_vals(self, nodata_vals: NoDataType) -> NDArray | None:
         """
         Get an array of NoData values in the shape (bands,) based on user input and

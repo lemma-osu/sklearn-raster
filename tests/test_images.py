@@ -3,12 +3,13 @@ import pytest
 import xarray as xr
 from numpy.testing import assert_array_equal
 
+from sknnr_spatial.image._base import ImageType
 from sknnr_spatial.image.dataarray import DataArrayPreprocessor
 from sknnr_spatial.image.dataset import DatasetPreprocessor
 from sknnr_spatial.image.ndarray import NDArrayPreprocessor
+from sknnr_spatial.utils.image import get_image_preprocessor
 
 from .image_utils import (
-    TestImageType,
     parametrize_image_types,
     unwrap_image,
     wrap_image,
@@ -16,50 +17,50 @@ from .image_utils import (
 
 
 @parametrize_image_types
-def test_input_array_not_mutated(image_type):
+def test_input_array_not_mutated(image_type: type[ImageType]):
     """Ensure that preprocessing an image doesn't alter it."""
     array = np.array([[[0, 1]], [[1, np.nan]]])
     original_array = array.copy()
 
-    img = wrap_image(array, type=image_type.cls)
+    img = wrap_image(array, type=image_type)
 
-    preprocessor = image_type.preprocessor(img, nodata_vals=0)
+    preprocessor = get_image_preprocessor(img)(img, nodata_vals=0)
     preprocessor.unflatten(preprocessor.flat)
 
     assert_array_equal(array, original_array)
 
 
 @parametrize_image_types
-def test_flat_nans_filled(image_type: TestImageType):
+def test_flat_nans_filled(image_type: type[ImageType]):
     """NaNs in the flat image should always be filled."""
     fill_value = 42.0
 
     with_nans = wrap_image(
         np.array([[[1, np.nan, 1], [1, 1, 1]], [[1, 1, 1], [1, 1, np.nan]]]),
-        type=image_type.cls,
+        type=image_type,
     )
 
     filled = wrap_image(
         np.array([[[1, fill_value, 1], [1, 1, 1]], [[1, 1, 1], [1, 1, fill_value]]]),
-        type=image_type.cls,
+        type=image_type,
     )
 
-    preprocessor = image_type.preprocessor
-    flat_with_nans = unwrap_image(preprocessor(with_nans, nan_fill=fill_value).flat)
-    flat_filled = unwrap_image(preprocessor(filled, nan_fill=fill_value).flat)
+    preprocessor_cls = get_image_preprocessor(with_nans)
+    flat_with_nans = unwrap_image(preprocessor_cls(with_nans, nan_fill=fill_value).flat)
+    flat_filled = unwrap_image(preprocessor_cls(filled, nan_fill=fill_value).flat)
 
     assert_array_equal(flat_with_nans, flat_filled)
 
 
 @parametrize_image_types
-def test_flatten(image_type: TestImageType):
+def test_flatten(image_type: type[ImageType]):
     """Flattening an 3D array should return a 2D array with the same number of bands."""
     n_bands = 3
     array = np.ones((2, 2, n_bands))
 
-    img = wrap_image(array, type=image_type.cls)
+    img = wrap_image(array, type=image_type)
 
-    preprocessor = image_type.preprocessor(img)
+    preprocessor = get_image_preprocessor(img)(img)
     flat = unwrap_image(preprocessor.flat)
 
     assert flat.shape == (4, n_bands)
@@ -69,12 +70,12 @@ def test_flatten(image_type: TestImageType):
 @parametrize_image_types
 @pytest.mark.parametrize("dtype", [float, int])
 @pytest.mark.parametrize("nodata_vals", [None, -32768, [-32768, -32768, -32768]])
-def test_flatten_is_reversible(image_type: TestImageType, dtype, nodata_vals):
+def test_flatten_is_reversible(image_type: type[ImageType], dtype, nodata_vals):
     """Unflattening a flattened image should return the original image."""
     array = np.random.randint(0, 1e4, (2, 2, 3)).astype(dtype)
 
-    img = wrap_image(array, type=image_type.cls)
-    preprocessor = image_type.preprocessor(img, nodata_vals=nodata_vals)
+    img = wrap_image(array, type=image_type)
+    preprocessor = get_image_preprocessor(img)(img, nodata_vals=nodata_vals)
 
     unflattened = unwrap_image(preprocessor.unflatten(preprocessor.flat))
 
@@ -88,8 +89,8 @@ def test_unflatten_masks_nans(image_type):
     array = np.random.rand(2, 2, 1)
     array[0, 0, 0] = np.nan
 
-    img = wrap_image(array, type=image_type.cls)
-    preprocessor = image_type.preprocessor(img)
+    img = wrap_image(array, type=image_type)
+    preprocessor = get_image_preprocessor(img)(img)
 
     unflattened = unwrap_image(preprocessor.unflatten(preprocessor.flat))
 
@@ -225,6 +226,6 @@ def test_wrappers(image_type):
     """Confirm that the test wrappers function as expected."""
     array = np.random.rand(32, 16, 3)
 
-    wrapped = wrap_image(array, type=image_type.cls)
-    assert isinstance(wrapped, image_type.cls)
+    wrapped = wrap_image(array, type=image_type)
+    assert isinstance(wrapped, image_type)
     assert_array_equal(unwrap_image(wrapped), array)
