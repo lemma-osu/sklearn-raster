@@ -10,13 +10,9 @@ from sklearn.utils.validation import _get_feature_names, check_is_fitted
 from typing_extensions import Literal, overload
 
 from .types import EstimatorType
-from .utils.estimator import (
-    AttrWrapper,
-    check_wrapper_implements,
-    image_or_fallback,
-    is_fitted,
-)
-from .utils.image import get_image_wrapper
+from .utils.estimator import is_fitted
+from .utils.image import get_image_wrapper, image_or_fallback
+from .utils.wrapper import AttrWrapper, check_wrapper_implements
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -115,9 +111,7 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
             # to (n_samples,), which has a consistent output shape.
             y = y.squeeze()
 
-        # Cast X to array before fitting to prevent the estimator from storing feature
-        # names. We implement our own feature name checks that are image-compatible.
-        self._wrapped = self._wrapped.fit(np.asarray(X), y, **kwargs)
+        self._wrapped = self._wrapped.fit(X, y, **kwargs)
         fitted_feature_names = _get_feature_names(X)
 
         self._wrapped_meta = FittedMetadata(

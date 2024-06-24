@@ -7,6 +7,7 @@ import numpy as np
 from sklearn.utils.validation import check_is_fitted
 
 from ..types import DaskBackedType
+from ..utils.estimator import suppress_feature_name_warnings
 from ._base import ImageWrapper
 
 if TYPE_CHECKING:
@@ -52,7 +53,10 @@ class DaskBackedWrapper(ImageWrapper[DaskBackedType]):
         output_dtype = ESTIMATOR_OUTPUT_DTYPES.get(estimator_type, np.float64)
 
         y_pred = da.apply_gufunc(
-            estimator._wrapped.predict,
+            # If the wrapped estimator was fit with a dataframe, it will warn about
+            # missing feature names because this passes unnamed arrays. Suppress that
+            # and let the wrapper handle feature name checks.
+            suppress_feature_name_warnings(estimator._wrapped.predict),
             signature,
             self.preprocessor.flat,
             axis=self.preprocessor.flat_band_dim,
@@ -85,7 +89,10 @@ class DaskBackedWrapper(ImageWrapper[DaskBackedType]):
         output_dtypes: list[type] = [int] if not return_distance else [float, int]
 
         result = da.apply_gufunc(
-            estimator._wrapped.kneighbors,
+            # If the wrapped estimator was fit with a dataframe, it will warn about
+            # missing feature names because this passes unnamed arrays. Suppress that
+            # and let the wrapper handle feature name checks.
+            suppress_feature_name_warnings(estimator._wrapped.kneighbors),
             signature,
             self.preprocessor.flat,
             output_sizes={"k": k},
