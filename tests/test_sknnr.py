@@ -36,5 +36,6 @@ def test_kneighbors_returns_df_index(model_data):
 
     assert idx.shape == df_idx.shape
 
-    assert idx.min().compute() == 0
-    assert df_idx.min().compute() == df_index_offset
+    # The first neighbor should be the first index for all pixels
+    assert (idx.sel(variable="k1") == 0).all().compute()
+    assert (df_idx.sel(variable="k1") == df_index_offset).all().compute()
