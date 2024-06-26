@@ -7,6 +7,7 @@ import numpy as np
 from sklearn.utils.validation import check_is_fitted
 
 from ..types import DaskBackedType
+from ..utils.estimator import suppress_feature_name_warnings
 from ._base import ImageWrapper
 
 if TYPE_CHECKING:
@@ -51,14 +52,11 @@ class DaskBackedWrapper(ImageWrapper[DaskBackedType]):
         estimator_type = getattr(estimator, "_estimator_type", "")
         output_dtype = ESTIMATOR_OUTPUT_DTYPES.get(estimator_type, np.float64)
 
-        y_pred = da.apply_gufunc(
+        y_pred = self._apply_gufunc(
             estimator._wrapped.predict,
-            signature,
-            self.preprocessor.flat,
-            axis=self.preprocessor.flat_band_dim,
-            output_dtypes=[output_dtype],
+            signature=signature,
             output_sizes=output_sizes,
-            allow_rechunk=True,
+            output_dtypes=[output_dtype],
         )
 
         # Reshape from (n_samples,) to (n_samples, 1)
@@ -84,14 +82,11 @@ class DaskBackedWrapper(ImageWrapper[DaskBackedType]):
         signature = "(x)->(k)" if not return_distance else "(x)->(k),(k)"
         output_dtypes: list[type] = [int] if not return_distance else [float, int]
 
-        result = da.apply_gufunc(
+        result = self._apply_gufunc(
             estimator._wrapped.kneighbors,
-            signature,
-            self.preprocessor.flat,
+            signature=signature,
             output_sizes={"k": k},
             output_dtypes=output_dtypes,
-            axis=self.preprocessor.flat_band_dim,
-            allow_rechunk=True,
             n_neighbors=n_neighbors,
             return_distance=return_distance,
             **kneighbors_kwargs,
@@ -106,3 +101,21 @@ class DaskBackedWrapper(ImageWrapper[DaskBackedType]):
             return dist, nn
 
         return self.preprocessor.unflatten(result, var_names=var_names)
+
+    def _apply_gufunc(self, func, *, signature, output_sizes, output_dtypes, **kwargs):
+        """Apply a gufunc to the image across bands."""
+        # sklearn estimator methods like `predict` may warn about missing feature
+        # names because this passes unnamed arrays. We can suppress those and let
+        # the wrapper handle feature name checks.
+        suppressed_func = suppress_feature_name_warnings(func)
+
+        return da.apply_gufunc(
+            suppressed_func,
+            signature,
+            self.preprocessor.flat,
+            output_sizes=output_sizes,
+            output_dtypes=output_dtypes,
+            axis=self.preprocessor.flat_band_dim,
+            allow_rechunk=True,
+            **kwargs,
+        )
