@@ -162,7 +162,7 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
             The predicted values.
         """
         output_dim_name = "variable"
-        image = Image(X_image, nodata_vals=nodata_vals)
+        image = Image.from_image(X_image, nodata_vals=nodata_vals)
 
         # TODO: Re-implement once Image can parse band names
         # self._check_feature_names(wrapper.preprocessor.band_names)
@@ -254,7 +254,7 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
         neigh_ind : Numpy or Xarray image with 3 dimensions (y, x, neighbor)
             Indices of the nearest points in the population matrix.
         """
-        image = Image(X_image, nodata_vals=nodata_vals)
+        image = Image.from_image(X_image, nodata_vals=nodata_vals)
         k = n_neighbors or cast(int, getattr(self._wrapped, "n_neighbors", 5))
 
         # TODO: Re-implement
@@ -266,6 +266,7 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
             output_dtypes=[float, int] if return_distance else [int],
             output_sizes={"k": k},
             output_coords={"k": list(range(1, k + 1))},
+            output_names=["dist", "nn"] if return_distance else ["nn"],
             n_neighbors=k,
             return_distance=return_distance,
             **kneighbors_kwargs,
