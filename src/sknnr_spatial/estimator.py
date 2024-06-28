@@ -9,9 +9,10 @@ from sklearn.base import clone
 from sklearn.utils.validation import _get_feature_names, check_is_fitted
 from typing_extensions import Literal, overload
 
+from .image import Image
 from .types import EstimatorType
-from .utils.estimator import is_fitted
-from .utils.image import get_image_wrapper, image_or_fallback
+from .utils.estimator import is_fitted, suppress_feature_name_warnings
+from .utils.image import image_or_fallback
 from .utils.wrapper import AttrWrapper, check_wrapper_implements
 
 if TYPE_CHECKING:
@@ -127,7 +128,7 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
     @check_wrapper_implements
     @image_or_fallback
     def predict(
-        self, X_image: ImageType, *, nodata_vals: NoDataType = None
+        self, X_image: ImageType, *, nodata_vals: NoDataType = None, **predict_kwargs
     ) -> ImageType:
         """
         Predict target(s) for X_image.
@@ -146,16 +147,28 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
             NoData values to mask in the output image. A single value will be broadcast
             to all bands while sequences of values will be assigned band-wise. If None,
             values will be inferred if possible based on image metadata.
+        **predict_kwargs
+            Additional arguments passed to the estimator's predict method.
 
         Returns
         -------
         y_image : Numpy or Xarray image with 3 dimensions (y, x, targets)
             The predicted values.
         """
-        wrapper = get_image_wrapper(X_image)(X_image, nodata_vals=nodata_vals)
-        self._check_feature_names(wrapper.preprocessor.band_names)
 
-        return wrapper.predict(estimator=self)
+        image = Image(X_image, nodata_vals=nodata_vals)
+
+        # TODO: Re-implement once Image can parse band names
+        # self._check_feature_names(wrapper.preprocessor.band_names)
+
+        return image.apply_ufunc_across_bands(
+            suppress_feature_name_warnings(self._wrapped.predict),
+            # TODO: Set these correctly based on image properties
+            output_dims=[["variable"]],
+            output_dtypes=[float],
+            output_sizes={"variable": 25},
+            **predict_kwargs,
+        )
 
     @check_wrapper_implements
     @image_or_fallback
@@ -230,11 +243,27 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
         neigh_ind : Numpy or Xarray image with 3 dimensions (y, x, neighbor)
             Indices of the nearest points in the population matrix.
         """
-        wrapper = get_image_wrapper(X_image)(X_image, nodata_vals=nodata_vals)
-        self._check_feature_names(wrapper.preprocessor.band_names)
+        image = Image(X_image, nodata_vals=nodata_vals)
 
-        return wrapper.kneighbors(
-            estimator=self,
+        # TODO: Re-implement
+        # self._check_feature_names(wrapper.preprocessor.band_names)
+
+        # TODO: Get the correct values for these
+        n_neighbors = n_neighbors if n_neighbors is not None else 5
+        output_sizes = {"k": n_neighbors}
+
+        if return_distance:
+            output_core_dims = [["k"], ["k"]]
+            output_dtypes = [float, int]
+        else:
+            output_core_dims = [["k"]]
+            output_dtypes = [int]
+
+        return image.apply_ufunc_across_bands(
+            suppress_feature_name_warnings(self._wrapped.kneighbors),
+            output_dims=output_core_dims,
+            output_dtypes=output_dtypes,
+            output_sizes=output_sizes,
             n_neighbors=n_neighbors,
             return_distance=return_distance,
             **kneighbors_kwargs,
