@@ -96,10 +96,11 @@ class Image(Generic[ImageType]):
         output_dims: list[list[str]] | None = None,
         output_dtypes: list[np.dtype] | None = None,
         output_sizes: dict[str, int] | None = None,
+        output_coords: dict[str, list[str | int]] | None = None,
         nan_fill: float = 0.0,
         mask_nodata: bool = True,
         **ufunc_kwargs,
-    ) -> ImageType:
+    ) -> ImageType | tuple[ImageType]:
         """
         Apply a universal function to all bands of the image.
 
@@ -117,7 +118,7 @@ class Image(Generic[ImageType]):
         def ufunc(x):
             return _ImageChunk(x, nodata_vals=self.nodata_vals).apply(
                 func,
-                returns_tuple=len(output_dims) > 1,
+                returns_tuple=n_outputs > 1,
                 nan_fill=nan_fill,
                 mask_nodata=mask_nodata,
                 **ufunc_kwargs,
@@ -127,11 +128,9 @@ class Image(Generic[ImageType]):
             return ufunc(image)
 
         if isinstance(image, xr.Dataset):
-            # TODO: Convert back to dataset after predicting
             image = image.to_dataarray()
 
-        # TODO: Assign target dim names
-        return xr.apply_ufunc(
+        result = xr.apply_ufunc(
             ufunc,
             image,
             dask="parallelized",
@@ -144,3 +143,18 @@ class Image(Generic[ImageType]):
                 allow_rechunk=True,
             ),
         )
+
+        def postprocess(x):
+            if output_coords is not None:
+                x = x.assign_coords(output_coords)
+
+            # TODO: Convert back to dataset
+
+            return x
+
+        if n_outputs > 1:
+            result = tuple(postprocess(x) for x in result)
+        else:
+            result = postprocess(result)
+
+        return result

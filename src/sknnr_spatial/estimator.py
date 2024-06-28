@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 from warnings import warn
 
 import numpy as np
@@ -20,6 +20,12 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray
 
     from .types import ImageType, NoDataType
+
+ESTIMATOR_OUTPUT_DTYPES: dict[str, np.dtype] = {
+    "classifier": np.int32,
+    "clusterer": np.int32,
+    "regressor": np.float64,
+}
 
 
 @dataclass
@@ -155,18 +161,23 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
         y_image : Numpy or Xarray image with 3 dimensions (y, x, targets)
             The predicted values.
         """
-
+        output_dim_name = "variable"
         image = Image(X_image, nodata_vals=nodata_vals)
 
         # TODO: Re-implement once Image can parse band names
         # self._check_feature_names(wrapper.preprocessor.band_names)
 
+        # Any estimator with an undefined type should fall back to floating
+        # point for safety.
+        estimator_type = getattr(self._wrapped, "_estimator_type", "")
+        output_dtype = ESTIMATOR_OUTPUT_DTYPES.get(estimator_type, np.float64)
+
         return image.apply_ufunc_across_bands(
             suppress_feature_name_warnings(self._wrapped.predict),
-            # TODO: Set these correctly based on image properties
-            output_dims=[["variable"]],
-            output_dtypes=[float],
-            output_sizes={"variable": 25},
+            output_dims=[[output_dim_name]],
+            output_dtypes=[output_dtype],
+            output_sizes={output_dim_name: self._wrapped_meta.n_targets},
+            output_coords={output_dim_name: list(self._wrapped_meta.target_names)},
             **predict_kwargs,
         )
 
@@ -244,27 +255,18 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
             Indices of the nearest points in the population matrix.
         """
         image = Image(X_image, nodata_vals=nodata_vals)
+        k = n_neighbors or cast(int, getattr(self._wrapped, "n_neighbors", 5))
 
         # TODO: Re-implement
         # self._check_feature_names(wrapper.preprocessor.band_names)
 
-        # TODO: Get the correct values for these
-        n_neighbors = n_neighbors if n_neighbors is not None else 5
-        output_sizes = {"k": n_neighbors}
-
-        if return_distance:
-            output_core_dims = [["k"], ["k"]]
-            output_dtypes = [float, int]
-        else:
-            output_core_dims = [["k"]]
-            output_dtypes = [int]
-
         return image.apply_ufunc_across_bands(
             suppress_feature_name_warnings(self._wrapped.kneighbors),
-            output_dims=output_core_dims,
-            output_dtypes=output_dtypes,
-            output_sizes=output_sizes,
-            n_neighbors=n_neighbors,
+            output_dims=[["k"], ["k"]] if return_distance else [["k"]],
+            output_dtypes=[float, int] if return_distance else [int],
+            output_sizes={"k": k},
+            output_coords={"k": list(range(1, k + 1))},
+            n_neighbors=k,
             return_distance=return_distance,
             **kneighbors_kwargs,
         )
