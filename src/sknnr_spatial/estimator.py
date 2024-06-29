@@ -266,7 +266,6 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
             output_dtypes=[float, int] if return_distance else [int],
             output_sizes={"k": k},
             output_coords={"k": list(range(1, k + 1))},
-            output_names=["dist", "nn"] if return_distance else ["nn"],
             n_neighbors=k,
             return_distance=return_distance,
             **kneighbors_kwargs,

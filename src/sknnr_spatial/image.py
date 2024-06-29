@@ -226,13 +226,16 @@ class DataArrayImage(Image):
     def _postprocess(
         self,
         result: xr.DataArray,
-        output_coords: dict[str, list[str | int]] | None = None,
+        output_coords: dict[str, list[str | int]],
     ) -> xr.DataArray:
         """Process the output of an applied ufunc"""
         if output_coords is not None:
             result = result.assign_coords(output_coords)
+        var_dim = list(output_coords.keys())[0]
 
-        return result
+        # apply_gufunc swaps dimension order, so we need to restore it back to
+        # (band, y, x).
+        return result.transpose(var_dim, ...)
 
     def apply_ufunc_across_bands(
         self,
@@ -254,11 +257,16 @@ class DataArrayImage(Image):
         """
         image = self.image
 
-        # TODO: Decide on reasonable defaults
-        output_dims = output_dims or [["output"]]
+        output_dims = output_dims or [["variable"]]
         n_outputs = len(output_dims)
+        # Fall back to float output if unknown
         output_dtypes = output_dtypes or [np.float32] * n_outputs
-        output_sizes = output_sizes or {"output": 1}
+        # If output sizes are not provided, assume a single output coordinate
+        output_sizes = output_sizes or {"variable": 1}
+        # Default to sequential coordinates for each output dimension, if not provided
+        output_coords = output_coords or {
+            k: list(range(s)) for k, s in output_sizes.items()
+        }
 
         def ufunc(x):
             return _ImageChunk(
@@ -326,13 +334,10 @@ class DatasetImage(DataArrayImage):
     def _postprocess(
         self,
         result: xr.DataArray,
-        output_coords: dict[str, list[str | int]] | None = None,
+        output_coords: dict[str, list[str | int]],
     ) -> xr.Dataset:
         """Process the output of an applied ufunc"""
         result = super()._postprocess(result, output_coords=output_coords)
 
-        # TODO: Once I get the ufunc to respect the dim order, use the band_dim instead
-        # var_dim = result.dims[self.band_dim]
-        var_dim = result.dims[-1]
-
+        var_dim = result.dims[self.band_dim]
         return result.to_dataset(dim=var_dim)
