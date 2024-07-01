@@ -164,8 +164,7 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
         output_dim_name = "variable"
         image = Image.from_image(X_image, nodata_vals=nodata_vals)
 
-        # TODO: Re-implement once Image can parse band names
-        # self._check_feature_names(wrapper.preprocessor.band_names)
+        self._check_feature_names(image.band_names)
 
         # Any estimator with an undefined type should fall back to floating
         # point for safety.
@@ -257,8 +256,7 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
         image = Image.from_image(X_image, nodata_vals=nodata_vals)
         k = n_neighbors or cast(int, getattr(self._wrapped, "n_neighbors", 5))
 
-        # TODO: Re-implement
-        # self._check_feature_names(wrapper.preprocessor.band_names)
+        self._check_feature_names(image.band_names)
 
         return image.apply_ufunc_across_bands(
             suppress_feature_name_warnings(self._wrapped.kneighbors),
