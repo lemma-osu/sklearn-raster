@@ -285,6 +285,7 @@ class DataArrayImage(Image):
             exclude_dims=set((self.band_dim_name,)),
             output_core_dims=output_dims,
             output_dtypes=output_dtypes,
+            keep_attrs=True,
             dask_gufunc_kwargs=dict(
                 output_sizes=output_sizes,
                 allow_rechunk=True,
