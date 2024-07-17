@@ -151,10 +151,9 @@ def test_crs_preserved(model_data: ModelData, crs):
     y_pred = estimator.predict(X_image)
     dist, nn = estimator.kneighbors(X_image, return_distance=True)
 
-    if not isinstance(y_pred, np.ndarray):
-        assert y_pred.rio.crs == crs
-        assert dist.rio.crs == crs
-        assert nn.rio.crs == crs
+    assert y_pred.rio.crs == crs
+    assert dist.rio.crs == crs
+    assert nn.rio.crs == crs
 
 
 @parametrize_model_data(image_types=(np.ndarray,))
