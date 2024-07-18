@@ -47,7 +47,6 @@ def test_nans_filled(nan_fill, image_type: type[ImageType]):
     output = image.apply_ufunc_across_bands(
         func=lambda x: x,
         nan_fill=nan_fill,
-        output_sizes={"variable": a.shape[-1]},
         # Masking NoData would broadcast NaNs across the band dimension since a missing
         # value in any band is considered missing in all bands of the output, so skip
         # that step.
@@ -81,7 +80,6 @@ def test_nodata_masked_in_all_bands():
 
     output = image.apply_ufunc_across_bands(
         func=lambda x: x,
-        output_sizes={"variable": a.shape[-1]},
         mask_nodata=True,
     )
 

@@ -264,7 +264,7 @@ class DataArrayImage(Image):
         # Fall back to float output if unknown
         output_dtypes = output_dtypes or [np.float32] * n_outputs
         # If output sizes are not provided, assume a single output coordinate
-        output_sizes = output_sizes or {"variable": 1}
+        output_sizes = output_sizes or {"variable": len(self.band_names)}
         # Default to sequential coordinates for each output dimension, if not provided
         output_coords = output_coords or {
             k: list(range(s)) for k, s in output_sizes.items()
