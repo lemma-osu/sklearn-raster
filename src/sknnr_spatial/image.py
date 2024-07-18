@@ -26,7 +26,7 @@ class _ImageChunk:
         """
         Set NaNs in the flat image where NoData values are present.
         """
-        # Skip allocating a mask if the image is float and NoData wasn't given
+        # Skip allocating a mask if the image is not float and NoData wasn't given
         if (
             not (is_float := self.flat_array.dtype.kind == "f")
             and self.nodata_vals is None
@@ -186,7 +186,10 @@ class NDArrayImage(Image):
         n_outputs = len(output_dims) if output_dims is not None else 1
 
         return _ImageChunk(
-            self.image, nodata_vals=self.nodata_vals, nan_fill=nan_fill
+            # Copy to avoid mutating the original image
+            self.image.copy(),
+            nodata_vals=self.nodata_vals,
+            nan_fill=nan_fill,
         ).apply(
             func,
             returns_tuple=n_outputs > 1,

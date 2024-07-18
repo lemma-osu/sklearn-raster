@@ -1,3 +1,5 @@
+"""Tests for sknnr compatibility."""
+
 import numpy as np
 import xarray as xr
 from sknnr import GNNRegressor
