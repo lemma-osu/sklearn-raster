@@ -127,7 +127,7 @@ class Image(Generic[ImageType], ABC):
                 f"The length of `nodata_vals` must match the number of bands."
             )
 
-        return np.asarray(nodata_vals, dtype=float)
+        return np.asarray(nodata_vals)
 
     @abstractmethod
     def apply_ufunc_across_bands(
