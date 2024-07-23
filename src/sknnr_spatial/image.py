@@ -134,9 +134,9 @@ class Image(Generic[ImageType], ABC):
         self,
         func: Callable[Concatenate[NDArray, P], NDArray],
         *,
-        output_dims: list[list[str]] | None = None,
-        output_dtypes: list[np.dtype] | None = None,
-        output_sizes: dict[str, int] | None = None,
+        output_dims: list[list[str]],
+        output_dtypes: list[np.dtype],
+        output_sizes: dict[str, int],
         output_coords: dict[str, list[str | int]] | None = None,
         nan_fill: float = 0.0,
         mask_nodata: bool = True,
@@ -175,7 +175,7 @@ class NDArrayImage(Image):
         self,
         func: Callable[Concatenate[NDArray, P], NDArray],
         *,
-        output_dims: list[list[str]] | None = None,
+        output_dims: list[list[str]],
         output_dtypes: list[np.dtype] | None = None,
         output_sizes: dict[str, int] | None = None,
         output_coords: dict[str, list[str | int]] | None = None,
@@ -183,7 +183,7 @@ class NDArrayImage(Image):
         mask_nodata: bool = True,
         **ufunc_kwargs,
     ) -> NDArray | tuple[NDArray]:
-        n_outputs = len(output_dims) if output_dims is not None else 1
+        n_outputs = len(output_dims)
 
         return _ImageChunk(
             # Copy to avoid mutating the original image
@@ -243,9 +243,9 @@ class DataArrayImage(Image):
         self,
         func: Callable[Concatenate[NDArray, P], NDArray],
         *,
-        output_dims: list[list[str]] | None = None,
-        output_dtypes: list[np.dtype] | None = None,
-        output_sizes: dict[str, int] | None = None,
+        output_dims: list[list[str]],
+        output_dtypes: list[np.dtype],
+        output_sizes: dict[str, int],
         output_coords: dict[str, list[str | int]] | None = None,
         nan_fill: float = 0.0,
         mask_nodata: bool = True,
@@ -259,12 +259,7 @@ class DataArrayImage(Image):
         """
         image = self.image
 
-        output_dims = output_dims or [["variable"]]
         n_outputs = len(output_dims)
-        # Fall back to float output if unknown
-        output_dtypes = output_dtypes or [np.float32] * n_outputs
-        # Default to one output band per input band
-        output_sizes = output_sizes or {"variable": len(self.band_names)}
         # Default to sequential coordinates for each output dimension, if not provided
         output_coords = output_coords or {
             k: list(range(s)) for k, s in output_sizes.items()

@@ -24,7 +24,12 @@ def test_input_array_not_mutated(image_type: type[ImageType]):
     img = wrap_image(array, type=image_type)
 
     image = Image.from_image(img, nodata_vals=0)
-    image.apply_ufunc_across_bands(lambda x: x * 2.0)
+    image.apply_ufunc_across_bands(
+        lambda x: x * 2.0,
+        output_dims=[["variable"]],
+        output_sizes={"variable": array.shape[-1]},
+        output_dtypes=[array.dtype],
+    )
 
     assert_array_equal(array, original_array)
 
@@ -51,6 +56,9 @@ def test_nans_filled(nan_fill, image_type: type[ImageType]):
         # value in any band is considered missing in all bands of the output, so skip
         # that step.
         mask_nodata=False,
+        output_dims=[["variable"]],
+        output_sizes={"variable": a.shape[-1]},
+        output_dtypes=[a.dtype],
     )
 
     assert_array_equal(unwrap_image(output), expected_output)
@@ -81,6 +89,7 @@ def test_nodata_masked_in_all_bands():
     output = image.apply_ufunc_across_bands(
         func=lambda x: x,
         mask_nodata=True,
+        output_dims=[["variable"]],
     )
 
     assert_array_equal(output, expected_output)
