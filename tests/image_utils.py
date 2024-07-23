@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-from functools import singledispatch
-from typing import Generic
+from typing import Any, Generic
 
-import dask.array as da
 import numpy as np
 import pandas as pd
 import pytest
@@ -230,31 +228,29 @@ def wrap_image(image: NDArray, type: type[ImageType]) -> ImageType:
     raise ValueError(f"Unsupported image type: {type}")
 
 
-@singledispatch
-def unwrap_image(image: ImageType) -> NDArray:
-    """Unwrap an image to a Numpy NDArray in the shape (y, x, band)."""
-    raise NotImplementedError()
+def unwrap_image(image: Any) -> NDArray:
+    """
+    Unwrap an image to a Numpy NDArray in the shape (y, x, band).
 
+    Examples
+    --------
+    Unwrap an xarray DataArray to a Numpy array:
 
-@unwrap_image.register(np.ndarray)
-def _unwrap_ndarray(image: np.ndarray) -> NDArray:
-    return image
+    >>> from numpy.testing import assert_array_equal
+    >>> array = np.ones((8, 8, 3))
+    >>> wrapped = wrap_image(array, type=xr.Dataset)
+    >>> unwrapped = unwrap_image(wrapped)
+    >>> assert_array_equal(unwrapped, array)
+    """
+    if isinstance(image, np.ndarray):
+        return image
 
+    if isinstance(image, xr.DataArray):
+        band_dim_name = image.dims[0]
 
-@unwrap_image.register(xr.DataArray)
-def _unwrap_dataarray(image: xr.DataArray) -> NDArray:
-    band_dim_name = image.dims[0]
+        return image.transpose("y", "x", band_dim_name).values
 
-    return image.transpose("y", "x", band_dim_name).values
+    if isinstance(image, xr.Dataset):
+        return unwrap_image(image.to_dataarray())
 
-
-@unwrap_image.register(xr.Dataset)
-def _unwrap_dataset(image: xr.Dataset) -> NDArray:
-    return unwrap_image(image.to_dataarray())
-
-
-@unwrap_image.register(da.Array)
-def _unwrap_dask_array(image: da.Array) -> NDArray:
-    # We don't support Dask array image inputs, but they're used internally for flat
-    # arrays, which we need to be able to unwrap for testing.
-    return image.compute()
+    raise ValueError(f"Unsupported image type: {type(image)}")
