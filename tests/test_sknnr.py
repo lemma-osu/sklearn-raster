@@ -18,7 +18,7 @@ def test_kneighbors_returns_df_index(model_data):
 
     # Create an image of zeros and set the first plot to zeros to ensure that the
     # first index is the nearest neighbor to all pixels
-    X_image = np.zeros((2, 2, 3))
+    X_image = np.zeros((3, 2, 2))
     X[0] = [0, 0, 0]
 
     # Convert model data to the correct types

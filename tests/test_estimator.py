@@ -31,9 +31,9 @@ def test_predict(model_data: ModelData, estimator, single_output, squeeze):
 
     assert y_pred.ndim == 3
     expected_shape = (
+        1 if single_output else model_data.n_targets,
         model_data.n_rows,
         model_data.n_cols,
-        1 if single_output else model_data.n_targets,
     )
     assert_array_equal(y_pred.shape, expected_shape)
 
@@ -49,7 +49,7 @@ def test_predict_unsupervised(model_data: ModelData, estimator):
     y_pred = unwrap_image(estimator.predict(X_image))
 
     assert y_pred.ndim == 3
-    expected_shape = (model_data.n_rows, model_data.n_cols, 1)
+    expected_shape = (1, model_data.n_rows, model_data.n_cols)
     assert_array_equal(y_pred.shape, expected_shape)
 
 
@@ -68,8 +68,8 @@ def test_kneighbors_with_distance(model_data: ModelData, k):
     assert dist.ndim == 3
     assert nn.ndim == 3
 
-    assert_array_equal(dist.shape, (model_data.n_rows, model_data.n_cols, k))
-    assert_array_equal(nn.shape, (model_data.n_rows, model_data.n_cols, k))
+    assert_array_equal(dist.shape, (k, model_data.n_rows, model_data.n_cols))
+    assert_array_equal(nn.shape, (k, model_data.n_rows, model_data.n_cols))
 
 
 @parametrize_model_data()
@@ -84,7 +84,7 @@ def test_kneighbors_without_distance(model_data: ModelData, k):
 
     assert nn.ndim == 3
 
-    assert_array_equal(nn.shape, (model_data.n_rows, model_data.n_cols, k))
+    assert_array_equal(nn.shape, (k, model_data.n_rows, model_data.n_cols))
 
 
 @parametrize_model_data()
@@ -100,7 +100,7 @@ def test_kneighbors_with_n_neighbors(model_data: ModelData, n_neighbors):
 
     assert nn.ndim == 3
 
-    assert_array_equal(nn.shape, (model_data.n_rows, model_data.n_cols, n_neighbors))
+    assert_array_equal(nn.shape, (n_neighbors, model_data.n_rows, model_data.n_cols))
 
 
 @parametrize_model_data()
@@ -118,8 +118,8 @@ def test_kneighbors_unsupervised(model_data: ModelData, k):
     assert dist.ndim == 3
     assert nn.ndim == 3
 
-    assert_array_equal(dist.shape, (model_data.n_rows, model_data.n_cols, k))
-    assert_array_equal(nn.shape, (model_data.n_rows, model_data.n_cols, k))
+    assert_array_equal(dist.shape, (k, model_data.n_rows, model_data.n_cols))
+    assert_array_equal(nn.shape, (k, model_data.n_rows, model_data.n_cols))
 
 
 @parametrize_model_data(image_types=(xr.DataArray,))
@@ -133,7 +133,7 @@ def test_predict_dataarray_with_custom_dim_name(model_data: ModelData):
     y_pred = unwrap_image(estimator.predict(X_image))
     assert y_pred.ndim == 3
     assert_array_equal(
-        y_pred.shape, (model_data.n_rows, model_data.n_cols, model_data.n_targets)
+        y_pred.shape, (model_data.n_targets, model_data.n_rows, model_data.n_cols)
     )
 
 

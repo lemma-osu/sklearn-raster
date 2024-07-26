@@ -31,7 +31,7 @@ class ModelData(Generic[ImageType]):
     ModelData is designed to be instantiated with Numpy array data and unpacked to
     retrieve compatible images and training data.
 
-    >>> X_image = np.random.random((16, 16, 5))
+    >>> X_image = np.random.random((5, 16, 16))
     >>> X = np.random.random((10, 5))
     >>> y = np.random.random((10, 3))
     >>> model_data = ModelData(X_image, X, y, image_type=xr.Dataset)
@@ -75,15 +75,15 @@ class ModelData(Generic[ImageType]):
 
     @property
     def n_rows(self):
-        return self._X_image.shape[0]
-
-    @property
-    def n_cols(self):
         return self._X_image.shape[1]
 
     @property
+    def n_cols(self):
+        return self._X_image.shape[2]
+
+    @property
     def n_features(self):
-        return self._X_image.shape[-1]
+        return self._X_image.shape[0]
 
     @property
     def X_image(self) -> ImageType:
@@ -157,18 +157,14 @@ def parametrize_model_data(
 ):
     """Parametrize over multiple image types with the same test data."""
     n_features = (
-        X_image.shape[-1]
-        if X_image is not None
-        else X.shape[-1]
-        if X is not None
-        else 5
+        X_image.shape[0] if X_image is not None else X.shape[-1] if X is not None else 5
     )
     n_targets = y.shape[-1] if y is not None else 3
     n_rows = X.shape[0] if X is not None else y.shape[0] if y is not None else 10
 
     # Default test data
     if X_image is None:
-        X_image = np.random.rand(8, 16, n_features)
+        X_image = np.random.rand(n_features, 8, 16)
     if X is None:
         X = np.random.rand(n_rows, n_features)
     if y is None:
@@ -190,7 +186,7 @@ def wrap_image(image: NDArray, type: type[ImageType]) -> ImageType:
 
     Wrap a Numpy array into a desired image type:
 
-    >>> array = np.ones((8, 8, 3))
+    >>> array = np.ones((3, 8, 8))
     >>> wrapped = wrap_image(array, type=xr.DataArray)
     >>> type(wrapped)
     <class 'xarray.core.dataarray.DataArray'>
@@ -199,7 +195,7 @@ def wrap_image(image: NDArray, type: type[ImageType]) -> ImageType:
     image type:
 
     >>> from numpy.testing import assert_array_equal
-    >>> array = np.ones((8, 8, 3))
+    >>> array = np.ones((3, 8, 8))
     >>> wrapped = wrap_image(array, type=xr.Dataset)
     >>> wrapped += 1
     >>> assert_array_equal(unwrap_image(wrapped), array + 1)
@@ -209,18 +205,14 @@ def wrap_image(image: NDArray, type: type[ImageType]) -> ImageType:
         return image
 
     if type is xr.DataArray:
-        n_bands = image.shape[-1]
+        n_bands = image.shape[0]
         band_names = [f"b{i}" for i in range(n_bands)]
 
-        return (
-            xr.DataArray(
-                image,
-                dims=["y", "x", "variable"],
-                coords={"variable": band_names},
-            )
-            .chunk("auto")
-            .transpose("variable", "y", "x")
-        )
+        return xr.DataArray(
+            image,
+            dims=["variable", "y", "x"],
+            coords={"variable": band_names},
+        ).chunk("auto")
 
     if type is xr.Dataset:
         return wrap_image(image, xr.DataArray).to_dataset(dim="variable")
@@ -237,7 +229,7 @@ def unwrap_image(image: Any) -> NDArray:
     Unwrap an xarray DataArray to a Numpy array:
 
     >>> from numpy.testing import assert_array_equal
-    >>> array = np.ones((8, 8, 3))
+    >>> array = np.ones((3, 8, 8))
     >>> wrapped = wrap_image(array, type=xr.Dataset)
     >>> unwrapped = unwrap_image(wrapped)
     >>> assert_array_equal(unwrapped, array)
@@ -246,9 +238,7 @@ def unwrap_image(image: Any) -> NDArray:
         return image
 
     if isinstance(image, xr.DataArray):
-        band_dim_name = image.dims[0]
-
-        return image.transpose("y", "x", band_dim_name).values
+        return image.values
 
     if isinstance(image, xr.Dataset):
         return unwrap_image(image.to_dataarray())

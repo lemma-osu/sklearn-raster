@@ -64,7 +64,7 @@ def test_load_dataset(configuration: DatasetConfiguration, as_dataset: bool):
             "x": configuration.image_size[1],
         }
     else:
-        assert X_image.shape == (*configuration.image_size, configuration.n_features)
+        assert X_image.shape == (configuration.n_features, *configuration.image_size)
 
 
 def test_load_dataset_with_chunks():
