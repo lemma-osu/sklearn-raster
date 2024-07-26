@@ -62,6 +62,12 @@ dependencies = [
 all = "pytest . {args} --doctest-modules"
 cov = "pytest . --cov=src/sknnr_spatial {args} --doctest-modules"
 
+[tool.hatch.envs.test_matrix]
+template = "test"
+
+[[tool.hatch.envs.test_matrix.matrix]]
+python = ["3.9", "3.10", "3.11", "3.12"]
+
 [tool.hatch.envs.docs]
 dependencies = [
     "mkdocs",
