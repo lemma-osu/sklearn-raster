@@ -13,7 +13,16 @@ from .types import ImageType, NoDataType, P
 
 
 class _ImageChunk:
-    """A chunk of an NDArray in shape (y, x, band)."""
+    """
+    A chunk of an NDArray in shape (y, x, band).
+
+    Note that this dimension order is different from the (band, y, x) order used by
+    rasterio, rioxarray, and elsewhere in sknnr-spatial. This is because `_ImageChunk`
+    is called via `xr.apply_ufunc` which automatically swaps the core dimension to the
+    last axis, resulting in arrays of (y, x, band).
+    """
+
+    band_dim = -1
 
     def __init__(
         self, array: NDArray, nodata_vals: list[float] | None = None, nan_fill=0.0
@@ -24,7 +33,7 @@ class _ImageChunk:
 
     def _mask_nodata(self, flat_image: NDArray) -> NDArray:
         """
-        Set NaNs in the flat image where NoData values are present.
+        Set NaNs in the flat (pixels, band) image where NoData values are present.
         """
         # Skip allocating a mask if the image is not float and NoData wasn't given
         if (
@@ -45,13 +54,13 @@ class _ImageChunk:
             mask |= self.flat_array == self.nodata_vals
 
         # Set the mask where any band contains NoData
-        flat_image[mask.max(axis=-1)] = np.nan
+        flat_image[mask.max(axis=self.band_dim)] = np.nan
 
         return flat_image
 
     def _preprocess(self, array: NDArray, nan_fill: float = 0.0) -> NDArray:
         """Preprocess the chunk by flattening to (pixels, bands) and filling NaNs."""
-        flat = array.reshape(-1, array.shape[-1])
+        flat = array.reshape(-1, array.shape[self.band_dim])
         if nan_fill is not None:
             flat[np.isnan(flat)] = nan_fill
 
@@ -89,7 +98,7 @@ class Image(Generic[ImageType], ABC):
     """A wrapper around a multi-band image"""
 
     band_dim_name: str
-    band_dim: int
+    band_dim: int = 0
     band_names: NDArray
 
     def __init__(self, image: ImageType, nodata_vals: NoDataType = None):
@@ -165,7 +174,8 @@ class Image(Generic[ImageType], ABC):
 
 
 class NDArrayImage(Image):
-    band_dim = -1
+    """An image stored in a Numpy NDArray of shape (band, y, x)."""
+
     band_names = np.array([])
 
     def __init__(self, image: NDArray, nodata_vals: NoDataType = None):
@@ -185,9 +195,10 @@ class NDArrayImage(Image):
     ) -> NDArray | tuple[NDArray]:
         n_outputs = len(output_dims)
 
-        return _ImageChunk(
-            # Copy to avoid mutating the original image
-            self.image.copy(),
+        result = _ImageChunk(
+            # Copy to avoid mutating the original image. Tranpose from (band, y, x) to
+            # (y, x, band) to match the expected shape of `_ImageChunk`.
+            self.image.copy().transpose(1, 2, 0),
             nodata_vals=self.nodata_vals,
             nan_fill=nan_fill,
         ).apply(
@@ -197,9 +208,17 @@ class NDArrayImage(Image):
             **ufunc_kwargs,
         )
 
+        # Tranpose from (y, x, band) back to (band, y, x)
+        if n_outputs > 1:
+            result = tuple(x.transpose(2, 0, 1) for x in result)
+        else:
+            result = result.transpose(2, 0, 1)  # type: ignore
+
+        return result
+
 
 class DataArrayImage(Image):
-    band_dim = 0
+    """An image stored in an xarray DataArray of shape (band, y, x)."""
 
     def __init__(self, image: xr.DataArray, nodata_vals: NoDataType = None):
         super().__init__(image, nodata_vals=nodata_vals)
@@ -235,8 +254,8 @@ class DataArrayImage(Image):
             result = result.assign_coords(output_coords)
         var_dim = list(output_coords.keys())[0]
 
-        # apply_gufunc swaps dimension order, so we need to restore it back to
-        # (band, y, x).
+        # apply_gufunc moves the core dimension to the last axis (y, x, band), so we
+        # need to restore it back to (band, y, x).
         return result.transpose(var_dim, ...)
 
     def apply_ufunc_across_bands(
@@ -301,6 +320,8 @@ class DataArrayImage(Image):
 
 
 class DatasetImage(DataArrayImage):
+    """An image stored in an xarray Dataset of shape (y, x) with bands as variables."""
+
     def __init__(self, image: xr.Dataset, nodata_vals: NoDataType = None):
         # The image itself will be stored as a DataArray, but keep the Dataset for
         # metadata like _FillValues.
