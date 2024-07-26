@@ -97,7 +97,7 @@ class _ImageChunk:
 class Image(Generic[ImageType], ABC):
     """A wrapper around a multi-band image"""
 
-    band_dim_name: str
+    band_dim_name: str | None = None
     band_dim: int = 0
     band_names: NDArray
 
@@ -138,24 +138,79 @@ class Image(Generic[ImageType], ABC):
 
         return np.asarray(nodata_vals)
 
-    @abstractmethod
     def apply_ufunc_across_bands(
         self,
         func: Callable[Concatenate[NDArray, P], NDArray],
         *,
         output_dims: list[list[str]],
-        output_dtypes: list[np.dtype],
-        output_sizes: dict[str, int],
+        output_dtypes: list[np.dtype] | None = None,
+        output_sizes: dict[str, int] | None = None,
         output_coords: dict[str, list[str | int]] | None = None,
         nan_fill: float = 0.0,
         mask_nodata: bool = True,
         **ufunc_kwargs,
     ) -> ImageType | tuple[ImageType]:
-        """
-        Apply a universal function to all bands of the image.
+        """Apply a universal function to all bands of the image."""
+        n_outputs = len(output_dims)
 
-        If the image is backed by a Dask array, the computation will be parallelized
-        across spatial chunks.
+        if output_sizes is not None:
+            # Default to sequential coordinates for each output dimension
+            output_coords = output_coords or {
+                k: list(range(s)) for k, s in output_sizes.items()
+            }
+
+        def ufunc(x):
+            return _ImageChunk(
+                x, nodata_vals=self.nodata_vals, nan_fill=nan_fill
+            ).apply(
+                func,
+                returns_tuple=n_outputs > 1,
+                mask_nodata=mask_nodata,
+                **ufunc_kwargs,
+            )
+
+        result = xr.apply_ufunc(
+            ufunc,
+            self._preprocess_ufunc_input(self.image),
+            dask="parallelized",
+            input_core_dims=[[self.band_dim_name]],
+            exclude_dims=set((self.band_dim_name,)),
+            output_core_dims=output_dims,
+            output_dtypes=output_dtypes,
+            keep_attrs=True,
+            dask_gufunc_kwargs=dict(
+                output_sizes=output_sizes,
+                allow_rechunk=True,
+            ),
+        )
+
+        if n_outputs > 1:
+            result = tuple(
+                self._postprocess_ufunc_output(x, output_coords=output_coords)
+                for x in result
+            )
+        else:
+            result = self._postprocess_ufunc_output(result, output_coords=output_coords)
+
+        return result
+
+    def _preprocess_ufunc_input(self, image: ImageType) -> ImageType:
+        """
+        Preprocess the input of an applied ufunc. No-op unless overridden by subclasses.
+        """
+        return image
+
+    @abstractmethod
+    def _postprocess_ufunc_output(
+        self,
+        result: ImageType,
+        output_coords: dict[str, list[str | int]] | None = None,
+    ) -> ImageType:
+        """
+        Postprocess the output of an applied ufunc.
+
+        This method should be overridden by subclasses to handle any necessary
+        transformations to the output data, e.g. transposing dimensions.
         """
 
     @staticmethod
@@ -181,40 +236,14 @@ class NDArrayImage(Image):
     def __init__(self, image: NDArray, nodata_vals: NoDataType = None):
         super().__init__(image, nodata_vals=nodata_vals)
 
-    def apply_ufunc_across_bands(
-        self,
-        func: Callable[Concatenate[NDArray, P], NDArray],
-        *,
-        output_dims: list[list[str]],
-        output_dtypes: list[np.dtype] | None = None,
-        output_sizes: dict[str, int] | None = None,
-        output_coords: dict[str, list[str | int]] | None = None,
-        nan_fill: float = 0.0,
-        mask_nodata: bool = True,
-        **ufunc_kwargs,
-    ) -> NDArray | tuple[NDArray]:
-        n_outputs = len(output_dims)
+    def _preprocess_ufunc_input(self, image: NDArray) -> NDArray:
+        """Preprocess the image by transposing to (y, x, band) for apply_ufunc."""
+        # Copy to avoid mutating the original image
+        return image.copy().transpose(1, 2, 0)
 
-        result = _ImageChunk(
-            # Copy to avoid mutating the original image. Tranpose from (band, y, x) to
-            # (y, x, band) to match the expected shape of `_ImageChunk`.
-            self.image.copy().transpose(1, 2, 0),
-            nodata_vals=self.nodata_vals,
-            nan_fill=nan_fill,
-        ).apply(
-            func,
-            returns_tuple=n_outputs > 1,
-            mask_nodata=mask_nodata,
-            **ufunc_kwargs,
-        )
-
-        # Tranpose from (y, x, band) back to (band, y, x)
-        if n_outputs > 1:
-            result = tuple(x.transpose(2, 0, 1) for x in result)
-        else:
-            result = result.transpose(2, 0, 1)  # type: ignore
-
-        return result
+    def _postprocess_ufunc_output(self, result: NDArray, output_coords=None) -> NDArray:
+        """Postprocess the ufunc output by transposing back to (band, y, x)."""
+        return result.transpose(2, 0, 1)
 
 
 class DataArrayImage(Image):
@@ -244,79 +273,17 @@ class DataArrayImage(Image):
 
         return None
 
-    def _postprocess(
+    def _postprocess_ufunc_output(
         self,
         result: xr.DataArray,
-        output_coords: dict[str, list[str | int]],
+        output_coords: dict[str, list[str | int]] | None = None,
     ) -> xr.DataArray:
-        """Process the output of an applied ufunc"""
+        """Process the ufunc output by assigning coordinates and transposing."""
         if output_coords is not None:
             result = result.assign_coords(output_coords)
-        var_dim = list(output_coords.keys())[0]
 
-        # apply_gufunc moves the core dimension to the last axis (y, x, band), so we
-        # need to restore it back to (band, y, x).
-        return result.transpose(var_dim, ...)
-
-    def apply_ufunc_across_bands(
-        self,
-        func: Callable[Concatenate[NDArray, P], NDArray],
-        *,
-        output_dims: list[list[str]],
-        output_dtypes: list[np.dtype],
-        output_sizes: dict[str, int],
-        output_coords: dict[str, list[str | int]] | None = None,
-        nan_fill: float = 0.0,
-        mask_nodata: bool = True,
-        **ufunc_kwargs,
-    ) -> xr.DataArray | tuple[xr.DataArray]:
-        """
-        Apply a universal function to all bands of the image.
-
-        If the image is backed by a Dask array, the computation will be parallelized
-        across spatial chunks.
-        """
-        image = self.image
-
-        n_outputs = len(output_dims)
-        # Default to sequential coordinates for each output dimension, if not provided
-        output_coords = output_coords or {
-            k: list(range(s)) for k, s in output_sizes.items()
-        }
-
-        def ufunc(x):
-            return _ImageChunk(
-                x, nodata_vals=self.nodata_vals, nan_fill=nan_fill
-            ).apply(
-                func,
-                returns_tuple=n_outputs > 1,
-                mask_nodata=mask_nodata,
-                **ufunc_kwargs,
-            )
-
-        result = xr.apply_ufunc(
-            ufunc,
-            image,
-            dask="parallelized",
-            input_core_dims=[[self.band_dim_name]],
-            exclude_dims=set((self.band_dim_name,)),
-            output_core_dims=output_dims,
-            output_dtypes=output_dtypes,
-            keep_attrs=True,
-            dask_gufunc_kwargs=dict(
-                output_sizes=output_sizes,
-                allow_rechunk=True,
-            ),
-        )
-
-        if n_outputs > 1:
-            result = tuple(
-                self._postprocess(x, output_coords=output_coords) for x in result
-            )
-        else:
-            result = self._postprocess(result, output_coords=output_coords)
-
-        return result
+        # Transpose from (y, x, band) to (band, y, x)
+        return result.transpose(result.dims[-1], ...)
 
 
 class DatasetImage(DataArrayImage):
@@ -350,13 +317,13 @@ class DatasetImage(DataArrayImage):
         # Fall back to the DataArray logic for handling NoData
         return super()._validate_nodata_vals(nodata_vals)
 
-    def _postprocess(
+    def _postprocess_ufunc_output(
         self,
         result: xr.DataArray,
-        output_coords: dict[str, list[str | int]],
+        output_coords: dict[str, list[str | int]] | None = None,
     ) -> xr.Dataset:
-        """Process the output of an applied ufunc"""
-        result = super()._postprocess(result, output_coords=output_coords)
+        """Process the ufunc output converting from DataArray to Dataset."""
+        result = super()._postprocess_ufunc_output(result, output_coords=output_coords)
 
         var_dim = result.dims[self.band_dim]
         return result.to_dataset(dim=var_dim)
