@@ -52,15 +52,15 @@ def _load_rasters_to_dataset(
 
 
 def _load_rasters_to_array(file_paths: list[Path]) -> NDArray:
-    """Load a list of rasters as a numpy array."""
+    """Load single-band rasters as a multi-band numpy array of shape (band, y, x)."""
     arr = None
-    for i, path in enumerate(file_paths):
+    for path in file_paths:
         with rasterio.open(path) as src:
             band = src.read(1)
-            if arr is None:
-                arr = np.empty((len(file_paths), *band.shape), dtype=band.dtype)
+            # Add a band dimension to the array to allow concatenation
+            band = band[np.newaxis, ...]
 
-            arr[i] = band
+            arr = band if arr is None else np.concatenate((arr, band), axis=0)
 
     return arr
 
