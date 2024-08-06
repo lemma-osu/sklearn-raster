@@ -52,12 +52,15 @@ def _load_rasters_to_dataset(
 
 
 def _load_rasters_to_array(file_paths: list[Path]) -> NDArray:
-    """Load a list of rasters as a numpy array."""
+    """Load single-band rasters as a multi-band numpy array of shape (band, y, x)."""
     arr = None
     for path in file_paths:
         with rasterio.open(path) as src:
             band = src.read(1)
-            arr = band if arr is None else np.dstack((arr, band))
+            # Add a band dimension to the array to allow concatenation
+            band = band[np.newaxis, ...]
+
+            arr = band if arr is None else np.concatenate((arr, band), axis=0)
 
     return arr
 
@@ -103,7 +106,8 @@ def load_swo_ecoplot(
     Parameters
     ----------
     as_dataset : bool, default=False
-        If True, return the image data as an `xarray.Dataset` instead of a Numpy array.
+        If True, return the image data as an `xarray.Dataset`. Otherwise, return a
+        Numpy array of shape (bands, y, x).
     large_rasters : bool, default=False
         If True, load the 2048x4096 version of the image data. Otherwise, load the
         128x128 version.
@@ -115,8 +119,8 @@ def load_swo_ecoplot(
     Returns
     -------
     tuple
-        Image data as either a numpy array or `xarray.Dataset`, and plot data as X and
-        y dataframes.
+        Image data as either a numpy array of shape (bands, y, x) or `xarray.Dataset`,
+        and plot data as X and y dataframes.
 
     Notes
     -----
@@ -135,7 +139,7 @@ def load_swo_ecoplot(
     >>> from sknnr_spatial.datasets import load_swo_ecoplot
     >>> X_image, X, y = load_swo_ecoplot()
     >>> print(X_image.shape)
-    (128, 128, 18)
+    (18, 128, 128)
 
     Load the 2048x4096 image data as an xarray Dataset:
 

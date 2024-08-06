@@ -27,7 +27,7 @@ def test_input_array_not_mutated(image_type: type[ImageType]):
     image.apply_ufunc_across_bands(
         lambda x: x * 2.0,
         output_dims=[["variable"]],
-        output_sizes={"variable": array.shape[-1]},
+        output_sizes={"variable": array.shape[0]},
         output_dtypes=[array.dtype],
     )
 
@@ -38,9 +38,9 @@ def test_input_array_not_mutated(image_type: type[ImageType]):
 @pytest.mark.parametrize("nan_fill", [None, 42.0])
 def test_nans_filled(nan_fill, image_type: type[ImageType]):
     """Test that NaNs in the image are filled or not."""
-    a = np.random.rand(8, 8, 3)
-    a[0][0][1] = np.nan
-    a[4][3][2] = np.nan
+    a = np.random.rand(3, 8, 8)
+    a[1][0][0] = np.nan
+    a[2][4][3] = np.nan
 
     if nan_fill is not None:
         expected_output = np.where(np.isnan(a), nan_fill, a)
@@ -57,7 +57,7 @@ def test_nans_filled(nan_fill, image_type: type[ImageType]):
         # that step.
         mask_nodata=False,
         output_dims=[["variable"]],
-        output_sizes={"variable": a.shape[-1]},
+        output_sizes={"variable": a.shape[0]},
         output_dtypes=[a.dtype],
     )
 
@@ -66,7 +66,7 @@ def test_nans_filled(nan_fill, image_type: type[ImageType]):
 
 def test_skip_nodata_if_unneeded():
     """If an image is not float and nodata isn't specified, there should be no mask."""
-    a = np.ones((2, 2, 3), dtype=int)
+    a = np.ones((3, 2, 2), dtype=int)
     image = Image.from_image(a, nodata_vals=None)
 
     assert image.nodata_vals is None
@@ -77,12 +77,12 @@ def test_nodata_masked_in_all_bands():
     nodata = 99
 
     # Build an array with one band filled with NoData
-    a = np.ones((8, 8, 3))
-    a[..., 1] = nodata
+    a = np.ones((3, 8, 8))
+    a[1, ...] = nodata
 
     # The output should be fully masked because missing values are broadcast to all
     # bands in the output.
-    expected_output = np.full((8, 8, 3), np.nan)
+    expected_output = np.full((3, 8, 8), np.nan)
 
     image = Image.from_image(a, nodata_vals=nodata)
 
@@ -98,7 +98,7 @@ def test_nodata_masked_in_all_bands():
 @pytest.mark.parametrize("nodata_vals", ["test", {}, False], ids=type)
 def test_nodata_validates_type(nodata_vals):
     """Test that invalid NoData types are recognized."""
-    a = np.zeros((2, 2, 3))
+    a = np.zeros((3, 2, 2))
 
     with pytest.raises(TypeError, match=f"Invalid type `{type(nodata_vals).__name__}`"):
         Image.from_image(a, nodata_vals=nodata_vals)
@@ -107,7 +107,7 @@ def test_nodata_validates_type(nodata_vals):
 def test_nodata_validates_length():
     """Test that invalid NoData lengths are recognized."""
     n_bands = 3
-    a = np.zeros((2, 2, n_bands))
+    a = np.zeros((n_bands, 2, 2))
 
     with pytest.raises(ValueError, match=f"Expected {n_bands} NoData values but got 1"):
         Image.from_image(a, nodata_vals=[-32768])
@@ -117,7 +117,7 @@ def test_nodata_single_value():
     """Test that a single NoData value is broadcast to all bands."""
     n_bands = 3
     nodata_val = -32768
-    a = np.zeros((2, 2, n_bands))
+    a = np.zeros((n_bands, 2, 2))
 
     image = Image.from_image(a, nodata_vals=nodata_val)
     assert image.nodata_vals.tolist() == [nodata_val] * n_bands
@@ -127,7 +127,7 @@ def test_nodata_multiple_values():
     """Test that multiple NoData values are correctly stored."""
     n_bands = 3
     nodata_vals = [-32768, 0, 255]
-    a = np.zeros((2, 2, n_bands))
+    a = np.zeros((n_bands, 2, 2))
 
     image = Image.from_image(a, nodata_vals=nodata_vals)
     assert image.nodata_vals.tolist() == nodata_vals
@@ -198,7 +198,7 @@ def test_nodata_dataset_global_fillvalue(nodata_vals):
 @parametrize_image_types
 def test_wrappers(image_type):
     """Confirm that the test wrappers function as expected."""
-    array = np.random.rand(32, 16, 3)
+    array = np.random.rand(3, 32, 16)
 
     wrapped = wrap_image(array, type=image_type)
     assert isinstance(wrapped, image_type)
