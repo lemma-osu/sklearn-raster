@@ -39,6 +39,20 @@ def test_predict(model_data: ModelData, estimator, single_output, squeeze):
 
 
 @parametrize_model_data()
+def test_kneighbors_with_custom_kwarg(model_data: ModelData):
+    """Test that kneighbors passes custom kwargs."""
+
+    class CustomEstimator(KNeighborsRegressor):
+        def kneighbors(self, X, custom_kwarg, **kwargs):
+            assert custom_kwarg is not None
+            return super().kneighbors(X, **kwargs)
+
+    X_image, X, y = model_data
+    estimator = wrap(CustomEstimator()).fit(X, y)
+    unwrap_image(estimator.kneighbors(X_image, return_distance=False, custom_kwarg=1))
+
+
+@parametrize_model_data()
 @pytest.mark.parametrize("estimator", [KMeans, MeanShift, AffinityPropagation])
 def test_predict_unsupervised(model_data: ModelData, estimator):
     """Test that predict works with all image types with unsupervised estimators."""
