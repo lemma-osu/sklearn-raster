@@ -24,11 +24,9 @@ class _ImageChunk:
 
     band_dim = -1
 
-    def __init__(
-        self, array: NDArray, nodata_vals: list[float] | None = None, nan_fill=0.0
-    ):
+    def __init__(self, array: NDArray, nodata_vals: list[float] | None = None):
         self.array = array
-        self.flat_array = self._preprocess(array, nan_fill=nan_fill)
+        self.flat_array = array.reshape(-1, array.shape[self.band_dim])
         self.nodata_vals = nodata_vals
 
     def _mask_nodata(self, flat_image: NDArray) -> NDArray:
@@ -58,14 +56,6 @@ class _ImageChunk:
 
         return flat_image
 
-    def _preprocess(self, array: NDArray, nan_fill: float = 0.0) -> NDArray:
-        """Preprocess the chunk by flattening to (pixels, bands) and filling NaNs."""
-        flat = array.reshape(-1, array.shape[self.band_dim])
-        if nan_fill is not None:
-            flat[np.isnan(flat)] = nan_fill
-
-        return flat
-
     def _postprocess(self, array: NDArray, mask_nodata: bool = True) -> NDArray:
         """Postprocess the chunk by unflattening to (y, x, band) and masking NoData."""
         output_shape = [*self.array.shape[:2], -1]
@@ -75,15 +65,20 @@ class _ImageChunk:
         return array.reshape(output_shape)
 
     def apply(
-        self, func, returns_tuple=False, mask_nodata=True, **kwargs
+        self, func, returns_tuple=False, mask_nodata=True, nan_fill=0.0, **kwargs
     ) -> NDArray | tuple[NDArray]:
         """
-        Apply a function to the flattened, processed chunk.
+        Apply a function to the flattened chunk.
 
         The function should accept and return one or more NDArrays in shape
         (pixels, bands). The output will be reshaped back to the original chunk shape.
         """
-        flat_result = func(self.flat_array, **kwargs)
+        if nan_fill is not None:
+            flat_array = np.where(np.isnan(self.flat_array), nan_fill, self.flat_array)
+        else:
+            flat_array = self.flat_array
+
+        flat_result = func(flat_array, **kwargs)
 
         if returns_tuple:
             return tuple(
@@ -160,12 +155,11 @@ class Image(Generic[ImageType], ABC):
             }
 
         def ufunc(x):
-            return _ImageChunk(
-                x, nodata_vals=self.nodata_vals, nan_fill=nan_fill
-            ).apply(
+            return _ImageChunk(x, nodata_vals=self.nodata_vals).apply(
                 func,
                 returns_tuple=n_outputs > 1,
                 mask_nodata=mask_nodata,
+                nan_fill=nan_fill,
                 **ufunc_kwargs,
             )
 
