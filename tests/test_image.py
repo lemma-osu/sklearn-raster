@@ -72,10 +72,9 @@ def test_skip_nodata_if_unneeded():
     assert image.nodata_vals is None
 
 
-def test_nodata_masked_in_all_bands():
+@pytest.mark.parametrize("nodata", [99, np.nan])
+def test_nodata_masked_in_all_bands(nodata):
     """If one band is NoData, those pixels should be masked in all bands."""
-    nodata = 99
-
     # Build an array with one band filled with NoData
     a = np.ones((3, 8, 8))
     a[1, ...] = nodata
