@@ -122,6 +122,20 @@ def test_kneighbors_unsupervised(model_data: ModelData, k):
     assert_array_equal(nn.shape, (k, model_data.n_rows, model_data.n_cols))
 
 
+@parametrize_model_data()
+def test_kneighbors_with_custom_kwarg(model_data: ModelData):
+    """Test that kneighbors passes custom kwargs."""
+
+    class CustomEstimator(KNeighborsRegressor):
+        def kneighbors(self, X, custom_kwarg, **kwargs):
+            assert custom_kwarg is not None
+            return super().kneighbors(X, **kwargs)
+
+    X_image, X, y = model_data
+    estimator = wrap(CustomEstimator()).fit(X, y)
+    unwrap_image(estimator.kneighbors(X_image, return_distance=False, custom_kwarg=1))
+
+
 @parametrize_model_data(image_types=(xr.DataArray,))
 def test_predict_dataarray_with_custom_dim_name(model_data: ModelData):
     """Test that predict works if the band dimension is not named "variable"."""
