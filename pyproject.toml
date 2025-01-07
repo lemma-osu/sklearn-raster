@@ -28,6 +28,10 @@ datasets = [
     "rasterio", 
     "pooch",
 ]
+tutorials = [
+    "sknnr-spatial[datasets]",
+    "matplotlib",
+]
 
 [project.urls]
 Homepage = "https://github.com/lemma-osu/sknnr-spatial"

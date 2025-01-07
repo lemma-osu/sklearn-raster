@@ -8,11 +8,17 @@
 
 - 🗺️ Raster predictions from [scikit-learn](https://scikit-learn.org/stable/) estimators 
 - ⚡ Parallelized functions + larger-than-memory data using [Dask](https://www.dask.org/)
-- 🌐 Automatic handling of projections, band names, and masks
+- 🌐 Automatic handling of spatial references, band names, and masks
 
 ## Quick-Start
 
-1. Wrap a `scikit-learn` estimator prior to fitting to enable raster-based predictions:
+1. Install optional dependencies for loading data and plotting results:
+
+    ```bash
+    pip install "sknnr-spatial[tutorials] @ git+https://github.com/lemma-osu/sknnr-spatial.git"
+    ```
+
+1. Wrap a `scikit-learn` estimator to enable raster-based predictions:
 
     ```python
     from sklearn.ensemble import RandomForestRegressor
@@ -21,7 +27,7 @@
     est = wrap(RandomForestRegressor())
     ```
 
-2. Load a [custom dataset](https://sknnr-spatial.readthedocs.io/en/latest/api/datasets/swo_ecoplot) of features and targets and fit the wrapped estimator:
+1. Load a [custom dataset](https://sknnr-spatial.readthedocs.io/en/latest/api/datasets/swo_ecoplot) of features and targets and fit the wrapped estimator:
 
     ```python
     from sknnr_spatial.datasets import load_swo_ecoplot
@@ -30,7 +36,7 @@
     est.fit(X, y)
     ```
 
-3. Generate predictions from a `numpy` or `xarray` raster with predictors as bands:
+1. Generate predictions from a `numpy` or `xarray` raster with predictors as bands:
 
     ```python
     pred = est.predict(X_image)
