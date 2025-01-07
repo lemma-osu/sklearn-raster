@@ -21,7 +21,7 @@
     est = wrap(RandomForestRegressor())
     ```
 
-2. Fit the wrapped estimator like any other using features and targets:
+2. Load a [custom dataset](https://sknnr-spatial.readthedocs.io/en/latest/api/datasets/swo_ecoplot) of features and targets and fit the wrapped estimator:
 
     ```python
     from sknnr_spatial.datasets import load_swo_ecoplot
@@ -30,7 +30,7 @@
     est.fit(X, y)
     ```
 
-3. Generate predictions from a numpy or xarray raster with predictors as bands:
+3. Generate predictions from a `numpy` or `xarray` raster with predictors as bands:
 
     ```python
     pred = est.predict(X_image)
@@ -39,7 +39,7 @@
 
 ## Acknowledgements
 
-Thanks to the USDA Forest Service Region 6 Ecology Team for the inclusion of the [SWO Ecoplot dataset](https://sknnr.readthedocs.io/en/latest/api/datasets/swo_ecoplot) (Atzet et al., 1996). Development of this package was funded by:
+Thanks to the USDA Forest Service Region 6 Ecology Team for the inclusion of the [SWO Ecoplot dataset](https://sknnr-spatial.readthedocs.io/en/latest/api/datasets/swo_ecoplot) (Atzet et al., 1996). Development of this package was funded by:
 
 - an appointment to the United States Forest Service (USFS) Research Participation Program administered by the Oak Ridge Institute for Science and Education (ORISE) through an interagency agreement between the U.S. Department of Energy (DOE) and the U.S. Department of Agriculture (USDA).
 - a joint venture agreement between USFS Pacific Northwest Research Station and Oregon State University (agreement 19-JV-11261959-064).
