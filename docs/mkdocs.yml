@@ -5,6 +5,7 @@ repo_name: lemma-osu/sknnr-spatial
 
 nav:
   - Home: index.md
+  - Installation: installation.md
   - API Reference:
     - Datasets:
       - SWO Ecoplot: api/datasets/swo_ecoplot.md
