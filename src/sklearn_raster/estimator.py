@@ -351,7 +351,7 @@ def wrap(estimator: EstimatorType) -> ImageEstimator[EstimatorType]:
     Instantiate an estimator, wrap it, then fit as usual:
 
     >>> from sklearn.neighbors import KNeighborsRegressor
-    >>> from sknnr_spatial.datasets import load_swo_ecoplot
+    >>> from sklearn_raster.datasets import load_swo_ecoplot
     >>> X_img, X, y = load_swo_ecoplot(as_dataset=True)
     >>> est = wrap(KNeighborsRegressor(n_neighbors=3)).fit(X, y)
 

@@ -1,8 +1,8 @@
-# sknnr-spatial
+# sklearn-raster
 
-[![Build status](https://github.com/lemma-osu/sknnr-spatial/actions/workflows/ci.yaml/badge.svg)](https://github.com/lemma-osu/sknnr-spatial/actions/workflows/ci.yaml) [![Documentation status](https://readthedocs.org/projects/sknnr-spatial/badge/?version=latest)](https://sknnr-spatial.readthedocs.io/)
+[![Build status](https://github.com/lemma-osu/sklearn-raster/actions/workflows/ci.yaml/badge.svg)](https://github.com/lemma-osu/sklearn-raster/actions/workflows/ci.yaml) [![Documentation status](https://readthedocs.org/projects/sklearn-raster/badge/?version=latest)](https://sklearn-raster.readthedocs.io/)
 
-> ⚠️ **WARNING: sknnr-spatial is in active development!** ⚠️
+> ⚠️ **WARNING: sklearn-raster is in active development!** ⚠️
 
 ## Features
 
@@ -15,22 +15,22 @@
 1. Install optional dependencies for loading data and plotting results:
 
     ```bash
-    pip install "sknnr-spatial[tutorials] @ git+https://github.com/lemma-osu/sknnr-spatial.git"
+    pip install "sklearn-raster[tutorials] @ git+https://github.com/lemma-osu/sklearn-raster.git"
     ```
 
 1. Wrap a `scikit-learn` estimator to enable raster-based predictions:
 
     ```python
     from sklearn.ensemble import RandomForestRegressor
-    from sknnr_spatial import wrap
+    from sklearn_raster import wrap
 
     est = wrap(RandomForestRegressor())
     ```
 
-1. Load a [custom dataset](https://sknnr-spatial.readthedocs.io/en/latest/api/datasets/swo_ecoplot) of features and targets and fit the wrapped estimator:
+1. Load a [custom dataset](https://sklearn-raster.readthedocs.io/en/latest/api/datasets/swo_ecoplot) of features and targets and fit the wrapped estimator:
 
     ```python
-    from sknnr_spatial.datasets import load_swo_ecoplot
+    from sklearn_raster.datasets import load_swo_ecoplot
 
     X_image, X, y = load_swo_ecoplot(as_dataset=True)
     est.fit(X, y)
@@ -45,7 +45,7 @@
 
 ## Acknowledgements
 
-Thanks to the USDA Forest Service Region 6 Ecology Team for the inclusion of the [SWO Ecoplot dataset](https://sknnr-spatial.readthedocs.io/en/latest/api/datasets/swo_ecoplot) (Atzet et al., 1996). Development of this package was funded by:
+Thanks to the USDA Forest Service Region 6 Ecology Team for the inclusion of the [SWO Ecoplot dataset](https://sklearn-raster.readthedocs.io/en/latest/api/datasets/swo_ecoplot) (Atzet et al., 1996). Development of this package was funded by:
 
 - an appointment to the United States Forest Service (USFS) Research Participation Program administered by the Oak Ridge Institute for Science and Education (ORISE) through an interagency agreement between the U.S. Department of Energy (DOE) and the U.S. Department of Agriculture (USDA).
 - a joint venture agreement between USFS Pacific Northwest Research Station and Oregon State University (agreement 19-JV-11261959-064).

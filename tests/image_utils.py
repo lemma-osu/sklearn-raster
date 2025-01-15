@@ -8,7 +8,7 @@ import pytest
 import xarray as xr
 from numpy.typing import NDArray
 
-from sknnr_spatial.types import ImageType
+from sklearn_raster.types import ImageType
 
 # Parametrize over all supported image types
 parametrize_image_types = pytest.mark.parametrize(

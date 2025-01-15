@@ -5,8 +5,8 @@ import pytest
 import xarray as xr
 from numpy.testing import assert_array_equal
 
-from sknnr_spatial.image import Image
-from sknnr_spatial.types import ImageType
+from sklearn_raster.image import Image
+from sklearn_raster.types import ImageType
 
 from .image_utils import (
     parametrize_image_types,

@@ -14,8 +14,8 @@ import rasterio
 from numpy.testing import assert_array_almost_equal
 from typing_extensions import Any
 
-from sknnr_spatial.datasets import load_swo_ecoplot
-from sknnr_spatial.datasets._base import _load_rasters_to_array
+from sklearn_raster.datasets import load_swo_ecoplot
+from sklearn_raster.datasets._base import _load_rasters_to_array
 
 
 @dataclass
@@ -93,18 +93,18 @@ def test_load_dataset_names_match():
 def test_load_dataset_missing_imports(missing_import):
     import re
 
-    msg = re.escape("install them with `pip install sknnr-spatial[datasets]`")
+    msg = re.escape("install them with `pip install sklearn-raster[datasets]`")
 
     with mock.patch.dict(sys.modules):
         sys.modules[missing_import] = None
 
         # This is pretty brittle, but it currently does the job of "un-importing"
         # the datasets module to force Python to re-import and run the dependency check
-        del sys.modules["sknnr_spatial.datasets"]
-        del sys.modules["sknnr_spatial.datasets._base"]
+        del sys.modules["sklearn_raster.datasets"]
+        del sys.modules["sklearn_raster.datasets._base"]
 
         with pytest.raises(ImportError, match=msg):
-            from sknnr_spatial.datasets import load_swo_ecoplot  # noqa: F401
+            from sklearn_raster.datasets import load_swo_ecoplot  # noqa: F401
 
 
 def test_load_rasters_promotes_dtype():

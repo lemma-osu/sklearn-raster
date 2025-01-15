@@ -24,7 +24,7 @@ jobs:
       - name: Cache data files
         uses: actions/cache@v4
         with:
-          path: ~/.cache/sknnr-spatial
+          path: ~/.cache/sklearn-raster
           key: data-${{ hashFiles('**/_registry.py') }}
 
       - name: Cache pip packages
