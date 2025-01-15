@@ -11,8 +11,8 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.neighbors import KNeighborsRegressor, NearestNeighbors
 from sklearn.utils.validation import NotFittedError
 
-from sknnr_spatial import wrap
-from sknnr_spatial.estimator import is_fitted
+from sklearn_raster import wrap
+from sklearn_raster.estimator import is_fitted
 
 from .image_utils import ModelData, parametrize_model_data, unwrap_image
 

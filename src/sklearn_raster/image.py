@@ -17,7 +17,7 @@ class _ImageChunk:
     A chunk of an NDArray in shape (y, x, band).
 
     Note that this dimension order is different from the (band, y, x) order used by
-    rasterio, rioxarray, and elsewhere in sknnr-spatial. This is because `_ImageChunk`
+    rasterio, rioxarray, and elsewhere in sklearn-raster. This is because `_ImageChunk`
     is called via `xr.apply_ufunc` which automatically swaps the core dimension to the
     last axis, resulting in arrays of (y, x, band).
     """

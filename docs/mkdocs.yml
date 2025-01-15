@@ -1,7 +1,7 @@
-site_name: sknnr-spatial
+site_name: sklearn-raster
 docs_dir: pages/
-repo_url: https://github.com/lemma-osu/sknnr-spatial
-repo_name: lemma-osu/sknnr-spatial
+repo_url: https://github.com/lemma-osu/sklearn-raster
+repo_name: lemma-osu/sklearn-raster
 
 nav:
   - Home: index.md

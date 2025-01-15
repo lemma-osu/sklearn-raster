@@ -7,8 +7,8 @@ import pandas as pd
 from numpy.typing import NDArray
 from typing_extensions import Any, Literal, overload
 
-from sknnr_spatial import __version__
-from sknnr_spatial.datasets._registry import registry
+from sklearn_raster import __version__
+from sklearn_raster.datasets._registry import registry
 
 try:
     import pooch
@@ -19,21 +19,21 @@ try:
 except ImportError:
     msg = (
         "Using the datasets module to load data requires additional dependencies. "
-        "You can install them with `pip install sknnr-spatial[datasets]`."
+        "You can install them with `pip install sklearn-raster[datasets]`."
     )
     raise ImportError(msg) from None
 
 
 # Location of data files. The `version` placeholder will be replaced by pooch.
-DATA_URL = "https://github.com/lemma-osu/sknnr-spatial/raw/{version}/src/sknnr_spatial/datasets/data"
+DATA_URL = "https://github.com/lemma-osu/sklearn-raster/raw/{version}/src/sklearn_raster/datasets/data"
 
 
 _data_fetcher = pooch.create(
     base_url=DATA_URL,
     version=__version__,
     version_dev="main",
-    path=pooch.os_cache("sknnr-spatial"),
-    env="SKNNRSPATIAL_DATA_DIR",
+    path=pooch.os_cache("sklearn-raster"),
+    env="SKLEARNRASTER_DATA_DIR",
     registry=registry,
     retry_if_failed=3,
 )
@@ -100,7 +100,7 @@ def load_swo_ecoplot(
         same year.
 
     Image data will be downloaded on-the-fly on the first run and cached locally for
-    future use. To override the default cache location, set a `SKNNRSPATIAL_DATA_DIR`
+    future use. To override the default cache location, set a `SKLEARNRASTER_DATA_DIR`
     environment variable to the desired path.
 
     Parameters
@@ -136,7 +136,7 @@ def load_swo_ecoplot(
 
     Load the 128x128 image data and plot data as a Numpy array and dataframes:
 
-    >>> from sknnr_spatial.datasets import load_swo_ecoplot
+    >>> from sklearn_raster.datasets import load_swo_ecoplot
     >>> X_image, X, y = load_swo_ecoplot()
     >>> print(X_image.shape)
     (18, 128, 128)

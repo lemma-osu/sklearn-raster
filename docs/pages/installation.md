@@ -3,10 +3,10 @@
 ## From Source
 
 !!! info
-    `sknnr-spatial` will be released on PyPI soon. Until then, you can install the package from source.
+    `sklearn-raster` will be released on PyPI soon. Until then, you can install the package from source.
 
 ```bash
-pip install git+https://github.com/lemma-osu/sknnr-spatial
+pip install git+https://github.com/lemma-osu/sklearn-raster
 ```
 
 ## Dependencies

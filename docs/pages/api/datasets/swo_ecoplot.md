@@ -1,1 +1,1 @@
-::: sknnr_spatial.datasets.load_swo_ecoplot
+::: sklearn_raster.datasets.load_swo_ecoplot
