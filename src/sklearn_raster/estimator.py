@@ -137,8 +137,8 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
         self,
         X_image: ImageType,
         *,
+        skip_nodata: bool = True,
         nodata_vals: NoDataType = None,
-        nodata_handling: Literal["fill", "skip"] = "fill",
         **predict_kwargs,
     ) -> ImageType:
         """
@@ -154,10 +154,15 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
         X_image : Numpy or Xarray image with 3 dimensions (y, x, band)
             The input image. Features in the band dimension should correspond with the
             features used to fit the estimator.
+        skip_nodata : bool, default=False
+            If True, NoData and NaN values will be skipped during prediction. This
+            speeds up processing of partially masked images, but may be incompatible if
+            estimators expect a consistent number of input samples.
         nodata_vals : float or sequence of floats, optional
-            NoData values to mask in the output image. A single value will be broadcast
-            to all bands while sequences of values will be assigned band-wise. If None,
-            values will be inferred if possible based on image metadata.
+            NoData values other than NaN to mask in the output image. A single value
+            will be broadcast to all bands while sequences of values will be assigned
+            band-wise. If None, values will be inferred if possible based on image
+            metadata.
         **predict_kwargs
             Additional arguments passed to the estimator's predict method.
 
@@ -182,7 +187,7 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
             output_dtypes=[output_dtype],
             output_sizes={output_dim_name: self._wrapped_meta.n_targets},
             output_coords={output_dim_name: list(self._wrapped_meta.target_names)},
-            nodata_handling=nodata_handling,
+            skip_nodata=skip_nodata,
             **predict_kwargs,
         )
 
@@ -195,6 +200,7 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
         *,
         n_neighbors: int | None = None,
         return_distance: Literal[False] = False,
+        skip_nodata: bool = False,
         nodata_vals: NoDataType = None,
         **kneighbors_kwargs,
     ) -> ImageType: ...
@@ -208,6 +214,7 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
         *,
         n_neighbors: int | None = None,
         return_distance: Literal[True] = True,
+        skip_nodata: bool = False,
         nodata_vals: NoDataType = None,
         **kneighbors_kwargs,
     ) -> tuple[ImageType, ImageType]: ...
@@ -220,8 +227,8 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
         *,
         n_neighbors: int | None = None,
         return_distance: bool = True,
+        skip_nodata: bool = False,
         nodata_vals: NoDataType = None,
-        nodata_handling: Literal["fill", "skip"] = "fill",
         **kneighbors_kwargs,
     ) -> ImageType | tuple[ImageType, ImageType]:
         """
@@ -245,10 +252,15 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
         return_distance : bool, default=True
             If True, return distances to the neighbors of each sample. If False, return
             indices only.
+        skip_nodata : bool, default=False
+            If True, NoData and NaN values will be skipped during prediction. This
+            speeds up processing of partially masked images, but may be incompatible if
+            estimators expect a consistent number of input samples.
         nodata_vals : float or sequence of floats, optional
-            NoData values to mask in the output image. A single value will be broadcast
-            to all bands while sequences of values will be assigned band-wise. If None,
-            values will be inferred if possible based on image metadata.
+            NoData values other than NaN to mask in the output image. A single value
+            will be broadcast to all bands while sequences of values will be assigned
+            band-wise. If None, values will be inferred if possible based on image
+            metadata.
         **kneighbors_kwargs
             Additional arguments passed to the estimator's kneighbors method.
 
@@ -273,7 +285,7 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
             output_coords={"k": list(range(1, k + 1))},
             n_neighbors=k,
             return_distance=return_distance,
-            nodata_handling=nodata_handling,
+            skip_nodata=skip_nodata,
             **kneighbors_kwargs,
         )
 

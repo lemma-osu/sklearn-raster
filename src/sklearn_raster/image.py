@@ -7,7 +7,7 @@ from typing import Any, Callable, Generic
 import numpy as np
 import xarray as xr
 from numpy.typing import NDArray
-from typing_extensions import Concatenate, Literal
+from typing_extensions import Concatenate
 
 from .types import ImageType, NoDataType, P
 
@@ -26,22 +26,27 @@ class _ImageChunk:
 
     def __init__(self, array: NDArray, nodata_vals: list[float] | None = None):
         self.array = array
-        self.flat_array = array.reshape(-1, array.shape[self.band_dim])
         self.nodata_vals = nodata_vals
+        self.flat_array = array.reshape(-1, array.shape[self.band_dim])
+
+        # We can take some shortcuts if the input array type can't contain NaNs
+        self.supports_nan = self.array.dtype.kind == "f"
+        # TODO: Only generate mask if needed
         self.nodata_mask = self._get_flat_nodata_mask()
+        self.any_masked = (
+            self.supports_nan or self.nodata_vals
+        ) and self.nodata_mask.any()
+        self.all_masked = self.any_masked and self.nodata_mask.all()
 
     def _get_flat_nodata_mask(self) -> NDArray:
         # Skip allocating a mask if the image is not float and NoData wasn't given
-        if (
-            not (is_float := self.flat_array.dtype.kind == "f")
-            and self.nodata_vals is None
-        ):
-            return np.zeros((self.flat_array.shape[0]), dtype=bool)
+        if not self.supports_nan and self.nodata_vals is None:
+            return np.zeros(self.flat_array.shape[0], dtype=bool)
 
         mask = np.zeros(self.flat_array.shape, dtype=bool)
 
         # If it's floating point, always mask NaNs
-        if is_float:
+        if self.supports_nan:
             mask |= np.isnan(self.flat_array)
 
         # If NoData was specified, mask those values
@@ -55,24 +60,32 @@ class _ImageChunk:
         """
         Set NaNs in the flat (pixels, band) image where NoData values are present.
         """
-        # Set the mask where any band contains NoData
         flat_image[self.nodata_mask] = np.nan
         return flat_image
 
-    def _postprocess(self, array: NDArray, mask_nodata: bool = True) -> NDArray:
-        """Postprocess the chunk by unflattening to (y, x, band) and masking NoData."""
+    def _postprocess(
+        self, result: NDArray | tuple[NDArray, ...], mask_nodata: bool = True
+    ) -> NDArray | tuple[NDArray, ...]:
+        """Postprocess results by unflattening to (y, x, band) and masking NoData."""
+        if isinstance(result, tuple):
+            return tuple(
+                self._postprocess(array, mask_nodata=mask_nodata) for array in result
+            )
+
         output_shape = [*self.array.shape[:2], -1]
         if mask_nodata:
-            array = self._mask_nodata(array)
+            result = self._mask_nodata(result)
 
-        return array.reshape(output_shape)
+        return result.reshape(output_shape)
 
     def apply(
         self,
         func,
-        returns_tuple=False,
+        *,
         mask_nodata=True,
-        nodata_handling: Literal["fill", "skip"] | None = "fill",
+        skip_nodata=True,
+        nan_fill=0.0,
+        prevent_empty_array=True,
         **kwargs,
     ) -> NDArray | tuple[NDArray]:
         """
@@ -80,49 +93,101 @@ class _ImageChunk:
 
         The function should accept and return one or more NDArrays in shape
         (pixels, bands). The output will be reshaped back to the original chunk shape.
+
+        Parameters
+        ----------
+        func : callable
+            A function to apply to the flattened array. The function should accept one
+            array of shape (pixels, bands) and return one or more arrays of the same
+            shape.
+        mask_nodata : bool, default True
+            If True, all NoData values will be replaced with NaN in the output array.
+        skip_nodata : bool, default True
+            If True, NoData and NaN values will be removed before passing the array to
+            `func` and re-inserted into the output. This can speed up processing of
+            partially masked arrays, but may be incompatible with functions that expect
+            a consistent number of samples.
+        nan_fill : float, default 0.0
+            If `skip_nodata=False`, any NaNs in the input array will be filled with this
+            value to avoid errors from functions that do not support NaN inputs.
+        prevent_empty_array : bool, default True
+            If True and the array is fully masked, at least one value will be passed to
+            `func` to avoid errors from functions that require non-empty array inputs,
+            like some scikit-learn `predict` methods. No effect if the array contains
+            any valid pixel or if `skip_nodata=False`.
+        **kwargs : dict
+            Additional keyword arguments passed to `func`.
         """
-        if nodata_handling == "fill":
-            flat_array = np.where(np.isnan(self.flat_array), 0.0, self.flat_array)
-        else:
+        # No need to fill NaNs if they're skipped anyways or unsupported
+        if skip_nodata is True or self.supports_nan is False or nan_fill is None:
             flat_array = self.flat_array
+        else:
+            flat_array = np.where(np.isnan(self.flat_array), nan_fill, self.flat_array)
 
-        if nodata_handling == "skip":
-            hack_pixel = None
-            if self.nodata_mask.all():
-                # Some functions like sklearn predictors with ensure_min_samples will
-                # fail if no input is provided. It's not possible to just return a fully
-                # masked output because we don't know the number of output bands yet, so
-                # instead we need to call the function after unmasking a single pixel
-                # that will be remasked later.
-                # TODO: Maybe control this with a `prevent_empty_array` parameter?
-                hack_pixel = 0
-                self.nodata_mask[hack_pixel] = False
-
-            # We don't know the number of output bands before calling the function, so
-            # we need to apply it first and then insert them into a masked array
-            data_result = func(flat_array[~self.nodata_mask], **kwargs)
-            # TODO: Should we always fill with NaN?
-            # TODO: Support tuple outputs
-            flat_result = np.full((flat_array.shape[0], data_result.shape[-1]), np.nan)
-            flat_result[~self.nodata_mask] = data_result
-
-            if hack_pixel is not None:
-                # Remask the NoData pixel
-                self.nodata_mask[hack_pixel] = True
-                flat_result[hack_pixel] = np.nan
-
-            # NoData is already masked
+        # Avoid the overhead of skipping if there's nothing masked
+        if skip_nodata and self.any_masked:
+            flat_result = self._masked_apply(
+                func,
+                flat_array=flat_array,
+                prevent_empty_array=prevent_empty_array,
+                nan_fill=nan_fill,
+                **kwargs,
+            )
+            # NoData is now pre-masked
             mask_nodata = False
         else:
             flat_result = func(flat_array, **kwargs)
 
-        if returns_tuple:
-            return tuple(
-                self._postprocess(result, mask_nodata=mask_nodata)
-                for result in flat_result
-            )
-
         return self._postprocess(flat_result, mask_nodata=mask_nodata)
+
+    def _masked_apply(
+        self,
+        func,
+        *,
+        flat_array: NDArray,
+        nan_fill: float = 0.0,
+        mask_nodata: bool = True,
+        prevent_empty_array: bool = True,
+        **kwargs,
+    ) -> NDArray | tuple[NDArray, ...]:
+        """
+        Apply a function to all non-NoData values in a flat array.
+
+        NoData values will be filled with `np.nan` if `mask_nodata` is True, else
+        `nan_fill`.
+        """
+        hack_pixel = None
+        if prevent_empty_array and self.all_masked:
+            # Some functions like sklearn predictors with ensure_min_samples will
+            # fail if no input is provided. It's not possible to just return a fully
+            # masked output because we don't know the number of output bands yet, so
+            # instead we need to call the function with a single dummy pixel that we'll
+            # re-mask later.
+            hack_pixel = 0
+            self.nodata_mask[hack_pixel] = False
+
+        # We don't know the number of output bands before calling the function, so
+        # we need to apply it first and then insert them into a masked array
+        data_result = func(flat_array[~self.nodata_mask], **kwargs)
+
+        # We can pre-fill with NaN to skip filling later
+        if mask_nodata:
+            nan_fill = np.nan
+
+        def insert_results():
+            pass
+
+        # TODO: Support tuple outputs
+        flat_result = np.full((flat_array.shape[0], data_result.shape[-1]), nan_fill)
+
+        flat_result[~self.nodata_mask] = data_result
+
+        if hack_pixel is not None:
+            # Remask the NoData pixel
+            self.nodata_mask[hack_pixel] = True
+            flat_result[hack_pixel] = np.nan
+
+        return flat_result
 
 
 class Image(Generic[ImageType], ABC):
@@ -178,7 +243,9 @@ class Image(Generic[ImageType], ABC):
         output_sizes: dict[str, int] | None = None,
         output_coords: dict[str, list[str | int]] | None = None,
         mask_nodata: bool = True,
-        nodata_handling: Literal["fill", "skip"] | None = "fill",
+        skip_nodata: bool = True,
+        nan_fill: float = 0.0,
+        prevent_empty_array: bool = True,
         **ufunc_kwargs,
     ) -> ImageType | tuple[ImageType]:
         """Apply a universal function to all bands of the image."""
@@ -193,9 +260,10 @@ class Image(Generic[ImageType], ABC):
         def ufunc(x):
             return _ImageChunk(x, nodata_vals=self.nodata_vals).apply(
                 func,
-                returns_tuple=n_outputs > 1,
                 mask_nodata=mask_nodata,
-                nodata_handling=nodata_handling,
+                skip_nodata=skip_nodata,
+                nan_fill=nan_fill,
+                prevent_empty_array=prevent_empty_array,
                 **ufunc_kwargs,
             )
 
