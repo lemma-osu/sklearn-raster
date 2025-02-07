@@ -83,9 +83,10 @@ python = ["3.9", "3.10", "3.11", "3.12"]
 
 [tool.hatch.envs.docs]
 dependencies = [
+    "sklearn-raster[tutorials]",
     "mkdocs",
     "mkdocs-material",
-    "mkdocstrings[python]"
+    "mkdocstrings[python]",
 ]
 
 [tool.hatch.envs.docs.scripts]
