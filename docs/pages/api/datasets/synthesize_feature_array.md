@@ -1,0 +1,1 @@
+::: sklearn_raster.datasets.synthesize_feature_array
