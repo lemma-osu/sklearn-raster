@@ -87,6 +87,17 @@ class _ImageChunk:
             flat_array = self.flat_array
 
         if nodata_handling == "skip":
+            hack_pixel = None
+            if self.nodata_mask.all():
+                # Some functions like sklearn predictors with ensure_min_samples will
+                # fail if no input is provided. It's not possible to just return a fully
+                # masked output because we don't know the number of output bands yet, so
+                # instead we need to call the function after unmasking a single pixel
+                # that will be remasked later.
+                # TODO: Maybe control this with a `prevent_empty_array` parameter?
+                hack_pixel = 0
+                self.nodata_mask[hack_pixel] = False
+
             # We don't know the number of output bands before calling the function, so
             # we need to apply it first and then insert them into a masked array
             data_result = func(flat_array[~self.nodata_mask], **kwargs)
@@ -94,6 +105,11 @@ class _ImageChunk:
             # TODO: Support tuple outputs
             flat_result = np.full((flat_array.shape[0], data_result.shape[-1]), np.nan)
             flat_result[~self.nodata_mask] = data_result
+
+            if hack_pixel is not None:
+                # Remask the NoData pixel
+                self.nodata_mask[hack_pixel] = True
+                flat_result[hack_pixel] = np.nan
 
             # NoData is already masked
             mask_nodata = False
