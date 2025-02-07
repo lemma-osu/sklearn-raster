@@ -60,6 +60,7 @@ class _ImageChunk:
         """
         Set NaNs in the flat (pixels, band) image where NoData values are present.
         """
+        flat_image = flat_image.astype(float)
         flat_image[self.nodata_mask] = np.nan
         return flat_image
 
@@ -158,36 +159,33 @@ class _ImageChunk:
         """
         hack_pixel = None
         if prevent_empty_array and self.all_masked:
-            # Some functions like sklearn predictors with ensure_min_samples will
-            # fail if no input is provided. It's not possible to just return a fully
-            # masked output because we don't know the number of output bands yet, so
-            # instead we need to call the function with a single dummy pixel that we'll
-            # re-mask later.
+            # Unmask the first pixel and make sure it's not NaN if a fill is specified
             hack_pixel = 0
             self.nodata_mask[hack_pixel] = False
+            if nan_fill is not None:
+                flat_array[hack_pixel] = nan_fill
 
-        # We don't know the number of output bands before calling the function, so
-        # we need to apply it first and then insert them into a masked array
-        data_result = func(flat_array[~self.nodata_mask], **kwargs)
+        def insert_results(result: NDArray):
+            """Insert the array result for valid pixels into the full-shaped array."""
+            # We can pre-fill with NaN to skip filling later
+            if mask_nodata:
+                nan_fill = np.nan
 
-        # We can pre-fill with NaN to skip filling later
-        if mask_nodata:
-            nan_fill = np.nan
+            full_result = np.full((flat_array.shape[0], result.shape[-1]), nan_fill)
+            full_result[~self.nodata_mask] = result
 
-        def insert_results():
-            pass
+            if hack_pixel is not None:
+                # Remask the NoData pixel
+                self.nodata_mask[hack_pixel] = True
+                full_result[hack_pixel] = nan_fill
 
-        # TODO: Support tuple outputs
-        flat_result = np.full((flat_array.shape[0], data_result.shape[-1]), nan_fill)
+            return full_result
 
-        flat_result[~self.nodata_mask] = data_result
+        func_result = func(flat_array[~self.nodata_mask], **kwargs)
+        if isinstance(func_result, tuple):
+            return tuple(insert_results(result) for result in func_result)
 
-        if hack_pixel is not None:
-            # Remask the NoData pixel
-            self.nodata_mask[hack_pixel] = True
-            flat_result[hack_pixel] = np.nan
-
-        return flat_result
+        return insert_results(func_result)
 
 
 class Image(Generic[ImageType], ABC):
