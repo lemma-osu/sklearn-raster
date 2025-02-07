@@ -134,7 +134,12 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
     @check_wrapper_implements
     @image_or_fallback
     def predict(
-        self, X_image: ImageType, *, nodata_vals: NoDataType = None, **predict_kwargs
+        self,
+        X_image: ImageType,
+        *,
+        nodata_vals: NoDataType = None,
+        nodata_handling: Literal["fill", "skip"] = "fill",
+        **predict_kwargs,
     ) -> ImageType:
         """
         Predict target(s) for X_image.
@@ -177,6 +182,7 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
             output_dtypes=[output_dtype],
             output_sizes={output_dim_name: self._wrapped_meta.n_targets},
             output_coords={output_dim_name: list(self._wrapped_meta.target_names)},
+            nodata_handling=nodata_handling,
             **predict_kwargs,
         )
 
@@ -215,6 +221,7 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
         n_neighbors: int | None = None,
         return_distance: bool = True,
         nodata_vals: NoDataType = None,
+        nodata_handling: Literal["fill", "skip"] = "fill",
         **kneighbors_kwargs,
     ) -> ImageType | tuple[ImageType, ImageType]:
         """
@@ -266,6 +273,7 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
             output_coords={"k": list(range(1, k + 1))},
             n_neighbors=k,
             return_distance=return_distance,
+            nodata_handling=nodata_handling,
             **kneighbors_kwargs,
         )
 

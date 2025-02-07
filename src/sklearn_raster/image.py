@@ -7,7 +7,7 @@ from typing import Any, Callable, Generic
 import numpy as np
 import xarray as xr
 from numpy.typing import NDArray
-from typing_extensions import Concatenate
+from typing_extensions import Concatenate, Literal
 
 from .types import ImageType, NoDataType, P
 
@@ -28,20 +28,17 @@ class _ImageChunk:
         self.array = array
         self.flat_array = array.reshape(-1, array.shape[self.band_dim])
         self.nodata_vals = nodata_vals
+        self.nodata_mask = self._get_flat_nodata_mask()
 
-    def _mask_nodata(self, flat_image: NDArray) -> NDArray:
-        """
-        Set NaNs in the flat (pixels, band) image where NoData values are present.
-        """
+    def _get_flat_nodata_mask(self) -> NDArray:
         # Skip allocating a mask if the image is not float and NoData wasn't given
         if (
             not (is_float := self.flat_array.dtype.kind == "f")
             and self.nodata_vals is None
         ):
-            return flat_image
+            return np.zeros((self.flat_array.shape[0]), dtype=bool)
 
         mask = np.zeros(self.flat_array.shape, dtype=bool)
-        flat_image = flat_image.astype(np.float64)
 
         # If it's floating point, always mask NaNs
         if is_float:
@@ -51,9 +48,15 @@ class _ImageChunk:
         if self.nodata_vals is not None:
             mask |= self.flat_array == self.nodata_vals
 
-        # Set the mask where any band contains NoData
-        flat_image[mask.max(axis=self.band_dim)] = np.nan
+        # Return a mask where any band contains NoData
+        return mask.max(axis=self.band_dim)
 
+    def _mask_nodata(self, flat_image: NDArray) -> NDArray:
+        """
+        Set NaNs in the flat (pixels, band) image where NoData values are present.
+        """
+        # Set the mask where any band contains NoData
+        flat_image[self.nodata_mask] = np.nan
         return flat_image
 
     def _postprocess(self, array: NDArray, mask_nodata: bool = True) -> NDArray:
@@ -65,7 +68,12 @@ class _ImageChunk:
         return array.reshape(output_shape)
 
     def apply(
-        self, func, returns_tuple=False, mask_nodata=True, nan_fill=0.0, **kwargs
+        self,
+        func,
+        returns_tuple=False,
+        mask_nodata=True,
+        nodata_handling: Literal["fill", "skip"] | None = "fill",
+        **kwargs,
     ) -> NDArray | tuple[NDArray]:
         """
         Apply a function to the flattened chunk.
@@ -73,12 +81,24 @@ class _ImageChunk:
         The function should accept and return one or more NDArrays in shape
         (pixels, bands). The output will be reshaped back to the original chunk shape.
         """
-        if nan_fill is not None:
-            flat_array = np.where(np.isnan(self.flat_array), nan_fill, self.flat_array)
+        if nodata_handling == "fill":
+            flat_array = np.where(np.isnan(self.flat_array), 0.0, self.flat_array)
         else:
             flat_array = self.flat_array
 
-        flat_result = func(flat_array, **kwargs)
+        if nodata_handling == "skip":
+            # We don't know the number of output bands before calling the function, so
+            # we need to apply it first and then insert them into a masked array
+            data_result = func(flat_array[~self.nodata_mask], **kwargs)
+            # TODO: Should we always fill with NaN?
+            # TODO: Support tuple outputs
+            flat_result = np.full((flat_array.shape[0], data_result.shape[-1]), np.nan)
+            flat_result[~self.nodata_mask] = data_result
+
+            # NoData is already masked
+            mask_nodata = False
+        else:
+            flat_result = func(flat_array, **kwargs)
 
         if returns_tuple:
             return tuple(
@@ -141,8 +161,8 @@ class Image(Generic[ImageType], ABC):
         output_dtypes: list[np.dtype] | None = None,
         output_sizes: dict[str, int] | None = None,
         output_coords: dict[str, list[str | int]] | None = None,
-        nan_fill: float = 0.0,
         mask_nodata: bool = True,
+        nodata_handling: Literal["fill", "skip"] | None = "fill",
         **ufunc_kwargs,
     ) -> ImageType | tuple[ImageType]:
         """Apply a universal function to all bands of the image."""
@@ -159,7 +179,7 @@ class Image(Generic[ImageType], ABC):
                 func,
                 returns_tuple=n_outputs > 1,
                 mask_nodata=mask_nodata,
-                nan_fill=nan_fill,
+                nodata_handling=nodata_handling,
                 **ufunc_kwargs,
             )
 
