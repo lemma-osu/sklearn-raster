@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Sized
-from typing import Any, Callable, Generic
+from typing import Any, Callable, Generic, cast
 
 import numpy as np
 import xarray as xr
@@ -31,17 +31,15 @@ class _ImageChunk:
 
         # We can take some shortcuts if the input array type can't contain NaNs
         self.supports_nan = self.array.dtype.kind == "f"
-        # TODO: Only generate mask if needed
         self.nodata_mask = self._get_flat_nodata_mask()
-        self.any_masked = (
-            self.supports_nan or self.nodata_vals
-        ) and self.nodata_mask.any()
-        self.all_masked = self.any_masked and self.nodata_mask.all()
 
-    def _get_flat_nodata_mask(self) -> NDArray:
+        self.any_masked = self.nodata_mask is not None and self.nodata_mask.any()
+        self.all_masked = self.any_masked and cast(np.ndarray, self.nodata_mask).all()
+
+    def _get_flat_nodata_mask(self) -> NDArray | None:
         # Skip allocating a mask if the image is not float and NoData wasn't given
         if not self.supports_nan and self.nodata_vals is None:
-            return np.zeros(self.flat_array.shape[0], dtype=bool)
+            return None
 
         mask = np.zeros(self.flat_array.shape, dtype=bool)
 
@@ -60,7 +58,9 @@ class _ImageChunk:
         """
         Set NaNs in the flat (pixels, band) image where NoData values are present.
         """
-        flat_image = flat_image.astype(float)
+        if flat_image.dtype.kind != "f":
+            flat_image = flat_image.astype(float)
+
         flat_image[self.nodata_mask] = np.nan
         return flat_image
 
@@ -161,31 +161,31 @@ class _ImageChunk:
         if prevent_empty_array and self.all_masked:
             # Unmask the first pixel and make sure it's not NaN if a fill is specified
             hack_pixel = 0
-            self.nodata_mask[hack_pixel] = False
+            cast(NDArray, self.nodata_mask)[hack_pixel] = False
             if nan_fill is not None:
                 flat_array[hack_pixel] = nan_fill
 
-        def insert_results(result: NDArray):
+        def insert_result(result: NDArray):
             """Insert the array result for valid pixels into the full-shaped array."""
             # We can pre-fill with NaN to skip filling later
             if mask_nodata:
                 nan_fill = np.nan
 
             full_result = np.full((flat_array.shape[0], result.shape[-1]), nan_fill)
-            full_result[~self.nodata_mask] = result
+            full_result[~cast(NDArray, self.nodata_mask)] = result
 
             if hack_pixel is not None:
                 # Remask the NoData pixel
-                self.nodata_mask[hack_pixel] = True
+                cast(NDArray, self.nodata_mask)[hack_pixel] = True
                 full_result[hack_pixel] = nan_fill
 
             return full_result
 
-        func_result = func(flat_array[~self.nodata_mask], **kwargs)
+        func_result = func(flat_array[~cast(NDArray, self.nodata_mask)], **kwargs)
         if isinstance(func_result, tuple):
-            return tuple(insert_results(result) for result in func_result)
+            return tuple(insert_result(result) for result in func_result)
 
-        return insert_results(func_result)
+        return insert_result(func_result)
 
 
 class Image(Generic[ImageType], ABC):
