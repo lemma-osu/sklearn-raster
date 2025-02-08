@@ -132,6 +132,7 @@ class _ImageChunk:
                 flat_array=flat_array,
                 prevent_empty_array=prevent_empty_array,
                 nan_fill=nan_fill,
+                mask_nodata=mask_nodata,
                 **kwargs,
             )
             # NoData is now pre-masked
@@ -167,8 +168,9 @@ class _ImageChunk:
 
         def insert_result(result: NDArray):
             """Insert the array result for valid pixels into the full-shaped array."""
-            # We can pre-fill with NaN to skip filling later
+            nonlocal nan_fill
             if mask_nodata:
+                # We can pre-fill with NaN to skip filling later
                 nan_fill = np.nan
 
             full_result = np.full((flat_array.shape[0], result.shape[-1]), nan_fill)
