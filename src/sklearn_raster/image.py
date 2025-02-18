@@ -24,58 +24,71 @@ class _ImageChunk:
 
     band_dim = -1
 
-    def __init__(self, array: NDArray, nodata_vals: list[float] | None = None):
+    def __init__(self, array: NDArray, nodata_input: list[float] | None = None):
         self.array = array
-        self.nodata_vals = nodata_vals
+        self.nodata_input = nodata_input
         self.flat_array = array.reshape(-1, array.shape[self.band_dim])
 
         # We can take some shortcuts if the input array type can't contain NaNs
-        self.supports_nan = self.array.dtype.kind == "f"
+        self._input_supports_nan = np.issubdtype(array.dtype, np.floating)
         self.nodata_mask = self._get_flat_nodata_mask()
 
-        self.any_masked = self.nodata_mask is not None and self.nodata_mask.any()
-        self.all_masked = self.any_masked and cast(np.ndarray, self.nodata_mask).all()
+        num_pixels = self.flat_array.shape[0]
+        self._num_masked = 0 if self.nodata_mask is None else self.nodata_mask.sum()
+        self._num_unmasked = num_pixels - self._num_masked
 
     def _get_flat_nodata_mask(self) -> NDArray | None:
         # Skip allocating a mask if the image is not float and NoData wasn't given
-        if not self.supports_nan and self.nodata_vals is None:
+        if not self._input_supports_nan and self.nodata_input is None:
             return None
 
         mask = np.zeros(self.flat_array.shape, dtype=bool)
 
         # If it's floating point, always mask NaNs
-        if self.supports_nan:
+        if self._input_supports_nan:
             mask |= np.isnan(self.flat_array)
 
         # If NoData was specified, mask those values
-        if self.nodata_vals is not None:
-            mask |= self.flat_array == self.nodata_vals
+        if self.nodata_input is not None:
+            mask |= self.flat_array == self.nodata_input
 
         # Return a mask where any band contains NoData
         return mask.max(axis=self.band_dim)
 
-    def _mask_nodata(self, flat_image: NDArray) -> NDArray:
+    def _mask_nodata(self, flat_image: NDArray, nodata_output: float | int) -> NDArray:
         """
-        Set NaNs in the flat (pixels, band) image where NoData values are present.
+        Replace NoData values in the input array with `output_nodata`.
         """
-        if flat_image.dtype.kind != "f":
-            flat_image = flat_image.astype(float)
+        # TODO: Avoid repeating this check
+        if not np.can_cast(type(nodata_output), flat_image.dtype):
+            msg = (
+                f"The selected `nodata_output` value {nodata_output} cannot be cast to "
+                f"the array dtype {flat_image.dtype}."
+            )
+            raise ValueError(msg)
 
-        flat_image[self.nodata_mask] = np.nan
+        flat_image[self.nodata_mask] = nodata_output
         return flat_image
 
+    # TODO: Try to refactor out the need for the mask_nodata parameter.
     def _postprocess(
-        self, result: NDArray | tuple[NDArray, ...], mask_nodata: bool = True
+        self,
+        result: NDArray | tuple[NDArray, ...],
+        nodata_output: float | int,
+        mask_nodata: bool = True,
     ) -> NDArray | tuple[NDArray, ...]:
         """Postprocess results by unflattening to (y, x, band) and masking NoData."""
         if isinstance(result, tuple):
             return tuple(
-                self._postprocess(array, mask_nodata=mask_nodata) for array in result
+                self._postprocess(
+                    array, mask_nodata=mask_nodata, nodata_output=nodata_output
+                )
+                for array in result
             )
 
         output_shape = [*self.array.shape[:2], -1]
         if mask_nodata:
-            result = self._mask_nodata(result)
+            result = self._mask_nodata(result, nodata_output=nodata_output)
 
         return result.reshape(output_shape)
 
@@ -83,10 +96,10 @@ class _ImageChunk:
         self,
         func,
         *,
-        mask_nodata=True,
-        skip_nodata=True,
-        nan_fill=0.0,
-        prevent_empty_array=True,
+        skip_nodata: bool = True,
+        nodata_output: float | int = np.nan,
+        nan_fill: float | int | None = None,
+        prevent_empty_array: bool = True,
         **kwargs,
     ) -> NDArray | tuple[NDArray]:
         """
@@ -101,38 +114,41 @@ class _ImageChunk:
             A function to apply to the flattened array. The function should accept one
             array of shape (pixels, bands) and return one or more arrays of the same
             shape.
-        mask_nodata : bool, default True
-            If True, all NoData values will be replaced with NaN in the output array.
         skip_nodata : bool, default True
             If True, NoData and NaN values will be removed before passing the array to
-            `func` and re-inserted into the output. This can speed up processing of
-            partially masked arrays, but may be incompatible with functions that expect
-            a consistent number of samples.
-        nan_fill : float, default 0.0
+            `func`. This can speed up processing of partially masked arrays, but may be
+            incompatible with functions that expect a consistent number of samples.
+        nodata_output : float or int, default np.nan
+            NoData pixels in the input will be replaced with this value in the output.
+            If the value does not fit the array dtype returned by `func`, an error will
+            be raised.
+        nan_fill : float or int, optional
             If `skip_nodata=False`, any NaNs in the input array will be filled with this
-            value to avoid errors from functions that do not support NaN inputs.
+            value prior to calling `func` to avoid errors from functions that do not
+            support NaN inputs. If None, NaNs will not be filled.
         prevent_empty_array : bool, default True
-            If True and the array is fully masked, at least one value will be passed to
-            `func` to avoid errors from functions that require non-empty array inputs,
-            like some scikit-learn `predict` methods. No effect if the array contains
-            any valid pixel or if `skip_nodata=False`.
+            If True, at least one value will be passed to `func` even if the array is
+            fully masked and `skip_nodata=True`. This is necessary for functions that
+            require non-empty array inputs, like some scikit-learn `predict` methods.
+            No effect if the array contains any valid pixel or if `skip_nodata=False`.
         **kwargs : dict
             Additional keyword arguments passed to `func`.
         """
         # No need to fill NaNs if they're skipped anyways or unsupported
-        if skip_nodata is True or self.supports_nan is False or nan_fill is None:
+        if skip_nodata is True or self._input_supports_nan is False or nan_fill is None:
             flat_array = self.flat_array
         else:
             flat_array = np.where(np.isnan(self.flat_array), nan_fill, self.flat_array)
 
-        # Avoid the overhead of skipping if there's nothing masked
-        if skip_nodata and self.any_masked:
+        mask_nodata = self._num_masked > 0
+
+        # Only skip NoData if there's something to skip
+        if skip_nodata and self._num_masked > 0:
             flat_result = self._masked_apply(
                 func,
                 flat_array=flat_array,
                 prevent_empty_array=prevent_empty_array,
-                nan_fill=nan_fill,
-                mask_nodata=mask_nodata,
+                nodata_output=nodata_output,
                 **kwargs,
             )
             # NoData is now pre-masked
@@ -140,46 +156,54 @@ class _ImageChunk:
         else:
             flat_result = func(flat_array, **kwargs)
 
-        return self._postprocess(flat_result, mask_nodata=mask_nodata)
+        return self._postprocess(
+            flat_result, mask_nodata=mask_nodata, nodata_output=nodata_output
+        )
 
     def _masked_apply(
         self,
         func,
         *,
         flat_array: NDArray,
-        nan_fill: float = 0.0,
-        mask_nodata: bool = True,
+        nodata_output: float | int,
         prevent_empty_array: bool = True,
         **kwargs,
     ) -> NDArray | tuple[NDArray, ...]:
         """
         Apply a function to all non-NoData values in a flat array.
-
-        NoData values will be filled with `np.nan` if `mask_nodata` is True, else
-        `nan_fill`.
         """
         hack_pixel = None
-        if prevent_empty_array and self.all_masked:
+        # TODO: Replace this with `ensure_min_samples`
+        if prevent_empty_array and self._num_unmasked == 0:
             # Unmask the first pixel and make sure it's not NaN if a fill is specified
             hack_pixel = 0
             cast(NDArray, self.nodata_mask)[hack_pixel] = False
-            if nan_fill is not None:
-                flat_array[hack_pixel] = nan_fill
+            flat_array[hack_pixel] = nodata_output
 
         def insert_result(result: NDArray):
             """Insert the array result for valid pixels into the full-shaped array."""
-            nonlocal nan_fill
-            if mask_nodata:
-                # We can pre-fill with NaN to skip filling later
-                nan_fill = np.nan
+            # TODO: Avoid repeating this check here
+            if not np.can_cast(type(nodata_output), result.dtype):
+                msg = (
+                    f"The selected `nodata_output` value {nodata_output} cannot be "
+                    f"cast to the array dtype {result.dtype}."
+                )
+                raise ValueError(msg)
 
-            full_result = np.full((flat_array.shape[0], result.shape[-1]), nan_fill)
+            # Build an output array pre-masked with the fill value and cast to the
+            # output dtype. The shape will be (n, b) where n is the number of pixels
+            # in the flat array and b is the number of bands in the func result.
+            full_result = np.full(
+                (flat_array.shape[0], result.shape[-1]),
+                nodata_output,
+                dtype=result.dtype,
+            )
             full_result[~cast(NDArray, self.nodata_mask)] = result
 
             if hack_pixel is not None:
                 # Remask the NoData pixel
                 cast(NDArray, self.nodata_mask)[hack_pixel] = True
-                full_result[hack_pixel] = nan_fill
+                full_result[hack_pixel] = nodata_output
 
             return full_result
 
@@ -197,12 +221,12 @@ class Image(Generic[ImageType], ABC):
     band_dim: int = 0
     band_names: NDArray
 
-    def __init__(self, image: ImageType, nodata_vals: NoDataType = None):
+    def __init__(self, image: ImageType, nodata_input: NoDataType = None):
         self.image = image
         self.n_bands = self.image.shape[self.band_dim]
-        self.nodata_vals = self._validate_nodata_vals(nodata_vals)
+        self.nodata_input = self._validate_nodata_input(nodata_input)
 
-    def _validate_nodata_vals(self, nodata_vals: NoDataType) -> NDArray | None:
+    def _validate_nodata_input(self, nodata_input: NoDataType) -> NDArray | None:
         """
         Get an array of NoData values in the shape (bands,) based on user input.
 
@@ -210,29 +234,31 @@ class Image(Generic[ImageType], ABC):
         number of bands and cast to ndarrays. There is no need to specify np.nan as a
         NoData value because it will be masked automatically for floating point images.
         """
-        if nodata_vals is None:
+        if nodata_input is None:
             return None
 
         # If it's a numeric scalar, broadcast it to all bands
-        if isinstance(nodata_vals, (float, int)) and not isinstance(nodata_vals, bool):
-            return np.full((self.n_bands,), nodata_vals)
+        if isinstance(nodata_input, (float, int)) and not isinstance(
+            nodata_input, bool
+        ):
+            return np.full((self.n_bands,), nodata_input)
 
         # If it's not a scalar, it must be an iterable
-        if not isinstance(nodata_vals, Sized) or isinstance(nodata_vals, (str, dict)):
+        if not isinstance(nodata_input, Sized) or isinstance(nodata_input, (str, dict)):
             raise TypeError(
-                f"Invalid type `{type(nodata_vals).__name__}` for `nodata_vals`. "
+                f"Invalid type `{type(nodata_input).__name__}` for `nodata_input`. "
                 "Provide a single number to apply to all bands, a sequence of numbers, "
                 "or None."
             )
 
         # If it's an iterable, it must contain one element per band
-        if len(nodata_vals) != self.n_bands:
+        if len(nodata_input) != self.n_bands:
             raise ValueError(
-                f"Expected {self.n_bands} NoData values but got {len(nodata_vals)}. "
-                f"The length of `nodata_vals` must match the number of bands."
+                f"Expected {self.n_bands} NoData values but got {len(nodata_input)}. "
+                f"The length of `nodata_input` must match the number of bands."
             )
 
-        return np.asarray(nodata_vals)
+        return np.asarray(nodata_input)
 
     def apply_ufunc_across_bands(
         self,
@@ -242,8 +268,8 @@ class Image(Generic[ImageType], ABC):
         output_dtypes: list[np.dtype] | None = None,
         output_sizes: dict[str, int] | None = None,
         output_coords: dict[str, list[str | int]] | None = None,
-        mask_nodata: bool = True,
         skip_nodata: bool = True,
+        nodata_output: float | int = np.nan,
         nan_fill: float = 0.0,
         prevent_empty_array: bool = True,
         **ufunc_kwargs,
@@ -258,10 +284,10 @@ class Image(Generic[ImageType], ABC):
             }
 
         def ufunc(x):
-            return _ImageChunk(x, nodata_vals=self.nodata_vals).apply(
+            return _ImageChunk(x, nodata_input=self.nodata_input).apply(
                 func,
-                mask_nodata=mask_nodata,
                 skip_nodata=skip_nodata,
+                nodata_output=nodata_output,
                 nan_fill=nan_fill,
                 prevent_empty_array=prevent_empty_array,
                 **ufunc_kwargs,
@@ -312,16 +338,16 @@ class Image(Generic[ImageType], ABC):
         """
 
     @staticmethod
-    def from_image(image: Any, nodata_vals: NoDataType = None) -> Image:
+    def from_image(image: Any, nodata_input: NoDataType = None) -> Image:
         """Create an Image object from a supported image type."""
         if isinstance(image, np.ndarray):
-            return NDArrayImage(image, nodata_vals=nodata_vals)
+            return NDArrayImage(image, nodata_input=nodata_input)
 
         if isinstance(image, xr.DataArray):
-            return DataArrayImage(image, nodata_vals=nodata_vals)
+            return DataArrayImage(image, nodata_input=nodata_input)
 
         if isinstance(image, xr.Dataset):
-            return DatasetImage(image, nodata_vals=nodata_vals)
+            return DatasetImage(image, nodata_input=nodata_input)
 
         raise TypeError(f"Unsupported image type `{type(image).__name__}`.")
 
@@ -331,8 +357,8 @@ class NDArrayImage(Image):
 
     band_names = np.array([])
 
-    def __init__(self, image: NDArray, nodata_vals: NoDataType = None):
-        super().__init__(image, nodata_vals=nodata_vals)
+    def __init__(self, image: NDArray, nodata_input: NoDataType = None):
+        super().__init__(image, nodata_input=nodata_input)
 
     def _preprocess_ufunc_input(self, image: NDArray) -> NDArray:
         """Preprocess the image by transposing to (y, x, band) for apply_ufunc."""
@@ -347,22 +373,22 @@ class NDArrayImage(Image):
 class DataArrayImage(Image):
     """An image stored in an xarray DataArray of shape (band, y, x)."""
 
-    def __init__(self, image: xr.DataArray, nodata_vals: NoDataType = None):
-        super().__init__(image, nodata_vals=nodata_vals)
+    def __init__(self, image: xr.DataArray, nodata_input: NoDataType = None):
+        super().__init__(image, nodata_input=nodata_input)
         self.band_dim_name = image.dims[self.band_dim]
 
     @property
     def band_names(self) -> NDArray:
         return self.image[self.band_dim_name].values
 
-    def _validate_nodata_vals(self, nodata_vals: NoDataType) -> NDArray | None:
+    def _validate_nodata_input(self, nodata_input: NoDataType) -> NDArray | None:
         """
         Get an array of NoData values in the shape (bands,) based on user input and
         DataArray metadata.
         """
         # Defer to user-provided NoData values over stored attributes
-        if nodata_vals is not None:
-            return super()._validate_nodata_vals(nodata_vals)
+        if nodata_input is not None:
+            return super()._validate_nodata_input(nodata_input)
 
         # If present, broadcast the _FillValue attribute to all bands
         fill_val = self.image.attrs.get("_FillValue")
@@ -380,6 +406,8 @@ class DataArrayImage(Image):
         if output_coords is not None:
             result = result.assign_coords(output_coords)
 
+        # TODO: Set the output nodata _FillValue
+
         # Transpose from (y, x, band) to (band, y, x)
         return result.transpose(result.dims[-1], ...)
 
@@ -387,17 +415,17 @@ class DataArrayImage(Image):
 class DatasetImage(DataArrayImage):
     """An image stored in an xarray Dataset of shape (y, x) with bands as variables."""
 
-    def __init__(self, image: xr.Dataset, nodata_vals: NoDataType = None):
+    def __init__(self, image: xr.Dataset, nodata_input: NoDataType = None):
         # The image itself will be stored as a DataArray, but keep the Dataset for
         # metadata like _FillValues.
         self.dataset = image
-        super().__init__(image.to_dataarray(), nodata_vals=nodata_vals)
+        super().__init__(image.to_dataarray(), nodata_input=nodata_input)
 
     @property
     def band_names(self) -> NDArray:
         return np.array(list(self.dataset.data_vars))
 
-    def _validate_nodata_vals(self, nodata_vals: NoDataType) -> NDArray | None:
+    def _validate_nodata_input(self, nodata_input: NoDataType) -> NDArray | None:
         """
         Get an array of NoData values in the shape (bands,) based on user input and
         Dataset metadata.
@@ -409,11 +437,11 @@ class DatasetImage(DataArrayImage):
         # Defer to provided NoData vals first. Next, try using per-variable fill values.
         # If at least one variable specifies a NoData value, use them all. Variables
         # that didn't specify a fill value will be assigned None.
-        if nodata_vals is None and not all(v is None for v in fill_vals):
+        if nodata_input is None and not all(v is None for v in fill_vals):
             return np.array(fill_vals)
 
         # Fall back to the DataArray logic for handling NoData
-        return super()._validate_nodata_vals(nodata_vals)
+        return super()._validate_nodata_input(nodata_input)
 
     def _postprocess_ufunc_output(
         self,
@@ -422,6 +450,8 @@ class DatasetImage(DataArrayImage):
     ) -> xr.Dataset:
         """Process the ufunc output converting from DataArray to Dataset."""
         result = super()._postprocess_ufunc_output(result, output_coords=output_coords)
+
+        # TODO: Set the output nodata _FillValue
 
         var_dim = result.dims[self.band_dim]
         return result.to_dataset(dim=var_dim)
