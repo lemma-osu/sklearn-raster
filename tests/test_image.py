@@ -95,6 +95,57 @@ def test_nodata_output_set(
 
 
 @parametrize_image_types
+def test_prevent_empty_array(image_type: type[ImageType]):
+    """Test that funcs are not passed empty arrays if flag is set."""
+    a = np.array([[[np.nan, np.nan, np.nan]]])
+
+    def fails_on_empty_array(x):
+        assert x.size > 0
+        return x
+
+    image = Image.from_image(wrap_image(a, type=image_type), nodata_input=0)
+    result = image.apply_ufunc_across_bands(
+        fails_on_empty_array,
+        skip_nodata=True,
+        prevent_empty_array=True,
+        output_dims=[["variable"]],
+        output_sizes={"variable": a.shape[0]},
+        output_dtypes=[a.dtype],
+    )
+
+    unwrap_image(result)
+
+
+@pytest.mark.parametrize("num_valid", [0, 1, 3])
+@pytest.mark.parametrize("nodata_input", [-32768, np.nan])
+@parametrize_image_types
+def test_nodata_is_skipped(
+    num_valid: int, nodata_input: int | float, image_type: type[ImageType]
+):
+    """Test that NoData values are skipped if the flag is set."""
+    # Create a full NoData array and the expected number of valid values
+    a = np.full((1, 1, 3), nodata_input, dtype=np.float64)
+    for i in range(num_valid):
+        a[0, 0, i] = 1
+
+    def assert_array_size(x, n):
+        assert x.size == n
+        return x
+
+    image = Image.from_image(wrap_image(a, type=image_type), nodata_input=nodata_input)
+    result = image.apply_ufunc_across_bands(
+        lambda x: assert_array_size(x, num_valid),
+        skip_nodata=True,
+        prevent_empty_array=False,
+        output_dims=[["variable"]],
+        output_sizes={"variable": a.shape[0]},
+        output_dtypes=[a.dtype],
+    )
+
+    unwrap_image(result)
+
+
+@parametrize_image_types
 @pytest.mark.parametrize("skip_nodata", [True, False])
 @pytest.mark.parametrize("nan_fill", [None, 42.0])
 def test_nan_filled(
@@ -118,11 +169,11 @@ def test_nan_filled(
         output_sizes={"variable": a.shape[0]},
         output_dtypes=[a.dtype],
     )
-    # Unwrap to force computation for lazy arrays
+
     unwrap_image(result)
 
 
-def test_skip_nodata_if_unneeded():
+def test_skip_nodata_mask_if_unneeded():
     """If an image is not float and nodata isn't specified, there should be no mask."""
     a = np.ones((3, 2, 2), dtype=int)
     image = Image.from_image(a, nodata_input=None)
