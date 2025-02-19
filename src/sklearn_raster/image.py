@@ -62,7 +62,7 @@ class _ImageChunk:
         # TODO: Avoid repeating this check
         if not np.can_cast(type(nodata_output), flat_image.dtype):
             msg = (
-                f"The selected `nodata_output` value {nodata_output} cannot be cast to "
+                f"The selected `nodata_output` value {nodata_output} does not fit in "
                 f"the array dtype {flat_image.dtype}."
             )
             raise ValueError(msg)
@@ -140,8 +140,6 @@ class _ImageChunk:
         else:
             flat_array = np.where(np.isnan(self.flat_array), nan_fill, self.flat_array)
 
-        mask_nodata = self._num_masked > 0
-
         # Only skip NoData if there's something to skip
         if skip_nodata and self._num_masked > 0:
             flat_result = self._masked_apply(
@@ -155,6 +153,7 @@ class _ImageChunk:
             mask_nodata = False
         else:
             flat_result = func(flat_array, **kwargs)
+            mask_nodata = self._num_masked > 0
 
         return self._postprocess(
             flat_result, mask_nodata=mask_nodata, nodata_output=nodata_output
@@ -185,8 +184,8 @@ class _ImageChunk:
             # TODO: Avoid repeating this check here
             if not np.can_cast(type(nodata_output), result.dtype):
                 msg = (
-                    f"The selected `nodata_output` value {nodata_output} cannot be "
-                    f"cast to the array dtype {result.dtype}."
+                    f"The selected `nodata_output` value {nodata_output} does not fit "
+                    f"in the array dtype {result.dtype}."
                 )
                 raise ValueError(msg)
 
