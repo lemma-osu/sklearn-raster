@@ -94,26 +94,46 @@ def test_nodata_output_set(
     assert_array_equal(unwrap_image(result), expected_output)
 
 
+@pytest.mark.parametrize("min_samples", [0, 1, 30])
 @parametrize_image_types()
-def test_prevent_empty_array(image_type: type[ImageType]):
-    """Test that funcs are not passed empty arrays if flag is set."""
-    a = np.array([[[np.nan, np.nan, np.nan]]])
+def test_ensure_min_samples(min_samples: int, image_type: type[ImageType]):
+    """Test that the correct number of minimum samples are passed."""
+    a = np.full((1, 1, 50), np.nan, dtype=np.float64)
 
-    def fails_on_empty_array(x):
-        assert x.size > 0
+    def assert_array_size(x, n):
+        assert x.size == n
         return x
 
     image = Image.from_image(wrap_image(a, type=image_type), nodata_input=0)
     result = image.apply_ufunc_across_bands(
-        fails_on_empty_array,
+        lambda x: assert_array_size(x, min_samples),
         skip_nodata=True,
-        prevent_empty_array=True,
+        ensure_min_samples=min_samples,
         output_dims=[["variable"]],
         output_sizes={"variable": a.shape[0]},
         output_dtypes=[a.dtype],
     )
 
     unwrap_image(result)
+
+
+@parametrize_image_types()
+def test_ensure_too_many_samples(image_type: type[ImageType]):
+    """Test that an error is raised if ensure_min_samples is larger than the array."""
+    a = np.full((1, 1, 10), np.nan, dtype=np.float64)
+
+    image = Image.from_image(wrap_image(a, type=image_type), nodata_input=0)
+    with pytest.raises(ValueError, match="Cannot ensure 50 samples with only 10"):
+        unwrap_image(
+            image.apply_ufunc_across_bands(
+                lambda x: x,
+                skip_nodata=True,
+                ensure_min_samples=50,
+                output_dims=[["variable"]],
+                output_sizes={"variable": a.shape[0]},
+                output_dtypes=[a.dtype],
+            )
+        )
 
 
 @pytest.mark.parametrize("num_valid", [0, 1, 3])
@@ -136,7 +156,7 @@ def test_nodata_is_skipped(
     result = image.apply_ufunc_across_bands(
         lambda x: assert_array_size(x, num_valid),
         skip_nodata=True,
-        prevent_empty_array=False,
+        ensure_min_samples=0,
         output_dims=[["variable"]],
         output_sizes={"variable": a.shape[0]},
         output_dtypes=[a.dtype],

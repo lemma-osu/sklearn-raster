@@ -140,6 +140,7 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
         skip_nodata: bool = True,
         nodata_input: NoDataType = None,
         nodata_output: float | int = np.nan,
+        ensure_min_samples: int = 1,
         **predict_kwargs,
     ) -> ImageType:
         """
@@ -168,6 +169,11 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
             NoData pixels in the input features will be replaced with this value in the
             output targets. If the value does not fit the array dtype returned by the
             estimator, an error will be raised.
+        ensure_min_samples : int, default 1
+            The minimum number of samples to include even if the array is fully masked
+            and `skip_nodata=True`. The minimum supported number of samples depends on
+            the estimator used. No effect if the array contains enough valid pixels or
+            if `skip_nodata=False`.
         **predict_kwargs
             Additional arguments passed to the estimator's predict method.
 
@@ -194,7 +200,7 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
             output_coords={output_dim_name: list(self._wrapped_meta.target_names)},
             skip_nodata=skip_nodata,
             nodata_output=nodata_output,
-            prevent_empty_array=True,
+            ensure_min_samples=ensure_min_samples,
             **predict_kwargs,
         )
 
@@ -210,6 +216,7 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
         skip_nodata: bool = False,
         nodata_input: NoDataType = None,
         nodata_output: float | int = np.nan,
+        ensure_min_samples: int = 1,
         **kneighbors_kwargs,
     ) -> ImageType: ...
 
@@ -225,6 +232,7 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
         skip_nodata: bool = False,
         nodata_input: NoDataType = None,
         nodata_output: float | int = np.nan,
+        ensure_min_samples: int = 1,
         **kneighbors_kwargs,
     ) -> tuple[ImageType, ImageType]: ...
 
@@ -239,6 +247,7 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
         skip_nodata: bool = False,
         nodata_input: NoDataType = None,
         nodata_output: float | int = np.nan,
+        ensure_min_samples: int = 1,
         **kneighbors_kwargs,
     ) -> ImageType | tuple[ImageType, ImageType]:
         """
@@ -275,6 +284,11 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
             NoData pixels in the input features will be replaced with this value in the
             output targets. If the value does not fit the array dtype returned by the
             estimator, an error will be raised.
+        ensure_min_samples : int, default 1
+            The minimum number of samples to include even if the array is fully masked
+            and `skip_nodata=True`. The minimum supported number of samples depends on
+            the estimator used. No effect if the array contains enough valid pixels or
+            if `skip_nodata=False`.
         **kneighbors_kwargs
             Additional arguments passed to the estimator's kneighbors method.
 
@@ -301,7 +315,7 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
             return_distance=return_distance,
             skip_nodata=skip_nodata,
             nodata_output=nodata_output,
-            prevent_empty_array=True,
+            ensure_min_samples=ensure_min_samples,
             **kneighbors_kwargs,
         )
 

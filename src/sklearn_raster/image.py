@@ -103,7 +103,7 @@ class _ImageChunk:
         skip_nodata: bool = True,
         nodata_output: float | int = np.nan,
         nan_fill: float | int | None = None,
-        prevent_empty_array: bool = True,
+        ensure_min_samples: int = 1,
         **kwargs,
     ) -> NDArray | tuple[NDArray]:
         """
@@ -130,11 +130,11 @@ class _ImageChunk:
             If `skip_nodata=False`, any NaNs in the input array will be filled with this
             value prior to calling `func` to avoid errors from functions that do not
             support NaN inputs. If None, NaNs will not be filled.
-        prevent_empty_array : bool, default True
-            If True, at least one value will be passed to `func` even if the array is
-            fully masked and `skip_nodata=True`. This is necessary for functions that
-            require non-empty array inputs, like some scikit-learn `predict` methods.
-            No effect if the array contains any valid pixel or if `skip_nodata=False`.
+        ensure_min_samples : int, default 1
+            The minimum number of samples passed to `func` even if the array is fully
+            masked and `skip_nodata=True`. This is necessary for functions that require
+            non-empty array inputs, like some scikit-learn `predict` methods. No effect
+            if the array contains enough valid pixels or if `skip_nodata=False`.
         **kwargs : dict
             Additional keyword arguments passed to `func`.
         """
@@ -149,7 +149,7 @@ class _ImageChunk:
             flat_result = self._masked_apply(
                 func,
                 flat_array=flat_array,
-                prevent_empty_array=prevent_empty_array,
+                ensure_min_samples=ensure_min_samples,
                 nodata_output=nodata_output,
                 **kwargs,
             )
@@ -169,19 +169,21 @@ class _ImageChunk:
         *,
         flat_array: NDArray,
         nodata_output: float | int,
-        prevent_empty_array: bool = True,
+        ensure_min_samples: int,
         **kwargs,
     ) -> NDArray | tuple[NDArray, ...]:
         """
         Apply a function to all non-NoData values in a flat array.
         """
-        hack_pixel = None
-        # TODO: Replace this with `ensure_min_samples`
-        if prevent_empty_array and self._num_unmasked == 0:
-            # Unmask the first pixel and make sure it's not NaN if a fill is specified
-            hack_pixel = 0
-            cast(NDArray, self.nodata_mask)[hack_pixel] = False
-            flat_array[hack_pixel] = nodata_output
+        if inserted_dummy_values := self._num_unmasked < ensure_min_samples:
+            if ensure_min_samples > flat_array.shape[0]:
+                raise ValueError(
+                    f"Cannot ensure {ensure_min_samples} samples with only "
+                    f"{flat_array.shape[0]} total pixels in the image chunk."
+                )
+
+            cast(NDArray, self.nodata_mask)[:ensure_min_samples] = False
+            flat_array[:ensure_min_samples] = 0
 
         def insert_result(result: NDArray):
             """Insert the array result for valid pixels into the full-shaped array."""
@@ -197,10 +199,10 @@ class _ImageChunk:
             )
             full_result[~cast(NDArray, self.nodata_mask)] = result
 
-            if hack_pixel is not None:
-                # Remask the NoData pixel
-                cast(NDArray, self.nodata_mask)[hack_pixel] = True
-                full_result[hack_pixel] = nodata_output
+            # Re-mask any pixels that were filled to ensure minimum samples
+            if inserted_dummy_values:
+                cast(NDArray, self.nodata_mask)[:ensure_min_samples] = True
+                full_result[:ensure_min_samples] = nodata_output
 
             return full_result
 
@@ -268,7 +270,7 @@ class Image(Generic[ImageType], ABC):
         skip_nodata: bool = True,
         nodata_output: float | int = np.nan,
         nan_fill: float = 0.0,
-        prevent_empty_array: bool = True,
+        ensure_min_samples: int = 1,
         **ufunc_kwargs,
     ) -> ImageType | tuple[ImageType]:
         """Apply a universal function to all bands of the image."""
@@ -286,7 +288,7 @@ class Image(Generic[ImageType], ABC):
                 skip_nodata=skip_nodata,
                 nodata_output=nodata_output,
                 nan_fill=nan_fill,
-                prevent_empty_array=prevent_empty_array,
+                ensure_min_samples=ensure_min_samples,
                 **ufunc_kwargs,
             )
 
