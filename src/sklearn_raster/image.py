@@ -55,18 +55,22 @@ class _ImageChunk:
         # Return a mask where any band contains NoData
         return mask.max(axis=self.band_dim)
 
+    def _validate_nodata_output(
+        self, output: NDArray, nodata_output: float | int
+    ) -> None:
+        """Check that a given output array can support the NoData value."""
+        if not np.can_cast(type(nodata_output), output.dtype):
+            msg = (
+                f"The selected `nodata_output` value {nodata_output} does not fit in "
+                f"the array dtype {output.dtype}."
+            )
+            raise ValueError(msg)
+
     def _mask_nodata(self, flat_image: NDArray, nodata_output: float | int) -> NDArray:
         """
         Replace NoData values in the input array with `output_nodata`.
         """
-        # TODO: Avoid repeating this check
-        if not np.can_cast(type(nodata_output), flat_image.dtype):
-            msg = (
-                f"The selected `nodata_output` value {nodata_output} does not fit in "
-                f"the array dtype {flat_image.dtype}."
-            )
-            raise ValueError(msg)
-
+        self._validate_nodata_output(flat_image, nodata_output)
         flat_image[self.nodata_mask] = nodata_output
         return flat_image
 
@@ -181,13 +185,7 @@ class _ImageChunk:
 
         def insert_result(result: NDArray):
             """Insert the array result for valid pixels into the full-shaped array."""
-            # TODO: Avoid repeating this check here
-            if not np.can_cast(type(nodata_output), result.dtype):
-                msg = (
-                    f"The selected `nodata_output` value {nodata_output} does not fit "
-                    f"in the array dtype {result.dtype}."
-                )
-                raise ValueError(msg)
+            self._validate_nodata_output(result, nodata_output)
 
             # Build an output array pre-masked with the fill value and cast to the
             # output dtype. The shape will be (n, b) where n is the number of pixels
