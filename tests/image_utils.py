@@ -10,16 +10,13 @@ from numpy.typing import NDArray
 
 from sklearn_raster.types import ImageType
 
-# Parametrize over all supported image types
-parametrize_image_types = pytest.mark.parametrize(
-    "image_type",
-    [
-        np.ndarray,
-        xr.DataArray,
-        xr.Dataset,
-    ],
-    ids=lambda t: t.__name__,
-)
+
+def parametrize_image_types(
+    label="image_type",
+    image_types=(np.ndarray, xr.DataArray, xr.Dataset),
+):
+    """Parametrize over multiple image types."""
+    return pytest.mark.parametrize(label, image_types, ids=lambda t: t.__name__)
 
 
 class ModelData(Generic[ImageType]):

@@ -17,7 +17,7 @@ from .image_utils import (
 )
 
 
-@parametrize_image_types
+@parametrize_image_types()
 @pytest.mark.parametrize("skip_nodata", [True, False])
 def test_input_array_not_mutated(image_type: type[ImageType], skip_nodata: bool):
     """Ensure that applying a ufunc to an image doesn't mutate the original array."""
@@ -38,7 +38,7 @@ def test_input_array_not_mutated(image_type: type[ImageType], skip_nodata: bool)
     assert_array_equal(array, original_array)
 
 
-@parametrize_image_types
+@parametrize_image_types()
 @pytest.mark.parametrize("skip_nodata", [True, False])
 @pytest.mark.parametrize("val_dtype", [(-1, np.uint8), (np.nan, np.int16)])
 def test_nodata_output_with_unsupported_dtype(
@@ -68,7 +68,7 @@ def test_nodata_output_with_unsupported_dtype(
 
 
 @pytest.mark.parametrize("nodata_output", [np.nan, 42.0])
-@parametrize_image_types
+@parametrize_image_types()
 @pytest.mark.parametrize("skip_nodata", [True, False])
 def test_nodata_output_set(
     nodata_output: int | float, image_type: type[ImageType], skip_nodata: bool
@@ -94,7 +94,7 @@ def test_nodata_output_set(
     assert_array_equal(unwrap_image(result), expected_output)
 
 
-@parametrize_image_types
+@parametrize_image_types()
 def test_prevent_empty_array(image_type: type[ImageType]):
     """Test that funcs are not passed empty arrays if flag is set."""
     a = np.array([[[np.nan, np.nan, np.nan]]])
@@ -118,7 +118,7 @@ def test_prevent_empty_array(image_type: type[ImageType]):
 
 @pytest.mark.parametrize("num_valid", [0, 1, 3])
 @pytest.mark.parametrize("nodata_input", [-32768, np.nan])
-@parametrize_image_types
+@parametrize_image_types()
 def test_nodata_is_skipped(
     num_valid: int, nodata_input: int | float, image_type: type[ImageType]
 ):
@@ -145,7 +145,7 @@ def test_nodata_is_skipped(
     unwrap_image(result)
 
 
-@parametrize_image_types
+@parametrize_image_types()
 @pytest.mark.parametrize("skip_nodata", [True, False])
 @pytest.mark.parametrize("nan_fill", [None, 42.0])
 def test_nan_filled(
@@ -283,7 +283,7 @@ def test_nodata_dataset_global_fillvalue(nodata_input):
         assert image.nodata_input.tolist() == [global_fill_val] * n_bands
 
 
-@parametrize_image_types
+@parametrize_image_types()
 def test_wrappers(image_type):
     """Confirm that the test wrappers function as expected."""
     array = np.random.rand(3, 32, 16)
