@@ -283,6 +283,49 @@ def test_nodata_dataset_global_fillvalue(nodata_input):
         assert image.nodata_input.tolist() == [global_fill_val] * n_bands
 
 
+@pytest.mark.parametrize("nodata_output", [np.nan, 0, -32768])
+def test_nodata_output_set_in_dataarray_attrs(nodata_output: int | float):
+    """Test that the output NoData value is stored as the _FillValue for a DataArray."""
+    a = np.array([[[1, 2, 3]]])
+    image = Image.from_image(wrap_image(a, type=xr.DataArray), nodata_input=0)
+
+    result = image.apply_ufunc_across_bands(
+        lambda x: x,
+        nodata_output=nodata_output,
+        output_dims=[["variable"]],
+        output_sizes={"variable": a.shape[0]},
+        output_dtypes=[a.dtype],
+    )
+
+    if np.isnan(nodata_output):
+        # NaN should not be stored as a _FillValue
+        assert "_FillValue" not in result.attrs
+    else:
+        assert result.attrs.get("_FillValue") == nodata_output
+
+
+@pytest.mark.parametrize("nodata_output", [np.nan, 0, -32768])
+def test_nodata_output_set_in_dataset_attrs(nodata_output: int | float):
+    """Test that the output NoData value is stored as the _FillValue for a DataArray."""
+    a = np.array([[[1, 2, 3]]])
+    image = Image.from_image(wrap_image(a, type=xr.Dataset), nodata_input=0)
+
+    result = image.apply_ufunc_across_bands(
+        lambda x: x,
+        nodata_output=nodata_output,
+        output_dims=[["variable"]],
+        output_sizes={"variable": a.shape[0]},
+        output_dtypes=[a.dtype],
+    )
+
+    for var in result.data_vars:
+        # NaN should not be stored as a _FillValue
+        if np.isnan(nodata_output):
+            assert "_FillValue" not in result[var].attrs
+        else:
+            assert result[var].attrs.get("_FillValue") == nodata_output
+
+
 @parametrize_image_types()
 def test_wrappers(image_type):
     """Confirm that the test wrappers function as expected."""

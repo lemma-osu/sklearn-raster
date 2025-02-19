@@ -309,11 +309,15 @@ class Image(Generic[ImageType], ABC):
 
         if n_outputs > 1:
             result = tuple(
-                self._postprocess_ufunc_output(x, output_coords=output_coords)
+                self._postprocess_ufunc_output(
+                    x, output_coords=output_coords, nodata_output=nodata_output
+                )
                 for x in result
             )
         else:
-            result = self._postprocess_ufunc_output(result, output_coords=output_coords)
+            result = self._postprocess_ufunc_output(
+                result, output_coords=output_coords, nodata_output=nodata_output
+            )
 
         return result
 
@@ -327,6 +331,7 @@ class Image(Generic[ImageType], ABC):
     def _postprocess_ufunc_output(
         self,
         result: ImageType,
+        nodata_output: float | int,
         output_coords: dict[str, list[str | int]] | None = None,
     ) -> ImageType:
         """
@@ -364,7 +369,9 @@ class NDArrayImage(Image):
         # Copy to avoid mutating the original image
         return image.copy().transpose(1, 2, 0)
 
-    def _postprocess_ufunc_output(self, result: NDArray, output_coords=None) -> NDArray:
+    def _postprocess_ufunc_output(
+        self, result: NDArray, nodata_output: float | int, output_coords=None
+    ) -> NDArray:
         """Postprocess the ufunc output by transposing back to (band, y, x)."""
         return result.transpose(2, 0, 1)
 
@@ -399,16 +406,23 @@ class DataArrayImage(Image):
     def _postprocess_ufunc_output(
         self,
         result: xr.DataArray,
+        nodata_output: float | int,
         output_coords: dict[str, list[str | int]] | None = None,
     ) -> xr.DataArray:
         """Process the ufunc output by assigning coordinates and transposing."""
         if output_coords is not None:
             result = result.assign_coords(output_coords)
 
-        # TODO: Set the output nodata _FillValue
-
         # Transpose from (y, x, band) to (band, y, x)
-        return result.transpose(result.dims[-1], ...)
+        result = result.transpose(result.dims[-1], ...)
+
+        if not np.isnan(nodata_output):
+            result.attrs["_FillValue"] = nodata_output
+        else:
+            # Remove the _FillValue copied from the input array
+            result.attrs.pop("_FillValue", None)
+
+        return result
 
 
 class DatasetImage(DataArrayImage):
@@ -445,12 +459,21 @@ class DatasetImage(DataArrayImage):
     def _postprocess_ufunc_output(
         self,
         result: xr.DataArray,
+        nodata_output: float | int,
         output_coords: dict[str, list[str | int]] | None = None,
     ) -> xr.Dataset:
         """Process the ufunc output converting from DataArray to Dataset."""
-        result = super()._postprocess_ufunc_output(result, output_coords=output_coords)
-
-        # TODO: Set the output nodata _FillValue
-
+        result = super()._postprocess_ufunc_output(
+            result, output_coords=output_coords, nodata_output=nodata_output
+        )
         var_dim = result.dims[self.band_dim]
-        return result.to_dataset(dim=var_dim)
+        ds = result.to_dataset(dim=var_dim)
+
+        for var in ds.data_vars:
+            if not np.isnan(nodata_output):
+                ds[var].attrs["_FillValue"] = nodata_output
+            else:
+                # Remove the _FillValue copied from the input array
+                ds[var].attrs.pop("_FillValue", None)
+
+        return ds
