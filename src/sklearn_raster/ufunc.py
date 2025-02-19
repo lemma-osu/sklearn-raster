@@ -5,6 +5,8 @@ from typing import cast
 import numpy as np
 from numpy.typing import NDArray
 
+from .types import ArrayUfunc
+
 
 class UfuncArrayProcessor:
     """
@@ -65,7 +67,7 @@ class UfuncArrayProcessor:
 
     def apply(
         self,
-        func,
+        func: ArrayUfunc,
         *,
         skip_nodata: bool = True,
         nodata_output: float | int = np.nan,
@@ -129,7 +131,7 @@ class UfuncArrayProcessor:
 
     def _masked_apply(
         self,
-        func,
+        func: ArrayUfunc,
         *,
         flat_array: NDArray,
         nodata_output: float | int,
@@ -170,6 +172,7 @@ class UfuncArrayProcessor:
 
             return full_result
 
+        # Apply the func only to valid pixels
         func_result = func(flat_array[~cast(NDArray, self.nodata_mask)], **kwargs)
         if isinstance(func_result, tuple):
             return tuple(insert_result(result) for result in func_result)

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Union
+from typing import Callable, Concatenate, Union
 
 import xarray as xr
 from numpy.typing import NDArray
@@ -15,3 +15,6 @@ AnyType = TypeVar("AnyType", bound=Any)
 NoDataType = Union[float, Sequence[float], None]
 P = ParamSpec("P")
 RT = TypeVar("RT")
+
+# A function that takes an NDArray and any parameters and returns one or more NDArrays
+ArrayUfunc = Callable[Concatenate[NDArray, P], NDArray | tuple[NDArray, ...]]

@@ -2,14 +2,13 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Sized
-from typing import Any, Callable, Generic
+from typing import Any, Generic
 
 import numpy as np
 import xarray as xr
 from numpy.typing import NDArray
-from typing_extensions import Concatenate
 
-from .types import ImageType, NoDataType, P
+from .types import ArrayUfunc, ImageType, NoDataType
 from .ufunc import UfuncArrayProcessor
 
 
@@ -61,7 +60,7 @@ class Image(Generic[ImageType], ABC):
 
     def apply_ufunc_across_bands(
         self,
-        func: Callable[Concatenate[NDArray, P], NDArray],
+        func: ArrayUfunc,
         *,
         output_dims: list[list[str]],
         output_dtypes: list[np.dtype] | None = None,
