@@ -472,8 +472,5 @@ class DatasetImage(DataArrayImage):
         for var in ds.data_vars:
             if not np.isnan(nodata_output):
                 ds[var].attrs["_FillValue"] = nodata_output
-            else:
-                # Remove the _FillValue copied from the input array
-                ds[var].attrs.pop("_FillValue", None)
 
         return ds
