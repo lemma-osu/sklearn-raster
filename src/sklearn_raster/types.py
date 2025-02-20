@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Callable, Concatenate, Union
+from typing import Callable, Union
 
 import xarray as xr
 from numpy.typing import NDArray
 from sklearn.base import BaseEstimator
-from typing_extensions import Any, ParamSpec, TypeVar
+from typing_extensions import Any, Concatenate, ParamSpec, TypeVar
 
 DaskBackedType = TypeVar("DaskBackedType", xr.DataArray, xr.Dataset)
 ImageType = TypeVar("ImageType", NDArray, xr.DataArray, xr.Dataset)
