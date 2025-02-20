@@ -69,19 +69,21 @@ def test_nodata_output_with_unsupported_dtype(
 
 @parametrize_image_types()
 @pytest.mark.parametrize("skip_nodata", [True, False])
-@pytest.mark.parametrize("val_dtype", [(-1, np.uint8), (np.nan, np.int16)])
+@pytest.mark.parametrize(
+    "val_dtypes", [(-1, np.uint8, np.int8), (np.nan, np.int16, np.float64)]
+)
 def test_nodata_output_with_allow_cast(
-    val_dtype: tuple[int | float, np.dtype],
+    val_dtypes: tuple[int | float, np.dtype, np.dtype],
     image_type: type[ImageType],
     skip_nodata: bool,
 ):
-    """Test that an unsupported nodata_output value causes a cast if allowed."""
+    """Test that an unsupported nodata_output value correctly casts if allowed."""
     # Make sure there's a value to mask in the input array
     a = np.array([[[np.nan]]])
     img = wrap_image(a, type=image_type)
     image = Image.from_image(img, nodata_input=0)
 
-    output_nodata, output_dtype = val_dtype
+    output_nodata, output_dtype, expected_dtype = val_dtypes
     # Unwrap to force computation for lazy arrays
     result = unwrap_image(
         image.apply_ufunc_across_bands(
@@ -95,7 +97,7 @@ def test_nodata_output_with_allow_cast(
         )
     )
 
-    assert result.dtype == type(output_nodata)
+    assert result.dtype == expected_dtype
 
 
 @pytest.mark.parametrize("nodata_output", [np.nan, 42.0])

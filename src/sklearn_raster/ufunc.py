@@ -221,10 +221,17 @@ class UfuncArrayProcessor:
 
         Cast (if allowed) or raise if not.
         """
-        if not np.can_cast(type(nodata_output), output.dtype):
+        # Use the minimum dtype for integers. Otherwise, just use the value's type to
+        # avoid casting to low-precision float16.
+        nodata_output_type = (
+            np.min_scalar_type(nodata_output)
+            if np.issubdtype(type(nodata_output), np.integer)
+            else type(nodata_output)
+        )
+
+        if not np.can_cast(nodata_output_type, output.dtype):
             if allow_cast:
-                # TODO: Make sure this is the right way to cast
-                output = output.astype(type(nodata_output))
+                output = output.astype(nodata_output_type)
             else:
                 msg = (
                     f"The selected `nodata_output` value {nodata_output} does not fit "
