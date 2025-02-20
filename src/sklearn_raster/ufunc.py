@@ -102,10 +102,12 @@ class UfuncArrayProcessor:
             value prior to calling `func` to avoid errors from functions that do not
             support NaN inputs. If None, NaNs will not be filled.
         ensure_min_samples : int, default 1
-            The minimum number of samples passed to `func` even if the array is fully
-            masked and `skip_nodata=True`. This is necessary for functions that require
-            non-empty array inputs, like some scikit-learn `predict` methods. No effect
-            if the array contains enough valid pixels or if `skip_nodata=False`.
+            The minimum number of samples that should be passed to `func`. If the array
+            is fully masked and `skip_nodata=True`, dummy values (`nan_fill` or 0) will
+            be inserted to ensure this number of samples. This is necessary for
+            functions that require non-empty array inputs, like some scikit-learn
+            `predict` methods. No effect if the array contains enough valid pixels or if
+            `skip_nodata=False`.
         allow_cast : bool, default False
             If True and the `func` output dtype is incompatible with the chosen
             `nodata_output` value, the output will be cast to the correct dtype.
@@ -124,6 +126,7 @@ class UfuncArrayProcessor:
                 ensure_min_samples=ensure_min_samples,
                 nodata_output=nodata_output,
                 allow_cast=allow_cast,
+                nan_fill=nan_fill,
                 **kwargs,
             )
             # NoData is now pre-masked
@@ -153,6 +156,7 @@ class UfuncArrayProcessor:
         nodata_output: float | int,
         ensure_min_samples: int,
         allow_cast: bool,
+        nan_fill: float | int | None,
         **kwargs,
     ) -> NDArray | tuple[NDArray, ...]:
         """
@@ -166,7 +170,7 @@ class UfuncArrayProcessor:
                 )
 
             cast(NDArray, self.nodata_mask)[:ensure_min_samples] = False
-            flat_array[:ensure_min_samples] = 0
+            flat_array[:ensure_min_samples] = nan_fill if nan_fill is not None else 0
 
         @map_function_over_tuples
         def populate_missing_pixels(result: NDArray) -> NDArray:

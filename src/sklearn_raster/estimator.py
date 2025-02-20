@@ -171,10 +171,11 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
             output targets. If the value does not fit the array dtype returned by the
             estimator, an error will be raised.
         ensure_min_samples : int, default 1
-            The minimum number of samples to include even if the array is fully masked
-            and `skip_nodata=True`. The minimum supported number of samples depends on
-            the estimator used. No effect if the array contains enough valid pixels or
-            if `skip_nodata=False`.
+            The minimum number of samples that should be passed to `predict`. If the
+            array is fully masked and `skip_nodata=True`, dummy values (0) will be
+            inserted to ensure this number of samples. The minimum supported number of
+            samples depends on the estimator used. No effect if the array contains
+            enough valid pixels or if `skip_nodata=False`.
         allow_cast : bool, default=False
             If True and the estimator output dtype is incompatible with the chosen
             `nodata_output` value, the output will be cast to the correct dtype.
@@ -294,10 +295,11 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
             output targets. If the value does not fit the array dtype returned by the
             estimator, an error will be raised.
         ensure_min_samples : int, default 1
-            The minimum number of samples to include even if the array is fully masked
-            and `skip_nodata=True`. The minimum supported number of samples depends on
-            the estimator used. No effect if the array contains enough valid pixels or
-            if `skip_nodata=False`.
+            The minimum number of samples that should be passed to `kneighbors`. If the
+            array is fully masked and `skip_nodata=True`, dummy values (0) will be
+            inserted to ensure this number of samples. The minimum supported number of
+            samples depends on the estimator used. No effect if the array contains
+            enough valid pixels or if `skip_nodata=False`.
         allow_cast : bool, default=False
             If True and the estimator output dtype is incompatible with the chosen
             `nodata_output` value, the output will be cast to the correct dtype.
