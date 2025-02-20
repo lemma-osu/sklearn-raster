@@ -10,6 +10,7 @@ from numpy.typing import NDArray
 
 from .types import ArrayUfunc, ImageType, NoDataType
 from .ufunc import UfuncArrayProcessor
+from .utils.wrapper import map_method_over_tuples
 
 
 class Image(Generic[ImageType], ABC):
@@ -73,8 +74,6 @@ class Image(Generic[ImageType], ABC):
         **ufunc_kwargs,
     ) -> ImageType | tuple[ImageType]:
         """Apply a universal function to all bands of the image."""
-        n_outputs = len(output_dims)
-
         if output_sizes is not None:
             # Default to sequential coordinates for each output dimension
             output_coords = output_coords or {
@@ -107,19 +106,9 @@ class Image(Generic[ImageType], ABC):
             ),
         )
 
-        if n_outputs > 1:
-            result = tuple(
-                self._postprocess_ufunc_output(
-                    x, output_coords=output_coords, nodata_output=nodata_output
-                )
-                for x in result
-            )
-        else:
-            result = self._postprocess_ufunc_output(
-                result, output_coords=output_coords, nodata_output=nodata_output
-            )
-
-        return result
+        return self._postprocess_ufunc_output(
+            result, output_coords=output_coords, nodata_output=nodata_output
+        )
 
     def _preprocess_ufunc_input(self, image: ImageType) -> ImageType:
         """
@@ -128,9 +117,11 @@ class Image(Generic[ImageType], ABC):
         return image
 
     @abstractmethod
+    @map_method_over_tuples
     def _postprocess_ufunc_output(
         self,
         result: ImageType,
+        *,
         nodata_output: float | int,
         output_coords: dict[str, list[str | int]] | None = None,
     ) -> ImageType:
@@ -169,8 +160,9 @@ class NDArrayImage(Image):
         # Copy to avoid mutating the original image
         return image.copy().transpose(1, 2, 0)
 
+    @map_method_over_tuples
     def _postprocess_ufunc_output(
-        self, result: NDArray, nodata_output: float | int, output_coords=None
+        self, result: NDArray, *, nodata_output: float | int, output_coords=None
     ) -> NDArray:
         """Postprocess the ufunc output by transposing back to (band, y, x)."""
         return result.transpose(2, 0, 1)
@@ -203,9 +195,11 @@ class DataArrayImage(Image):
 
         return None
 
+    @map_method_over_tuples
     def _postprocess_ufunc_output(
         self,
         result: xr.DataArray,
+        *,
         nodata_output: float | int,
         output_coords: dict[str, list[str | int]] | None = None,
     ) -> xr.DataArray:
@@ -256,9 +250,11 @@ class DatasetImage(DataArrayImage):
         # Fall back to the DataArray logic for handling NoData
         return super()._validate_nodata_input(nodata_input)
 
+    @map_method_over_tuples
     def _postprocess_ufunc_output(
         self,
         result: xr.DataArray,
+        *,
         nodata_output: float | int,
         output_coords: dict[str, list[str | int]] | None = None,
     ) -> xr.Dataset:

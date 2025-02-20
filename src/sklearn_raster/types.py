@@ -13,8 +13,13 @@ ImageType = TypeVar("ImageType", NDArray, xr.DataArray, xr.Dataset)
 EstimatorType = TypeVar("EstimatorType", bound=BaseEstimator)
 AnyType = TypeVar("AnyType", bound=Any)
 NoDataType = Union[float, Sequence[float], None]
+
+Self = TypeVar("Self")
+T = TypeVar("T")
 P = ParamSpec("P")
 RT = TypeVar("RT")
+
+MaybeTuple = Union[T, tuple[T, ...]]
 
 # A function that takes an NDArray and any parameters and returns one or more NDArrays
 ArrayUfunc = Callable[Concatenate[NDArray, P], NDArray | tuple[NDArray, ...]]

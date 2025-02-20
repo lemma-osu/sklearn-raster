@@ -5,7 +5,8 @@ from typing import cast
 import numpy as np
 from numpy.typing import NDArray
 
-from .types import ArrayUfunc
+from .types import ArrayUfunc, MaybeTuple
+from .utils.wrapper import map_function_over_tuples
 
 
 class UfuncArrayProcessor:
@@ -74,7 +75,7 @@ class UfuncArrayProcessor:
         nan_fill: float | int | None = None,
         ensure_min_samples: int = 1,
         **kwargs,
-    ) -> NDArray | tuple[NDArray]:
+    ) -> MaybeTuple[NDArray]:
         """
         Apply a function to the flattened chunk.
 
@@ -125,9 +126,16 @@ class UfuncArrayProcessor:
             flat_result = func(flat_array, **kwargs)
             mask_nodata = self._num_masked > 0
 
-        return self._postprocess(
-            flat_result, mask_nodata=mask_nodata, nodata_output=nodata_output
-        )
+        @map_function_over_tuples
+        def _unflatten_and_mask(result: NDArray) -> NDArray:
+            """Unflattening result to (y, x, band) and mask NoData."""
+            output_shape = [*self.array.shape[:2], -1]
+            if mask_nodata:
+                result = self._mask_nodata(result, nodata_output=nodata_output)
+
+            return result.reshape(output_shape)
+
+        return _unflatten_and_mask(flat_result)
 
     def _masked_apply(
         self,
@@ -151,7 +159,8 @@ class UfuncArrayProcessor:
             cast(NDArray, self.nodata_mask)[:ensure_min_samples] = False
             flat_array[:ensure_min_samples] = 0
 
-        def insert_result(result: NDArray):
+        @map_function_over_tuples
+        def insert_result(result: NDArray) -> NDArray:
             """Insert the array result for valid pixels into the full-shaped array."""
             self._validate_nodata_output(result, nodata_output)
 
@@ -174,9 +183,6 @@ class UfuncArrayProcessor:
 
         # Apply the func only to valid pixels
         func_result = func(flat_array[~cast(NDArray, self.nodata_mask)], **kwargs)
-        if isinstance(func_result, tuple):
-            return tuple(insert_result(result) for result in func_result)
-
         return insert_result(func_result)
 
     def _mask_nodata(self, flat_image: NDArray, nodata_output: float | int) -> NDArray:
@@ -197,25 +203,3 @@ class UfuncArrayProcessor:
                 f"the array dtype {output.dtype}."
             )
             raise ValueError(msg)
-
-    # TODO: Try to refactor out the need for the mask_nodata parameter.
-    def _postprocess(
-        self,
-        result: NDArray | tuple[NDArray, ...],
-        nodata_output: float | int,
-        mask_nodata: bool = True,
-    ) -> NDArray | tuple[NDArray, ...]:
-        """Postprocess results by unflattening to (y, x, band) and masking NoData."""
-        if isinstance(result, tuple):
-            return tuple(
-                self._postprocess(
-                    array, mask_nodata=mask_nodata, nodata_output=nodata_output
-                )
-                for array in result
-            )
-
-        output_shape = [*self.array.shape[:2], -1]
-        if mask_nodata:
-            result = self._mask_nodata(result, nodata_output=nodata_output)
-
-        return result.reshape(output_shape)
