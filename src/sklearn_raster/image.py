@@ -71,6 +71,7 @@ class Image(Generic[ImageType], ABC):
         nodata_output: float | int = np.nan,
         nan_fill: float = 0.0,
         ensure_min_samples: int = 1,
+        allow_cast: bool = False,
         **ufunc_kwargs,
     ) -> ImageType | tuple[ImageType]:
         """Apply a universal function to all bands of the image."""
@@ -88,6 +89,7 @@ class Image(Generic[ImageType], ABC):
                 nodata_output=nodata_output,
                 nan_fill=nan_fill,
                 ensure_min_samples=ensure_min_samples,
+                allow_cast=allow_cast,
                 **ufunc_kwargs,
             )
 

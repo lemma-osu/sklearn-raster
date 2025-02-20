@@ -141,6 +141,7 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
         nodata_input: NoDataType = None,
         nodata_output: float | int = np.nan,
         ensure_min_samples: int = 1,
+        allow_cast: bool = False,
         **predict_kwargs,
     ) -> ImageType:
         """
@@ -174,6 +175,10 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
             and `skip_nodata=True`. The minimum supported number of samples depends on
             the estimator used. No effect if the array contains enough valid pixels or
             if `skip_nodata=False`.
+        allow_cast : bool, default=False
+            If True and the estimator output dtype is incompatible with the chosen
+            `nodata_output` value, the output will be cast to the correct dtype.
+            Otherwise, an error will be raised.
         **predict_kwargs
             Additional arguments passed to the estimator's predict method.
 
@@ -201,6 +206,7 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
             skip_nodata=skip_nodata,
             nodata_output=nodata_output,
             ensure_min_samples=ensure_min_samples,
+            allow_cast=allow_cast,
             **predict_kwargs,
         )
 
@@ -217,6 +223,7 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
         nodata_input: NoDataType = None,
         nodata_output: float | int = np.nan,
         ensure_min_samples: int = 1,
+        allow_cast: bool = False,
         **kneighbors_kwargs,
     ) -> ImageType: ...
 
@@ -233,6 +240,7 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
         nodata_input: NoDataType = None,
         nodata_output: float | int = np.nan,
         ensure_min_samples: int = 1,
+        allow_cast: bool = False,
         **kneighbors_kwargs,
     ) -> tuple[ImageType, ImageType]: ...
 
@@ -248,6 +256,7 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
         nodata_input: NoDataType = None,
         nodata_output: float | int = np.nan,
         ensure_min_samples: int = 1,
+        allow_cast: bool = False,
         **kneighbors_kwargs,
     ) -> ImageType | tuple[ImageType, ImageType]:
         """
@@ -289,6 +298,10 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
             and `skip_nodata=True`. The minimum supported number of samples depends on
             the estimator used. No effect if the array contains enough valid pixels or
             if `skip_nodata=False`.
+        allow_cast : bool, default=False
+            If True and the estimator output dtype is incompatible with the chosen
+            `nodata_output` value, the output will be cast to the correct dtype.
+            Otherwise, an error will be raised.
         **kneighbors_kwargs
             Additional arguments passed to the estimator's kneighbors method.
 
@@ -316,6 +329,7 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
             skip_nodata=skip_nodata,
             nodata_output=nodata_output,
             ensure_min_samples=ensure_min_samples,
+            allow_cast=allow_cast,
             **kneighbors_kwargs,
         )
 

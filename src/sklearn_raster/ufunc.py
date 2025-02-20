@@ -74,6 +74,7 @@ class UfuncArrayProcessor:
         nodata_output: float | int = np.nan,
         nan_fill: float | int | None = None,
         ensure_min_samples: int = 1,
+        allow_cast: bool = False,
         **kwargs,
     ) -> MaybeTuple[NDArray]:
         """
@@ -105,6 +106,10 @@ class UfuncArrayProcessor:
             masked and `skip_nodata=True`. This is necessary for functions that require
             non-empty array inputs, like some scikit-learn `predict` methods. No effect
             if the array contains enough valid pixels or if `skip_nodata=False`.
+        allow_cast : bool, default False
+            If True and the `func` output dtype is incompatible with the chosen
+            `nodata_output` value, the output will be cast to the correct dtype.
+            Otherwise, an error will be raised.
         **kwargs : dict
             Additional keyword arguments passed to `func`.
         """
@@ -118,6 +123,7 @@ class UfuncArrayProcessor:
                 flat_array=flat_array,
                 ensure_min_samples=ensure_min_samples,
                 nodata_output=nodata_output,
+                allow_cast=allow_cast,
                 **kwargs,
             )
             # NoData is now pre-masked
@@ -131,7 +137,9 @@ class UfuncArrayProcessor:
             """Unflattening result to (y, x, band) and mask NoData."""
             output_shape = [*self.array.shape[:2], -1]
             if mask_nodata:
-                result = self._mask_nodata(result, nodata_output=nodata_output)
+                result = self._mask_nodata(
+                    result, nodata_output=nodata_output, allow_cast=allow_cast
+                )
 
             return result.reshape(output_shape)
 
@@ -144,6 +152,7 @@ class UfuncArrayProcessor:
         flat_array: NDArray,
         nodata_output: float | int,
         ensure_min_samples: int,
+        allow_cast: bool,
         **kwargs,
     ) -> NDArray | tuple[NDArray, ...]:
         """
@@ -162,7 +171,9 @@ class UfuncArrayProcessor:
         @map_function_over_tuples
         def populate_missing_pixels(result: NDArray) -> NDArray:
             """Insert the array result for valid pixels into the full-shaped array."""
-            self._validate_nodata_output(result, nodata_output)
+            result = self._validate_nodata_output(
+                result, nodata_output, allow_cast=allow_cast
+            )
 
             # Build an output array pre-masked with the fill value and cast to the
             # output dtype. The shape will be (n, b) where n is the number of pixels
@@ -185,21 +196,37 @@ class UfuncArrayProcessor:
         func_result = func(flat_array[~cast(NDArray, self.nodata_mask)], **kwargs)
         return populate_missing_pixels(func_result)
 
-    def _mask_nodata(self, flat_image: NDArray, nodata_output: float | int) -> NDArray:
+    def _mask_nodata(
+        self, flat_image: NDArray, nodata_output: float | int, allow_cast: bool
+    ) -> NDArray:
         """
         Replace NoData values in the input array with `output_nodata`.
         """
-        self._validate_nodata_output(flat_image, nodata_output)
+        flat_image = self._validate_nodata_output(
+            flat_image, nodata_output, allow_cast=allow_cast
+        )
+
         flat_image[self.nodata_mask] = nodata_output
         return flat_image
 
     def _validate_nodata_output(
-        self, output: NDArray, nodata_output: float | int
-    ) -> None:
-        """Check that a given output array can support the NoData value."""
+        self, output: NDArray, nodata_output: float | int, allow_cast: bool
+    ) -> NDArray:
+        """
+        Check that a given output array can support the NoData value.
+
+        Cast (if allowed) or raise if not.
+        """
         if not np.can_cast(type(nodata_output), output.dtype):
-            msg = (
-                f"The selected `nodata_output` value {nodata_output} does not fit in "
-                f"the array dtype {output.dtype}."
-            )
-            raise ValueError(msg)
+            if allow_cast:
+                # TODO: Make sure this is the right way to cast
+                output = output.astype(type(nodata_output))
+            else:
+                msg = (
+                    f"The selected `nodata_output` value {nodata_output} does not fit "
+                    f"in the array dtype {output.dtype}. Choose a different value or "
+                    "set `allow_cast=True` to automatically cast the output."
+                )
+                raise ValueError(msg)
+
+        return output
