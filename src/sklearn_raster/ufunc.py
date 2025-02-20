@@ -113,7 +113,7 @@ class UfuncArrayProcessor:
 
         # Only skip NoData if there's something to skip
         if skip_nodata and self._num_masked > 0:
-            flat_result = self._masked_apply(
+            flat_result = self._skip_nodata_apply(
                 func,
                 flat_array=flat_array,
                 ensure_min_samples=ensure_min_samples,
@@ -137,7 +137,7 @@ class UfuncArrayProcessor:
 
         return _unflatten_and_mask(flat_result)
 
-    def _masked_apply(
+    def _skip_nodata_apply(
         self,
         func: ArrayUfunc,
         *,
@@ -160,7 +160,7 @@ class UfuncArrayProcessor:
             flat_array[:ensure_min_samples] = 0
 
         @map_function_over_tuples
-        def insert_result(result: NDArray) -> NDArray:
+        def populate_missing_pixels(result: NDArray) -> NDArray:
             """Insert the array result for valid pixels into the full-shaped array."""
             self._validate_nodata_output(result, nodata_output)
 
@@ -183,7 +183,7 @@ class UfuncArrayProcessor:
 
         # Apply the func only to valid pixels
         func_result = func(flat_array[~cast(NDArray, self.nodata_mask)], **kwargs)
-        return insert_result(func_result)
+        return populate_missing_pixels(func_result)
 
     def _mask_nodata(self, flat_image: NDArray, nodata_output: float | int) -> NDArray:
         """
