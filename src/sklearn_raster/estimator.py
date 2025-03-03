@@ -142,6 +142,7 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
         nodata_output: float | int = np.nan,
         ensure_min_samples: int = 1,
         allow_cast: bool = False,
+        check_output_for_nodata: bool = True,
         **predict_kwargs,
     ) -> ImageType:
         """
@@ -180,6 +181,10 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
             If True and the estimator output dtype is incompatible with the chosen
             `nodata_output` value, the output will be cast to the correct dtype.
             Otherwise, an error will be raised.
+        check_output_for_nodata : bool, default True
+            If True and `nodata_output` is not np.nan, a warning will be raised if the
+            selected `nodata_output` value is returned by the estimator, as this may
+            indicate a valid pixel being masked.
         **predict_kwargs
             Additional arguments passed to the estimator's predict method.
 
@@ -208,6 +213,7 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
             nodata_output=nodata_output,
             ensure_min_samples=ensure_min_samples,
             allow_cast=allow_cast,
+            check_output_for_nodata=check_output_for_nodata,
             **predict_kwargs,
         )
 
@@ -225,6 +231,7 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
         nodata_output: float | int = np.nan,
         ensure_min_samples: int = 1,
         allow_cast: bool = False,
+        check_output_for_nodata: bool = True,
         **kneighbors_kwargs,
     ) -> ImageType: ...
 
@@ -242,6 +249,7 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
         nodata_output: float | int = np.nan,
         ensure_min_samples: int = 1,
         allow_cast: bool = False,
+        check_output_for_nodata: bool = True,
         **kneighbors_kwargs,
     ) -> tuple[ImageType, ImageType]: ...
 
@@ -258,6 +266,7 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
         nodata_output: float | int = np.nan,
         ensure_min_samples: int = 1,
         allow_cast: bool = False,
+        check_output_for_nodata: bool = True,
         **kneighbors_kwargs,
     ) -> ImageType | tuple[ImageType, ImageType]:
         """
@@ -304,6 +313,10 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
             If True and the estimator output dtype is incompatible with the chosen
             `nodata_output` value, the output will be cast to the correct dtype.
             Otherwise, an error will be raised.
+        check_output_for_nodata : bool, default True
+            If True and `nodata_output` is not np.nan, a warning will be raised if the
+            selected `nodata_output` value is returned by the estimator, as this may
+            indicate a valid pixel being masked.
         **kneighbors_kwargs
             Additional arguments passed to the estimator's kneighbors method.
 
@@ -332,6 +345,7 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
             nodata_output=nodata_output,
             ensure_min_samples=ensure_min_samples,
             allow_cast=allow_cast,
+            check_output_for_nodata=check_output_for_nodata,
             **kneighbors_kwargs,
         )
 

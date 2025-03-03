@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import cast
+from warnings import warn
 
 import numpy as np
 from numpy.typing import NDArray
@@ -75,6 +76,7 @@ class UfuncArrayProcessor:
         nan_fill: float | int | None = None,
         ensure_min_samples: int = 1,
         allow_cast: bool = False,
+        check_output_for_nodata: bool = True,
         **kwargs,
     ) -> MaybeTuple[NDArray]:
         """
@@ -112,12 +114,15 @@ class UfuncArrayProcessor:
             If True and the `func` output dtype is incompatible with the chosen
             `nodata_output` value, the output will be cast to the correct dtype.
             Otherwise, an error will be raised.
+        check_output_for_nodata : bool, default True
+            If True and `nodata_output` is not np.nan, a warning will be raised if the
+            selected `nodata_output` value is returned by `func`, as this may indicate
+            a valid pixel being masked.
         **kwargs : dict
             Additional keyword arguments passed to `func`.
         """
         # Fill NaNs in the input array if they're not being skipped
         flat_array = self.flat_array if skip_nodata else self._fill_flat_nans(nan_fill)
-
         # Only skip NoData if there's something to skip
         if skip_nodata and self._num_masked > 0:
             flat_result = self._skip_nodata_apply(
@@ -127,6 +132,7 @@ class UfuncArrayProcessor:
                 nodata_output=nodata_output,
                 allow_cast=allow_cast,
                 nan_fill=nan_fill,
+                check_output_for_nodata=check_output_for_nodata,
                 **kwargs,
             )
             # NoData is now pre-masked
@@ -141,7 +147,10 @@ class UfuncArrayProcessor:
             output_shape = [*self.array.shape[:2], -1]
             if mask_nodata:
                 result = self._mask_nodata(
-                    result, nodata_output=nodata_output, allow_cast=allow_cast
+                    result,
+                    nodata_output=nodata_output,
+                    allow_cast=allow_cast,
+                    check_output_for_nodata=check_output_for_nodata,
                 )
 
             return result.reshape(output_shape)
@@ -157,6 +166,7 @@ class UfuncArrayProcessor:
         ensure_min_samples: int,
         allow_cast: bool,
         nan_fill: float | int | None,
+        check_output_for_nodata: bool,
         **kwargs,
     ) -> NDArray | tuple[NDArray, ...]:
         """
@@ -176,7 +186,10 @@ class UfuncArrayProcessor:
         def populate_missing_pixels(result: NDArray) -> NDArray:
             """Insert the array result for valid pixels into the full-shaped array."""
             result = self._validate_nodata_output(
-                result, nodata_output, allow_cast=allow_cast
+                result,
+                nodata_output,
+                allow_cast=allow_cast,
+                check_output_for_nodata=check_output_for_nodata,
             )
 
             # Build an output array pre-masked with the fill value and cast to the
@@ -201,25 +214,37 @@ class UfuncArrayProcessor:
         return populate_missing_pixels(func_result)
 
     def _mask_nodata(
-        self, flat_image: NDArray, nodata_output: float | int, allow_cast: bool
+        self,
+        flat_image: NDArray,
+        nodata_output: float | int,
+        allow_cast: bool,
+        check_output_for_nodata: bool,
     ) -> NDArray:
         """
         Replace NoData values in the input array with `output_nodata`.
         """
         flat_image = self._validate_nodata_output(
-            flat_image, nodata_output, allow_cast=allow_cast
+            flat_image,
+            nodata_output,
+            allow_cast=allow_cast,
+            check_output_for_nodata=check_output_for_nodata,
         )
 
         flat_image[self.nodata_mask] = nodata_output
         return flat_image
 
     def _validate_nodata_output(
-        self, output: NDArray, nodata_output: float | int, allow_cast: bool
+        self,
+        output: NDArray,
+        nodata_output: float | int,
+        allow_cast: bool,
+        check_output_for_nodata: bool,
     ) -> NDArray:
         """
         Check that a given output array can support the NoData value.
 
-        Cast (if allowed) or raise if not.
+        Cast (if allowed) or raise if not. Also optionally check for NoData values in
+        the output that may indicate valid pixels being masked.
         """
         # Use the minimum dtype for integers. Otherwise, just use the value's type to
         # avoid casting to low-precision float16.
@@ -239,5 +264,19 @@ class UfuncArrayProcessor:
                     "set `allow_cast=True` to automatically cast the output."
                 )
                 raise ValueError(msg)
+
+        if (
+            check_output_for_nodata
+            and not np.isnan(nodata_output)
+            and nodata_output in output
+        ):
+            warn(
+                f"The selected `nodata_output` value {nodata_output} was found in the "
+                "array returned by the applied ufunc. This may indicate a valid pixel "
+                "being masked. To suppress this warning, set "
+                "`check_output_for_nodata=False`.",
+                category=UserWarning,
+                stacklevel=2,
+            )
 
         return output

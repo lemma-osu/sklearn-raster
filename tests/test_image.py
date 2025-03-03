@@ -127,6 +127,29 @@ def test_nodata_output_set(
     assert_array_equal(unwrap_image(result), expected_output)
 
 
+@parametrize_image_types()
+@pytest.mark.parametrize("skip_nodata", [True, False])
+def test_warn_when_ufunc_returns_nodata(image_type: type[ImageType], skip_nodata: bool):
+    """Test that a warning is raised when `nodata_output` is returned by the ufunc."""
+    nodata_input = 0
+    nodata_output = -32768
+
+    # The input image needs to contain NoData since the check only occurs when filling
+    a = np.full((1, 1, 1), nodata_input, dtype=np.int16)
+    image = Image.from_image(wrap_image(a, type=image_type), nodata_input=nodata_input)
+    with pytest.warns(UserWarning, match=f"{nodata_output} was found in the array"):
+        unwrap_image(
+            image.apply_ufunc_across_bands(
+                lambda x: np.full_like(x, nodata_output),
+                skip_nodata=skip_nodata,
+                nodata_output=nodata_output,
+                output_dims=[["variable"]],
+                output_sizes={"variable": a.shape[0]},
+                output_dtypes=[a.dtype],
+            )
+        )
+
+
 @pytest.mark.parametrize("min_samples", [0, 1, 30])
 @parametrize_image_types()
 def test_ensure_min_samples(min_samples: int, image_type: type[ImageType]):
