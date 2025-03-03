@@ -192,6 +192,43 @@ def test_ensure_too_many_samples(image_type: type[ImageType]):
         )
 
 
+@parametrize_image_types()
+def test_ensure_min_samples_doesnt_overwrite(image_type: type[ImageType]):
+    """
+    Test that valid samples aren't overwritten by dummy samples when ensuring size.
+    """
+    nan_fill = -99.0
+    valid_pixel = 1.0
+    nodata_output = -32768
+
+    # Create a fully masked array and set the middle pixel to be valid
+    a = np.full((1, 3, 1), 0, dtype=np.float64)
+    a[0, 1, 0] = valid_pixel
+
+    def check_for_valid_sample(x: np.ndarray):
+        # The valid pixel should be used as one of the three minimum samples
+        assert_array_equal(x.squeeze(), [nan_fill, valid_pixel, nan_fill])
+        return x
+
+    image = Image.from_image(wrap_image(a, type=image_type), nodata_input=0)
+    result = unwrap_image(
+        image.apply_ufunc_across_bands(
+            check_for_valid_sample,
+            skip_nodata=True,
+            ensure_min_samples=3,
+            nan_fill=nan_fill,
+            nodata_output=nodata_output,
+            output_dims=[["variable"]],
+            output_sizes={"variable": a.shape[0]},
+            output_dtypes=[a.dtype],
+        )
+    )
+
+    # The ufunc returned pixels unchanged, so the valid pixel should be preserved while
+    # the dummy pixels were replaced with the `nodata_output`
+    assert_array_equal(result.squeeze(), [nodata_output, valid_pixel, nodata_output])
+
+
 @pytest.mark.parametrize("num_valid", [0, 1, 3])
 @pytest.mark.parametrize("nodata_input", [-32768, np.nan])
 @parametrize_image_types()

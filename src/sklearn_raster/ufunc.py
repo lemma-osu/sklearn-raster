@@ -172,6 +172,10 @@ class UfuncArrayProcessor:
         """
         Apply a function to all non-NoData values in a flat array.
         """
+        # The NoData mask is guaranteed to exist since this method is only called when
+        # there are masked pixels, so we can safely cast it for type checking.
+        nodata_mask = cast(NDArray, self.nodata_mask)
+
         if inserted_dummy_values := self._num_unmasked < ensure_min_samples:
             if ensure_min_samples > flat_array.shape[0]:
                 raise ValueError(
@@ -179,8 +183,15 @@ class UfuncArrayProcessor:
                     f"{flat_array.shape[0]} total pixels in the image chunk."
                 )
 
-            cast(NDArray, self.nodata_mask)[:ensure_min_samples] = False
-            flat_array[:ensure_min_samples] = nan_fill if nan_fill is not None else 0
+            # Fill NoData pixels with dummy values to ensure minimum samples. Copy the
+            # mask to avoid mutating it when it's temporarily disabled.
+            dummy_mask = nodata_mask[:ensure_min_samples].copy()
+            flat_array[:ensure_min_samples][dummy_mask] = (
+                nan_fill if nan_fill is not None else 0
+            )
+
+            # Temporarily disable the mask so that dummy samples aren't skipped
+            nodata_mask[:ensure_min_samples] = False
 
         @map_function_over_tuples
         def populate_missing_pixels(result: NDArray) -> NDArray:
@@ -200,17 +211,17 @@ class UfuncArrayProcessor:
                 nodata_output,
                 dtype=result.dtype,
             )
-            full_result[~cast(NDArray, self.nodata_mask)] = result
+            full_result[~nodata_mask] = result
 
             # Re-mask any pixels that were filled to ensure minimum samples
             if inserted_dummy_values:
-                cast(NDArray, self.nodata_mask)[:ensure_min_samples] = True
-                full_result[:ensure_min_samples] = nodata_output
+                full_result[:ensure_min_samples][dummy_mask] = nodata_output
+                nodata_mask[:ensure_min_samples][dummy_mask] = True
 
             return full_result
 
         # Apply the func only to valid pixels
-        func_result = func(flat_array[~cast(NDArray, self.nodata_mask)], **kwargs)
+        func_result = func(flat_array[~nodata_mask], **kwargs)
         return populate_missing_pixels(func_result)
 
     def _mask_nodata(
