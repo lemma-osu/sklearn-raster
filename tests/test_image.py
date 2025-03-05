@@ -259,25 +259,22 @@ def test_nodata_is_skipped(
 
 
 @parametrize_image_types()
-@pytest.mark.parametrize("skip_nodata", [True, False])
 @pytest.mark.parametrize("nan_fill", [None, 42.0])
-def test_nan_filled(
-    image_type: type[ImageType], nan_fill: float | None, skip_nodata: bool
-):
+def test_nan_filled(image_type: type[ImageType], nan_fill: float | None):
     """Test that NaNs in the image are filled before passing to func."""
     a = np.array([[[1, np.nan]]])
     image = Image.from_image(wrap_image(a, type=image_type))
 
     def nan_check(x):
-        nonlocal nan_fill
-        if nan_fill is not None:
-            assert not np.isnan(x).any()
+        fill_val = nan_fill if nan_fill is not None else np.nan
+        assert_array_equal(x.squeeze(), np.array([1, fill_val]))
 
         return x
 
     result = image.apply_ufunc_across_bands(
         nan_check,
-        skip_nodata=skip_nodata,
+        nan_fill=nan_fill,
+        skip_nodata=False,
         output_dims=[["variable"]],
         output_sizes={"variable": a.shape[0]},
         output_dtypes=[a.dtype],

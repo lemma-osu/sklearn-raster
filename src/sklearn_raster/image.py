@@ -69,7 +69,7 @@ class Image(Generic[ImageType], ABC):
         output_coords: dict[str, list[str | int]] | None = None,
         skip_nodata: bool = True,
         nodata_output: float | int = np.nan,
-        nan_fill: float = 0.0,
+        nan_fill: float | int | None = None,
         ensure_min_samples: int = 1,
         allow_cast: bool = False,
         check_output_for_nodata: bool = True,
