@@ -14,7 +14,8 @@ class UfuncArrayProcessor:
     """
     A processor for applying ufuncs to arrays.
 
-    The processor takes Numpy arrays (images or image chunks) and:
+    The processor takes Numpy arrays (images or image chunks) in the shape (y, x, band)
+    and:
 
     1. Flattens 2D spatial dimensions to a 1D sample dimension.
     2. Fills NaN pixels in the input array.
@@ -22,9 +23,9 @@ class UfuncArrayProcessor:
     4. Masks NoData values in the ufunc output.
 
     Note that this dimension order is different from the (band, y, x) order used by
-    rasterio, rioxarray, and elsewhere in sklearn-raster. This is because `_ImageChunk`
-    is called via `xr.apply_ufunc` which automatically swaps the core dimension to the
-    last axis, resulting in arrays of (y, x, band).
+    rasterio, rioxarray, and elsewhere in sklearn-raster. This is because
+    `UfuncArrayProcessor` is called via `xr.apply_ufunc` which automatically swaps the
+    core dimension to the last axis, resulting in arrays of (y, x, band).
     """
 
     band_dim = -1
