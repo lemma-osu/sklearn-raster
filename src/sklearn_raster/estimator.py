@@ -170,7 +170,7 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
         nodata_output : float or int, default np.nan
             NoData pixels in the input features will be replaced with this value in the
             output targets. If the value does not fit the array dtype returned by the
-            estimator, an error will be raised.
+            estimator, an error will be raised unless `allow_cast` is True.
         ensure_min_samples : int, default 1
             The minimum number of samples that should be passed to `predict`. If the
             array is fully masked and `skip_nodata=True`, dummy values (0) will be
@@ -302,7 +302,7 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
         nodata_output : float or int, default np.nan
             NoData pixels in the input features will be replaced with this value in the
             output targets. If the value does not fit the array dtype returned by the
-            estimator, an error will be raised.
+            estimator, an error will be raised unless `allow_cast` is True.
         ensure_min_samples : int, default 1
             The minimum number of samples that should be passed to `kneighbors`. If the
             array is fully masked and `skip_nodata=True`, dummy values (0) will be

@@ -113,7 +113,7 @@ class UfuncArrayProcessor:
         allow_cast : bool, default False
             If True and the `func` output dtype is incompatible with the chosen
             `nodata_output` value, the output will be cast to the correct dtype.
-            Otherwise, an error will be raised.
+            Otherwise, an error will be raised unless `allow_cast` is True.
         check_output_for_nodata : bool, default True
             If True and `nodata_output` is not np.nan, a warning will be raised if the
             selected `nodata_output` value is returned by `func`, as this may indicate
