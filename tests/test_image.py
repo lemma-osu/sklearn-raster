@@ -114,7 +114,7 @@ def test_nodata_output_set(
     a = np.array([[[nodata_input, 1, np.nan]]])
     expected_output = np.array([[[nodata_output, 1, nodata_output]]])
 
-    image = Image.from_image(wrap_image(a, type=image_type), nodata_input=0)
+    image = Image.from_image(wrap_image(a, type=image_type), nodata_input=nodata_input)
     result = image.apply_ufunc_across_bands(
         lambda x: x,
         nodata_output=nodata_output,
