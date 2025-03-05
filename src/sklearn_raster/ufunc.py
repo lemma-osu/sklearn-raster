@@ -61,13 +61,6 @@ class UfuncArrayProcessor:
         # Return a mask where any band contains NoData
         return mask.max(axis=self.band_dim)
 
-    def _fill_flat_nans(self, nan_fill: float | None) -> NDArray:
-        """Fill the flat input array with NaNs filled."""
-        if nan_fill is not None and self._input_supports_nan:
-            return np.where(np.isnan(self.flat_array), nan_fill, self.flat_array)
-
-        return self.flat_array
-
     def apply(
         self,
         func: ArrayUfunc,
@@ -157,6 +150,13 @@ class UfuncArrayProcessor:
             return result.reshape(output_shape)
 
         return _unflatten_and_mask(flat_result)
+
+    def _fill_flat_nans(self, nan_fill: float | None) -> NDArray:
+        """Fill the flat input array with NaNs filled."""
+        if nan_fill is not None and self._input_supports_nan:
+            return np.where(np.isnan(self.flat_array), nan_fill, self.flat_array)
+
+        return self.flat_array
 
     def _skip_nodata_apply(
         self,
