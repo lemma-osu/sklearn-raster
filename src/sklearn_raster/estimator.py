@@ -214,6 +214,7 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
             ensure_min_samples=ensure_min_samples,
             allow_cast=allow_cast,
             check_output_for_nodata=check_output_for_nodata,
+            nan_fill=0.0,
             **predict_kwargs,
         )
 
@@ -347,6 +348,7 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
             ensure_min_samples=ensure_min_samples,
             allow_cast=allow_cast,
             check_output_for_nodata=check_output_for_nodata,
+            nan_fill=0.0,
             **kneighbors_kwargs,
         )
 
