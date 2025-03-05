@@ -170,9 +170,7 @@ class UfuncArrayProcessor:
         check_output_for_nodata: bool,
         **kwargs,
     ) -> NDArray | tuple[NDArray, ...]:
-        """
-        Apply a function to all non-NoData values in a flat array.
-        """
+        """Apply a function to all non-NoData values in a flat array."""
         # The NoData mask is guaranteed to exist since this method is only called when
         # there are masked pixels, so we can safely cast it for type checking.
         nodata_mask = cast(NDArray, self.nodata_mask)
@@ -232,9 +230,7 @@ class UfuncArrayProcessor:
         allow_cast: bool,
         check_output_for_nodata: bool,
     ) -> NDArray:
-        """
-        Replace NoData values in the input array with `output_nodata`.
-        """
+        """Replace NoData values in the input array with `output_nodata`."""
         flat_image = self._validate_nodata_output(
             flat_image,
             nodata_output,
