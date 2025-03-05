@@ -228,7 +228,7 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
         return_distance: Literal[False] = False,
         skip_nodata: bool = False,
         nodata_input: NoDataType = None,
-        nodata_output: float | int = np.nan,
+        nodata_output: float | int = -2147483648,
         ensure_min_samples: int = 1,
         allow_cast: bool = False,
         check_output_for_nodata: bool = True,
@@ -246,7 +246,7 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
         return_distance: Literal[True] = True,
         skip_nodata: bool = False,
         nodata_input: NoDataType = None,
-        nodata_output: float | int = np.nan,
+        nodata_output: float | int = -2147483648,
         ensure_min_samples: int = 1,
         allow_cast: bool = False,
         check_output_for_nodata: bool = True,
@@ -263,7 +263,7 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
         return_distance: bool = True,
         skip_nodata: bool = False,
         nodata_input: NoDataType = None,
-        nodata_output: float | int = np.nan,
+        nodata_output: float | int = -2147483648,
         ensure_min_samples: int = 1,
         allow_cast: bool = False,
         check_output_for_nodata: bool = True,
@@ -299,10 +299,11 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
             will be broadcast to all bands while sequences of values will be assigned
             band-wise. If None, values will be inferred if possible based on image
             metadata.
-        nodata_output : float or int, default np.nan
+        nodata_output : float or int, default -2147483648
             NoData pixels in the input features will be replaced with this value in the
-            output targets. If the value does not fit the array dtype returned by the
-            estimator, an error will be raised unless `allow_cast` is True.
+            output neighbor IDs and distances. The default value is the minimum value
+            If the value does not fit the array dtype returned by the estimator, an
+            error will be raised unless `allow_cast` is True.
         ensure_min_samples : int, default 1
             The minimum number of samples that should be passed to `kneighbors`. If the
             array is fully masked and `skip_nodata=True`, dummy values (0) will be
