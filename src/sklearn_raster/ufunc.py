@@ -18,7 +18,7 @@ class UfuncArrayProcessor:
     and:
 
     1. Flattens 2D spatial dimensions to a 1D sample dimension.
-    2. Fills NaN pixels in the input array.
+    2. Fills NaN samples in the input array.
     3. Passes samples to the ufunc.
     4. Masks NoData values in the ufunc output.
 
@@ -39,9 +39,9 @@ class UfuncArrayProcessor:
         self._input_supports_nan = np.issubdtype(array.dtype, np.floating)
         self.nodata_mask = self._get_flat_nodata_mask()
 
-        num_pixels = self.flat_array.shape[0]
+        num_samples = self.flat_array.shape[0]
         self._num_masked = 0 if self.nodata_mask is None else self.nodata_mask.sum()
-        self._num_unmasked = num_pixels - self._num_masked
+        self._num_unmasked = num_samples - self._num_masked
 
     def _get_flat_nodata_mask(self) -> NDArray | None:
         # Skip allocating a mask if the image is not float and NoData wasn't given
@@ -77,20 +77,20 @@ class UfuncArrayProcessor:
         Apply a function to the flattened chunk.
 
         The function should accept and return one or more NDArrays in shape
-        (pixels, bands). The output will be reshaped back to the original chunk shape.
+        (samples, bands). The output will be reshaped back to the original chunk shape.
 
         Parameters
         ----------
         func : callable
             A function to apply to the flattened array. The function should accept one
-            array of shape (pixels, bands) and return one or more arrays of the same
+            array of shape (samples, bands) and return one or more arrays of the same
             shape.
         skip_nodata : bool, default True
             If True, NoData and NaN values will be removed before passing the array to
             `func`. This can speed up processing of partially masked arrays, but may be
             incompatible with functions that expect a consistent number of samples.
         nodata_output : float or int, default np.nan
-            NoData pixels in the input will be replaced with this value in the output.
+            NoData samples in the input will be replaced with this value in the output.
             If the value does not fit the array dtype returned by `func`, an error will
             be raised.
         nan_fill : float or int, optional
@@ -102,8 +102,8 @@ class UfuncArrayProcessor:
             is fully masked and `skip_nodata=True`, dummy values (`nan_fill` or 0) will
             be inserted to ensure this number of samples. This is necessary for
             functions that require non-empty array inputs, like some scikit-learn
-            `predict` methods. No effect if the array contains enough valid pixels or if
-            `skip_nodata=False`.
+            `predict` methods. No effect if the array contains enough valid samples or
+            if `skip_nodata=False`.
         allow_cast : bool, default False
             If True and the `func` output dtype is incompatible with the chosen
             `nodata_output` value, the output will be cast to the correct dtype.
@@ -111,7 +111,7 @@ class UfuncArrayProcessor:
         check_output_for_nodata : bool, default True
             If True and `nodata_output` is not NaN, a warning will be raised if the
             selected `nodata_output` value is returned by `func`, as this may indicate
-            a valid pixel being masked.
+            a valid sample being masked.
         **kwargs : dict
             Additional keyword arguments passed to `func`.
         """
@@ -172,17 +172,17 @@ class UfuncArrayProcessor:
     ) -> NDArray | tuple[NDArray, ...]:
         """Apply a function to all non-NoData values in a flat array."""
         # The NoData mask is guaranteed to exist since this method is only called when
-        # there are masked pixels, so we can safely cast it for type checking.
+        # there are masked samples, so we can safely cast it for type checking.
         nodata_mask = cast(NDArray, self.nodata_mask)
 
         if inserted_dummy_values := self._num_unmasked < ensure_min_samples:
             if ensure_min_samples > flat_array.shape[0]:
                 raise ValueError(
                     f"Cannot ensure {ensure_min_samples} samples with only "
-                    f"{flat_array.shape[0]} total pixels in the image chunk."
+                    f"{flat_array.shape[0]} total samples in the array."
                 )
 
-            # Fill NoData pixels with dummy values to ensure minimum samples. Copy the
+            # Fill NoData samples with dummy values to ensure minimum samples. Copy the
             # mask to avoid mutating it when it's temporarily disabled.
             dummy_mask = nodata_mask[:ensure_min_samples].copy()
             flat_array[:ensure_min_samples][dummy_mask] = (
@@ -193,8 +193,8 @@ class UfuncArrayProcessor:
             nodata_mask[:ensure_min_samples] = False
 
         @map_function_over_tuples
-        def populate_missing_pixels(result: NDArray) -> NDArray:
-            """Insert the array result for valid pixels into the full-shaped array."""
+        def populate_missing_samples(result: NDArray) -> NDArray:
+            """Insert the array result for valid samples into the full-shaped array."""
             result = self._validate_nodata_output(
                 result,
                 nodata_output,
@@ -203,7 +203,7 @@ class UfuncArrayProcessor:
             )
 
             # Build an output array pre-masked with the fill value and cast to the
-            # output dtype. The shape will be (n, b) where n is the number of pixels
+            # output dtype. The shape will be (n, b) where n is the number of samples
             # in the flat array and b is the number of bands in the func result.
             full_result = np.full(
                 (flat_array.shape[0], result.shape[-1]),
@@ -212,16 +212,16 @@ class UfuncArrayProcessor:
             )
             full_result[~nodata_mask] = result
 
-            # Re-mask any pixels that were filled to ensure minimum samples
+            # Re-mask any samples that were filled to ensure minimum samples
             if inserted_dummy_values:
                 full_result[:ensure_min_samples][dummy_mask] = nodata_output
                 nodata_mask[:ensure_min_samples][dummy_mask] = True
 
             return full_result
 
-        # Apply the func only to valid pixels
+        # Apply the func only to valid samples
         func_result = func(flat_array[~nodata_mask], **kwargs)
-        return populate_missing_pixels(func_result)
+        return populate_missing_samples(func_result)
 
     def _mask_nodata(
         self,
@@ -252,7 +252,7 @@ class UfuncArrayProcessor:
         Check that a given output array can support the NoData value.
 
         Cast (if allowed) or raise if not. Also optionally check for NoData values in
-        the output that may indicate valid pixels being masked.
+        the output that may indicate valid samples being masked.
         """
         # Use the minimum dtype for integers. Otherwise, just use the value's type to
         # avoid casting to low-precision float16.
@@ -280,7 +280,7 @@ class UfuncArrayProcessor:
         ):
             warn(
                 f"The selected `nodata_output` value {nodata_output} was found in the "
-                "array returned by the applied ufunc. This may indicate a valid pixel "
+                "array returned by the applied ufunc. This may indicate a valid sample "
                 "being masked. To suppress this warning, set "
                 "`check_output_for_nodata=False`.",
                 category=UserWarning,
