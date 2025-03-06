@@ -7,56 +7,48 @@ import numpy as np
 from numpy.typing import NDArray
 
 from .types import ArrayUfunc, MaybeTuple
-from .utils.wrapper import map_function_over_tuples
+from .utils.wrapper import map_function_over_tuples, map_method_over_tuples
 
 
 class UfuncArrayProcessor:
     """
     A processor for applying ufuncs to arrays.
 
-    The processor takes Numpy arrays (images or image chunks) in the shape (y, x, band)
-    and:
+    The processor takes Numpy arrays in the shape (samples, bands) and:
 
-    1. Flattens 2D spatial dimensions to a 1D sample dimension.
-    2. Fills NaN samples in the input array.
-    3. Passes samples to the ufunc.
-    4. Masks NoData values in the ufunc output.
-
-    Note that this dimension order is different from the (band, y, x) order used by
-    rasterio, rioxarray, and elsewhere in sklearn-raster. This is because
-    `UfuncArrayProcessor` is called via `xr.apply_ufunc` which automatically swaps the
-    core dimension to the last axis, resulting in arrays of (y, x, band).
+    1. Fills NaN samples in the input array.
+    2. Passes samples to the ufunc.
+    3. Masks NoData values in the ufunc output.
     """
 
     band_dim = -1
 
-    def __init__(self, array: NDArray, *, nodata_input: list[float] | None = None):
-        self.array = array
+    def __init__(self, samples: NDArray, *, nodata_input: list[float] | None = None):
+        self.samples = samples
         self.nodata_input = nodata_input
-        self.flat_array = array.reshape(-1, array.shape[self.band_dim])
 
         # We can take some shortcuts if the input array type can't contain NaNs
-        self._input_supports_nan = np.issubdtype(array.dtype, np.floating)
-        self.nodata_mask = self._get_flat_nodata_mask()
+        self._input_supports_nan = np.issubdtype(samples.dtype, np.floating)
+        self.nodata_mask = self._get_nodata_mask()
 
-        num_samples = self.flat_array.shape[0]
+        num_samples = self.samples.shape[0]
         self._num_masked = 0 if self.nodata_mask is None else self.nodata_mask.sum()
         self._num_unmasked = num_samples - self._num_masked
 
-    def _get_flat_nodata_mask(self) -> NDArray | None:
+    def _get_nodata_mask(self) -> NDArray | None:
         # Skip allocating a mask if the image is not float and NoData wasn't given
         if not self._input_supports_nan and self.nodata_input is None:
             return None
 
-        mask = np.zeros(self.flat_array.shape, dtype=bool)
+        mask = np.zeros(self.samples.shape, dtype=bool)
 
         # If it's floating point, always mask NaNs
         if self._input_supports_nan:
-            mask |= np.isnan(self.flat_array)
+            mask |= np.isnan(self.samples)
 
         # If NoData was specified, mask those values
         if self.nodata_input is not None:
-            mask |= self.flat_array == self.nodata_input
+            mask |= self.samples == self.nodata_input
 
         # Return a mask where any band contains NoData
         return mask.max(axis=self.band_dim)
@@ -116,12 +108,12 @@ class UfuncArrayProcessor:
             Additional keyword arguments passed to `func`.
         """
         # Fill NaNs in the input array if they're not being skipped
-        flat_array = self.flat_array if skip_nodata else self._fill_flat_nans(nan_fill)
+        samples = self.samples if skip_nodata else self._fill_flat_nans(nan_fill)
         # Only skip NoData if there's something to skip
         if skip_nodata and self._num_masked > 0:
-            flat_result = self._skip_nodata_apply(
+            return self._skip_nodata_apply(
                 func,
-                flat_array=flat_array,
+                samples=samples,
                 ensure_min_samples=ensure_min_samples,
                 nodata_output=nodata_output,
                 allow_cast=allow_cast,
@@ -129,40 +121,31 @@ class UfuncArrayProcessor:
                 check_output_for_nodata=check_output_for_nodata,
                 **kwargs,
             )
-            # NoData is now pre-masked
-            mask_nodata = False
-        else:
-            flat_result = func(flat_array, **kwargs)
-            mask_nodata = self._num_masked > 0
 
-        @map_function_over_tuples
-        def _unflatten_and_mask(result: NDArray) -> NDArray:
-            """Unflattening result to (y, x, band) and mask NoData."""
-            output_shape = [*self.array.shape[:2], -1]
-            if mask_nodata:
-                result = self._mask_nodata(
-                    result,
-                    nodata_output=nodata_output,
-                    allow_cast=allow_cast,
-                    check_output_for_nodata=check_output_for_nodata,
-                )
+        result = func(samples, **kwargs)
 
-            return result.reshape(output_shape)
+        if self._num_masked > 0:
+            return self._mask_nodata(
+                result,
+                nodata_output=nodata_output,
+                allow_cast=allow_cast,
+                check_output_for_nodata=check_output_for_nodata,
+            )
 
-        return _unflatten_and_mask(flat_result)
+        return result
 
     def _fill_flat_nans(self, nan_fill: float | None) -> NDArray:
         """Fill the flat input array with NaNs filled."""
         if nan_fill is not None and self._input_supports_nan:
-            return np.where(np.isnan(self.flat_array), nan_fill, self.flat_array)
+            return np.where(np.isnan(self.samples), nan_fill, self.samples)
 
-        return self.flat_array
+        return self.samples
 
     def _skip_nodata_apply(
         self,
         func: ArrayUfunc,
         *,
-        flat_array: NDArray,
+        samples: NDArray,
         nodata_output: float | int,
         ensure_min_samples: int,
         allow_cast: bool,
@@ -176,16 +159,16 @@ class UfuncArrayProcessor:
         nodata_mask = cast(NDArray, self.nodata_mask)
 
         if inserted_dummy_values := self._num_unmasked < ensure_min_samples:
-            if ensure_min_samples > flat_array.shape[0]:
+            if ensure_min_samples > samples.shape[0]:
                 raise ValueError(
                     f"Cannot ensure {ensure_min_samples} samples with only "
-                    f"{flat_array.shape[0]} total samples in the array."
+                    f"{samples.shape[0]} total samples in the array."
                 )
 
             # Fill NoData samples with dummy values to ensure minimum samples. Copy the
             # mask to avoid mutating it when it's temporarily disabled.
             dummy_mask = nodata_mask[:ensure_min_samples].copy()
-            flat_array[:ensure_min_samples][dummy_mask] = (
+            samples[:ensure_min_samples][dummy_mask] = (
                 nan_fill if nan_fill is not None else 0
             )
 
@@ -206,7 +189,7 @@ class UfuncArrayProcessor:
             # output dtype. The shape will be (n, b) where n is the number of samples
             # in the flat array and b is the number of bands in the func result.
             full_result = np.full(
-                (flat_array.shape[0], result.shape[-1]),
+                (samples.shape[0], result.shape[-1]),
                 nodata_output,
                 dtype=result.dtype,
             )
@@ -220,26 +203,27 @@ class UfuncArrayProcessor:
             return full_result
 
         # Apply the func only to valid samples
-        func_result = func(flat_array[~nodata_mask], **kwargs)
+        func_result = func(samples[~nodata_mask], **kwargs)
         return populate_missing_samples(func_result)
 
+    @map_method_over_tuples
     def _mask_nodata(
         self,
-        flat_image: NDArray,
+        samples: NDArray,
         nodata_output: float | int,
         allow_cast: bool,
         check_output_for_nodata: bool,
     ) -> NDArray:
         """Replace NoData values in the input array with `output_nodata`."""
-        flat_image = self._validate_nodata_output(
-            flat_image,
+        samples = self._validate_nodata_output(
+            samples,
             nodata_output,
             allow_cast=allow_cast,
             check_output_for_nodata=check_output_for_nodata,
         )
 
-        flat_image[self.nodata_mask] = nodata_output
-        return flat_image
+        samples[self.nodata_mask] = nodata_output
+        return samples
 
     def _validate_nodata_output(
         self,
