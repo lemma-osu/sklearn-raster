@@ -63,11 +63,11 @@ def image_to_samples(
 
     @wraps(func)
     def wrapper(image: NDArray, *args, **kwargs) -> MaybeTuple[NDArray]:
-        result = func(image.reshape(-1, image.shape[-1], copy=False), *args, **kwargs)
+        result = func(image.reshape(-1, image.shape[-1]), *args, **kwargs)
 
         @map_function_over_tuples
         def unflatten(r: NDArray) -> NDArray:
-            return r.reshape(*image.shape[:2], -1, copy=False)
+            return r.reshape(*image.shape[:2], -1)
 
         return unflatten(result)
 
