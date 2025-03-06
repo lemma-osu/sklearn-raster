@@ -9,7 +9,7 @@ import xarray as xr
 from numpy.typing import NDArray
 
 from .types import ArrayUfunc, ImageType, NoDataType
-from .ufunc import UfuncArrayProcessor
+from .ufunc import UfuncSampleProcessor
 from .utils.image import image_to_samples
 from .utils.wrapper import map_method_over_tuples
 
@@ -85,7 +85,7 @@ class Image(Generic[ImageType], ABC):
 
         @image_to_samples
         def ufunc(x):
-            return UfuncArrayProcessor(x, nodata_input=self.nodata_input).apply(
+            return UfuncSampleProcessor(x, nodata_input=self.nodata_input).apply(
                 func,
                 skip_nodata=skip_nodata,
                 nodata_output=nodata_output,
