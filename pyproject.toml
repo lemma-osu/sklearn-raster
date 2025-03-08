@@ -30,6 +30,7 @@ datasets = [
 ]
 tutorials = [
     "sklearn-raster[datasets]",
+    "ipykernel",
     "matplotlib",
 ]
 
@@ -51,7 +52,6 @@ include = ["/src"]
 [tool.hatch.envs.default]
 dependencies = [
     "pre-commit",
-    "ipykernel",
     "sklearn-raster[datasets]",
 ]
 
@@ -60,6 +60,11 @@ dependencies = [
     "pytest",
     "pytest-cov",
     "sklearn-raster[datasets]",
+]
+
+[tool.hatch.envs.tutorials]
+dependencies = [
+    "sklearn-raster[tutorials]",
 ]
 
 [tool.hatch.envs.test.scripts]
