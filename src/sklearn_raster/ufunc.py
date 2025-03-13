@@ -19,11 +19,6 @@ class UfuncSampleProcessor:
     1. Fills NaN samples in the input array.
     2. Passes valid samples to the ufunc.
     3. Masks NoData values in the ufunc output.
-
-    Notes
-    -----
-    To apply ufuncs to images, wrap them using the
-    `sklearn_raster.utils.image.image_to_samples` decorator.
     """
 
     feature_dim = -1
