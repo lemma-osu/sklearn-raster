@@ -175,7 +175,7 @@ def test_crs_preserved(model_data: ModelData, crs):
 
 @parametrize_model_data(image_types=(np.ndarray,))
 def test_with_non_image_data(model_data: ModelData):
-    """Test that non-image data falls back to the wrapped estimator behavior."""
+    """Test that 1D sample data is correctly handled."""
     _, X, y = model_data
 
     estimator = KNeighborsRegressor().fit(X, y)
@@ -183,12 +183,14 @@ def test_with_non_image_data(model_data: ModelData):
     ref_dist, ref_nn = estimator.kneighbors(X)
 
     wrapped = wrap(clone(estimator)).fit(X, y)
-    check_pred = wrapped.predict(X)
-    check_dist, check_nn = wrapped.kneighbors(X)
+    # 1D arrays must be in (features, samples) shape to match the expected
+    # input
+    check_pred = wrapped.predict(X.T)
+    check_dist, check_nn = wrapped.kneighbors(X.T)
 
-    assert_array_equal(reference_pred, check_pred)
-    assert_array_equal(ref_dist, check_dist)
-    assert_array_equal(ref_nn, check_nn)
+    assert_array_equal(reference_pred, check_pred.T)
+    assert_array_equal(ref_dist, check_dist.T)
+    assert_array_equal(ref_nn, check_nn.T)
 
 
 @parametrize_model_data(image_types=(xr.DataArray, xr.Dataset))
