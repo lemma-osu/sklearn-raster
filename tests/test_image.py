@@ -127,6 +127,31 @@ def test_nodata_output_set(
     assert_array_equal(unwrap_image(result), expected_output)
 
 
+@pytest.mark.parametrize("n_bands", [1, 2])
+@parametrize_image_types()
+def test_shape_when_ufunc_squeezes_dimension(n_bands: int, image_type: type[ImageType]):
+    """Test the output shape when a ufunc squeezes the feature dimension."""
+    nodata_input = 0
+    nodata_output = -99
+
+    # Insert at least one NoData value to trigger sample skipping
+    a = np.full((n_bands, 3, 3), 1)
+    a[0, 0, 0] = nodata_input
+
+    image = Image.from_image(wrap_image(a, type=image_type), nodata_input=nodata_input)
+    result = image.apply_ufunc_across_bands(
+        # Squeeze out the feature dimension (like a single-output predict method would)
+        lambda x: x.mean(axis=1, keepdims=False),
+        nodata_output=nodata_output,
+        skip_nodata=True,
+        output_dims=[["variable"]],
+        output_sizes={"variable": 1},
+        output_dtypes=[a.dtype],
+    )
+
+    assert unwrap_image(result).shape == (1, 3, 3)
+
+
 @parametrize_image_types()
 @pytest.mark.parametrize("skip_nodata", [True, False])
 def test_warn_when_ufunc_returns_nodata(image_type: type[ImageType], skip_nodata: bool):

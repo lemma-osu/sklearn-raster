@@ -211,6 +211,11 @@ class UfuncSampleProcessor:
                 check_output_for_nodata=check_output_for_nodata,
             )
 
+            # Ensure that the result has a feature dimension in case it was squeezed by
+            # the ufunc. `atleast_2d` adds the new axis at the index 0, so transpose
+            # twice to move it to the end.
+            result = np.atleast_2d(result.T).T
+
             # Build an output array pre-masked with the fill value and cast to the
             # output dtype. The shape will be (n, f) where n is the number of samples
             # in the array and f is the number of features in the func result.
