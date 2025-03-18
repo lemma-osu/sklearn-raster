@@ -129,7 +129,7 @@ def test_nodata_output_set(
 
 @pytest.mark.parametrize("n_bands", [1, 2])
 @parametrize_image_types()
-def test_ufunc_squeezes_dimension(n_bands: int, image_type: type[ImageType]):
+def test_shape_when_ufunc_squeezes_dimension(n_bands: int, image_type: type[ImageType]):
     """Test the output shape when a ufunc squeezes the feature dimension."""
     nodata_input = 0
     nodata_output = -99
