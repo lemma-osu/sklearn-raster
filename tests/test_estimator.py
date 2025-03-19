@@ -54,6 +54,26 @@ def test_predict_unsupervised(model_data: ModelData, estimator):
 
 
 @parametrize_model_data()
+@pytest.mark.parametrize("ndim", [2, 3, 4])
+def test_predict_with_ndimensions(model_data: ModelData, ndim: int):
+    """Test predicting with data of different dimensionality"""
+    n_features = model_data.n_features
+    # Build an image of shape (n_features, 2, ...) with ndim total dimensions
+    img_shape = tuple([n_features] + [2] * (ndim - 1))
+    X_image = np.ones(img_shape)
+    # Set one NoData pixel to trigger skipping and masking
+    X_image[(0,) * ndim] = 0
+
+    # Update the model with the new image
+    model_data.set(X_image=X_image)
+    X_image, X, y = model_data
+
+    estimator = wrap(KNeighborsRegressor()).fit(X, y)
+    y_pred = unwrap_image(estimator.predict(X_image, nodata_input=0))
+    assert y_pred.ndim == ndim
+
+
+@parametrize_model_data()
 @pytest.mark.parametrize("k", [1, 3], ids=lambda k: f"k{k}")
 def test_kneighbors_with_distance(model_data: ModelData, k):
     """Test kneighbors works with all image types when returning distance."""
