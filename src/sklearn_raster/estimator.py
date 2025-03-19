@@ -12,7 +12,6 @@ from typing_extensions import Literal, overload
 from .image import Image
 from .types import EstimatorType
 from .utils.estimator import is_fitted, suppress_feature_name_warnings
-from .utils.image import image_or_fallback
 from .utils.wrapper import AttrWrapper, check_wrapper_implements
 
 if TYPE_CHECKING:
@@ -132,7 +131,6 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
         return self
 
     @check_wrapper_implements
-    @image_or_fallback
     def predict(
         self,
         X_image: ImageType,
@@ -147,11 +145,6 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
     ) -> ImageType:
         """
         Predict target(s) for X_image.
-
-        Notes
-        -----
-        If X_image is not an image, the estimator's unmodified predict method will be
-        called instead.
 
         Parameters
         ----------
@@ -219,7 +212,6 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
         )
 
     @check_wrapper_implements
-    @image_or_fallback
     @overload
     def kneighbors(
         self,
@@ -237,7 +229,6 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
     ) -> ImageType: ...
 
     @check_wrapper_implements
-    @image_or_fallback
     @overload
     def kneighbors(
         self,
@@ -255,7 +246,6 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
     ) -> tuple[ImageType, ImageType]: ...
 
     @check_wrapper_implements
-    @image_or_fallback
     def kneighbors(
         self,
         X_image: ImageType,
@@ -274,11 +264,6 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
         Find the K-neighbors of each pixel in an image.
 
         Returns indices of and distances to the neighbors for each pixel.
-
-        Notes
-        -----
-        If X_image is not an image, the estimator's unmodified kneighbors method will be
-        called instead.
 
         Parameters
         ----------

@@ -163,14 +163,14 @@ class NDArrayImage(Image):
     def _preprocess_ufunc_input(self, image: NDArray) -> NDArray:
         """Preprocess the image by transposing to (y, x, band) for apply_ufunc."""
         # Copy to avoid mutating the original image
-        return image.copy().transpose(1, 2, 0)
+        return np.moveaxis(image.copy(), 0, -1)
 
     @map_method_over_tuples
     def _postprocess_ufunc_output(
         self, result: NDArray, *, nodata_output: float | int, output_coords=None
     ) -> NDArray:
         """Postprocess the ufunc output by transposing back to (band, y, x)."""
-        return result.transpose(2, 0, 1)
+        return np.moveaxis(result, -1, 0)
 
 
 class DataArrayImage(Image):
