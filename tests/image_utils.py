@@ -222,7 +222,7 @@ def wrap_image(image: NDArray, type: type[ImageType]) -> ImageType:
         n_bands = image.shape[0]
         band_names = [f"b{i}" for i in range(n_bands)]
 
-        if 2 > image.ndim > 5:
+        if image.ndim < 2 or image.ndim > 5:
             raise ValueError("Image dimensionality must be between 2 and 5.")
 
         # Include other dimensions in reverse order, following typical NetCDF
