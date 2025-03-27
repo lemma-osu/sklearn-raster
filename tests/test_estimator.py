@@ -203,8 +203,9 @@ def test_with_non_image_data(model_data: ModelData):
     ref_dist, ref_nn = estimator.kneighbors(X)
 
     wrapped = wrap(clone(estimator)).fit(X, y)
-    # 1D arrays must be in (features, samples) shape to match the expected
-    # input
+    # Dataframes and derived 1D arrays are in (samples, features) by default, but
+    # wrapped estimators require features as the first dimension, hence the need to
+    # transpose the input and output.
     check_pred = wrapped.predict(X.T)
     check_dist, check_nn = wrapped.kneighbors(X.T)
 
