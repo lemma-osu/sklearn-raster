@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 
 
-@pytest.fixture()
+@pytest.fixture
 def dummy_model_data():
     n_features = 5
     n_rows = 10
