@@ -54,6 +54,26 @@ def test_predict_unsupervised(model_data: ModelData, estimator):
 
 
 @parametrize_model_data()
+@pytest.mark.parametrize("ndim", [2, 3, 4])
+def test_predict_with_ndimensions(model_data: ModelData, ndim: int):
+    """Test predicting with data of different dimensionality"""
+    n_features = model_data.n_features
+    # Build an image of shape (n_features, 2, ...) with ndim total dimensions
+    img_shape = tuple([n_features] + [2] * (ndim - 1))
+    X_image = np.ones(img_shape)
+    # Set one NoData pixel to trigger skipping and masking
+    X_image[(0,) * ndim] = 0
+
+    # Update the model with the new image
+    model_data.set(X_image=X_image)
+    X_image, X, y = model_data
+
+    estimator = wrap(KNeighborsRegressor()).fit(X, y)
+    y_pred = unwrap_image(estimator.predict(X_image, nodata_input=0))
+    assert y_pred.ndim == ndim
+
+
+@parametrize_model_data()
 @pytest.mark.parametrize("k", [1, 3], ids=lambda k: f"k{k}")
 def test_kneighbors_with_distance(model_data: ModelData, k):
     """Test kneighbors works with all image types when returning distance."""
@@ -175,7 +195,7 @@ def test_crs_preserved(model_data: ModelData, crs):
 
 @parametrize_model_data(image_types=(np.ndarray,))
 def test_with_non_image_data(model_data: ModelData):
-    """Test that non-image data falls back to the wrapped estimator behavior."""
+    """Test that 1D sample data is correctly handled."""
     _, X, y = model_data
 
     estimator = KNeighborsRegressor().fit(X, y)
@@ -183,12 +203,15 @@ def test_with_non_image_data(model_data: ModelData):
     ref_dist, ref_nn = estimator.kneighbors(X)
 
     wrapped = wrap(clone(estimator)).fit(X, y)
-    check_pred = wrapped.predict(X)
-    check_dist, check_nn = wrapped.kneighbors(X)
+    # Dataframes and derived 1D arrays are in (samples, features) by default, but
+    # wrapped estimators require features as the first dimension, hence the need to
+    # transpose the input and output.
+    check_pred = wrapped.predict(X.T)
+    check_dist, check_nn = wrapped.kneighbors(X.T)
 
-    assert_array_equal(reference_pred, check_pred)
-    assert_array_equal(ref_dist, check_dist)
-    assert_array_equal(ref_nn, check_nn)
+    assert_array_equal(reference_pred, check_pred.T)
+    assert_array_equal(ref_dist, check_dist.T)
+    assert_array_equal(ref_nn, check_nn.T)
 
 
 @parametrize_model_data(image_types=(xr.DataArray, xr.Dataset))

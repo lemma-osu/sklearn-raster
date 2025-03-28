@@ -10,6 +10,10 @@ from numpy.typing import NDArray
 
 from sklearn_raster.types import ImageType
 
+# Dimension names to use when building Xarray images, in order of increasing
+# dimensionality, excluding the first "variable" dimension.
+EXTRA_DIM_NAMES = ["x", "y", "z", "time"]
+
 
 def parametrize_image_types(
     label="image_type",
@@ -176,7 +180,20 @@ def parametrize_model_data(
 
 def wrap_image(image: NDArray, type: type[ImageType]) -> ImageType:
     """
-    Wrap a Numpy NDArray image (y, x, bands) into the specified type.
+    Wrap a Numpy NDArray with features in the first dimension into the specified type.
+
+    Parameters
+    ----------
+    image : NDArray
+        The array to wrap, with features in the first dimension and between 1 and 4
+        additional dimensions, from (features, samples) up to (features, time, z, y, x).
+    type : type
+        The desired image type, either np.ndarray, xr.DataArray, or xr.Dataset.
+
+    Returns
+    -------
+    ImageType
+        The image in the desired format.
 
     Examples
     --------
@@ -205,9 +222,16 @@ def wrap_image(image: NDArray, type: type[ImageType]) -> ImageType:
         n_bands = image.shape[0]
         band_names = [f"b{i}" for i in range(n_bands)]
 
+        if image.ndim < 2 or image.ndim > 5:
+            raise ValueError("Image dimensionality must be between 2 and 5.")
+
+        # Include other dimensions in reverse order, following typical NetCDF
+        # conventions (e.g. time, z, y, x).
+        dims = ["variable"] + EXTRA_DIM_NAMES[: image.ndim - 1][::-1]
+
         return xr.DataArray(
             image,
-            dims=["variable", "y", "x"],
+            dims=dims,
             coords={"variable": band_names},
         ).chunk("auto")
 
