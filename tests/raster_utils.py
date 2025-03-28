@@ -8,34 +8,34 @@ import pytest
 import xarray as xr
 from numpy.typing import NDArray
 
-from sklearn_raster.types import ImageType
+from sklearn_raster.types import FeatureType
 
-# Dimension names to use when building Xarray images, in order of increasing
+# Dimension names to use when building Xarray features, in order of increasing
 # dimensionality, excluding the first "variable" dimension.
 EXTRA_DIM_NAMES = ["x", "y", "z", "time"]
 
 
-def parametrize_image_types(
-    label="image_type",
-    image_types=(np.ndarray, xr.DataArray, xr.Dataset),
+def parametrize_feature_types(
+    label="feature_type",
+    feature_types=(np.ndarray, xr.DataArray, xr.Dataset),
 ):
-    """Parametrize over multiple image types."""
-    return pytest.mark.parametrize(label, image_types, ids=lambda t: t.__name__)
+    """Parametrize over multiple feature types."""
+    return pytest.mark.parametrize(label, feature_types, ids=lambda t: t.__name__)
 
 
-class ModelData(Generic[ImageType]):
+class ModelData(Generic[FeatureType]):
     """
-    Data used to train and predict with image-compatible estimators for testing.
+    Data used to train and predict with raster-compatible estimators for testing.
 
     Examples
     --------
     ModelData is designed to be instantiated with Numpy array data and unpacked to
-    retrieve compatible images and training data.
+    retrieve compatible features and training data.
 
     >>> X_image = np.random.random((5, 16, 16))
     >>> X = np.random.random((10, 5))
     >>> y = np.random.random((10, 3))
-    >>> model_data = ModelData(X_image, X, y, image_type=xr.Dataset)
+    >>> model_data = ModelData(X_image, X, y, feature_type=xr.Dataset)
     >>> X_image, X, y = model_data
     >>> type(X_image)
     <class 'xarray.core.dataset.Dataset'>
@@ -57,9 +57,9 @@ class ModelData(Generic[ImageType]):
         X_image: NDArray,
         X: NDArray,
         y: NDArray,
-        image_type: type[ImageType] = np.ndarray,
+        feature_type: type[FeatureType] = np.ndarray,
     ):
-        self._image_type = image_type
+        self._feature_type = feature_type
         self._X_image = X_image
         self._X = X
         self._y = y
@@ -87,18 +87,18 @@ class ModelData(Generic[ImageType]):
         return self._X_image.shape[0]
 
     @property
-    def X_image(self) -> ImageType:
+    def X_image(self) -> FeatureType:
         """Feature image."""
-        return wrap_image(self._X_image, self._image_type)
+        return wrap_features(self._X_image, self._feature_type)
 
     @property
     def X(self) -> NDArray | pd.DataFrame:
         """Feature data in array or dataframe format."""
         X = self._X.copy()
 
-        if self._image_type in (xr.DataArray, xr.Dataset):
-            band_names = [f"b{i}" for i in range(self.n_features)]
-            X = pd.DataFrame(X, columns=band_names)
+        if self._feature_type in (xr.DataArray, xr.Dataset):
+            feature_names = [f"b{i}" for i in range(self.n_features)]
+            X = pd.DataFrame(X, columns=feature_names)
 
         return X
 
@@ -112,7 +112,7 @@ class ModelData(Generic[ImageType]):
             y = y[:, :1]
             n_targets = 1
 
-        if self._image_type in (xr.DataArray, xr.Dataset):
+        if self._feature_type in (xr.DataArray, xr.Dataset):
             target_names = [f"t{i}" for i in range(n_targets)]
             y = pd.DataFrame(y, columns=target_names)
 
@@ -154,9 +154,9 @@ def parametrize_model_data(
     X_image=None,
     X=None,
     y=None,
-    image_types=(np.ndarray, xr.DataArray, xr.Dataset),
+    feature_types=(np.ndarray, xr.DataArray, xr.Dataset),
 ):
-    """Parametrize over multiple image types with the same test data."""
+    """Parametrize over multiple feature types with the same test data."""
     n_features = (
         X_image.shape[0] if X_image is not None else X.shape[-1] if X is not None else 5
     )
@@ -171,79 +171,79 @@ def parametrize_model_data(
     if y is None:
         y = np.random.rand(n_rows, n_targets)
 
-    model_data = [ModelData(X_image, X, y, cls) for cls in image_types]
+    model_data = [ModelData(X_image, X, y, cls) for cls in feature_types]
 
     return pytest.mark.parametrize(
-        label, model_data, ids=map(lambda x: x.__name__, image_types)
+        label, model_data, ids=map(lambda x: x.__name__, feature_types)
     )
 
 
-def wrap_image(image: NDArray, type: type[ImageType]) -> ImageType:
+def wrap_features(features: NDArray, type: type[FeatureType]) -> FeatureType:
     """
     Wrap a Numpy NDArray with features in the first dimension into the specified type.
 
     Parameters
     ----------
-    image : NDArray
+    features : NDArray
         The array to wrap, with features in the first dimension and between 1 and 4
         additional dimensions, from (features, samples) up to (features, time, z, y, x).
     type : type
-        The desired image type, either np.ndarray, xr.DataArray, or xr.Dataset.
+        The desired feature type, either np.ndarray, xr.DataArray, or xr.Dataset.
 
     Returns
     -------
-    ImageType
-        The image in the desired format.
+    FeatureType
+        The features in the desired format.
 
     Examples
     --------
 
-    Wrap a Numpy array into a desired image type:
+    Wrap a Numpy array into a desired feature type:
 
     >>> array = np.ones((3, 8, 8))
-    >>> wrapped = wrap_image(array, type=xr.DataArray)
+    >>> wrapped = wrap_features(array, type=xr.DataArray)
     >>> type(wrapped)
     <class 'xarray.core.dataarray.DataArray'>
 
-    Combine with `unwrap_image` to allow testing functions that are compatible with any
-    image type:
+    Combine with `unwrap_features` to allow testing functions that are compatible with
+    any feature type:
 
     >>> from numpy.testing import assert_array_equal
     >>> array = np.ones((3, 8, 8))
-    >>> wrapped = wrap_image(array, type=xr.Dataset)
+    >>> wrapped = wrap_features(array, type=xr.Dataset)
     >>> wrapped += 1
-    >>> assert_array_equal(unwrap_image(wrapped), array + 1)
+    >>> assert_array_equal(unwrap_features(wrapped), array + 1)
     """
 
     if type is np.ndarray:
-        return image
+        return features
 
     if type is xr.DataArray:
-        n_bands = image.shape[0]
-        band_names = [f"b{i}" for i in range(n_bands)]
+        n_features = features.shape[0]
+        feature_names = [f"b{i}" for i in range(n_features)]
 
-        if image.ndim < 2 or image.ndim > 5:
-            raise ValueError("Image dimensionality must be between 2 and 5.")
+        if features.ndim < 2 or features.ndim > 5:
+            raise ValueError("Feature dimensionality must be between 2 and 5.")
 
         # Include other dimensions in reverse order, following typical NetCDF
         # conventions (e.g. time, z, y, x).
-        dims = ["variable"] + EXTRA_DIM_NAMES[: image.ndim - 1][::-1]
+        dims = ["variable"] + EXTRA_DIM_NAMES[: features.ndim - 1][::-1]
 
         return xr.DataArray(
-            image,
+            features,
             dims=dims,
-            coords={"variable": band_names},
+            coords={"variable": feature_names},
         ).chunk("auto")
 
     if type is xr.Dataset:
-        return wrap_image(image, xr.DataArray).to_dataset(dim="variable")
+        return wrap_features(features, xr.DataArray).to_dataset(dim="variable")
 
-    raise ValueError(f"Unsupported image type: {type}")
+    raise ValueError(f"Unsupported feature type: {type}")
 
 
-def unwrap_image(image: Any) -> NDArray:
+def unwrap_features(features: Any) -> NDArray:
     """
-    Unwrap an image to a Numpy NDArray in the shape (y, x, band).
+    Unwrap features to a Numpy NDArray.
 
     Examples
     --------
@@ -251,17 +251,17 @@ def unwrap_image(image: Any) -> NDArray:
 
     >>> from numpy.testing import assert_array_equal
     >>> array = np.ones((3, 8, 8))
-    >>> wrapped = wrap_image(array, type=xr.Dataset)
-    >>> unwrapped = unwrap_image(wrapped)
+    >>> wrapped = wrap_features(array, type=xr.Dataset)
+    >>> unwrapped = unwrap_features(wrapped)
     >>> assert_array_equal(unwrapped, array)
     """
-    if isinstance(image, np.ndarray):
-        return image
+    if isinstance(features, np.ndarray):
+        return features
 
-    if isinstance(image, xr.DataArray):
-        return image.values
+    if isinstance(features, xr.DataArray):
+        return features.values
 
-    if isinstance(image, xr.Dataset):
-        return unwrap_image(image.to_dataarray())
+    if isinstance(features, xr.Dataset):
+        return unwrap_features(features.to_dataarray())
 
-    raise ValueError(f"Unsupported image type: {type(image)}")
+    raise ValueError(f"Unsupported feature type: {type(features)}")

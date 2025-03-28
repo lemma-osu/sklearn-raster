@@ -8,59 +8,59 @@ import numpy as np
 import xarray as xr
 from numpy.typing import NDArray
 
-from .types import ArrayUfunc, ImageType, NoDataType
+from .types import ArrayUfunc, FeatureType, NoDataType
 from .ufunc import UfuncSampleProcessor
-from .utils.image import image_to_samples
+from .utils.features import reshape_to_samples
 from .utils.wrapper import map_method_over_tuples
 
 
-class Image(Generic[ImageType], ABC):
-    """A wrapper around a multi-band image"""
+class FeatureArray(Generic[FeatureType], ABC):
+    """A wrapper around an n-dimensional array of features."""
 
-    band_dim_name: str | None = None
-    band_dim: int = 0
-    band_names: NDArray
+    feature_dim_name: str | None = None
+    feature_dim: int = 0
+    feature_names: NDArray
 
-    def __init__(self, image: ImageType, nodata_input: NoDataType = None):
-        self.image = image
-        self.n_bands = self.image.shape[self.band_dim]
+    def __init__(self, features: FeatureType, nodata_input: NoDataType = None):
+        self.features = features
+        self.n_features = self.features.shape[self.feature_dim]
         self.nodata_input = self._validate_nodata_input(nodata_input)
 
     def _validate_nodata_input(self, nodata_input: NoDataType) -> NDArray | None:
         """
-        Get an array of NoData values in the shape (bands,) based on user input.
+        Get an array of NoData values in the shape (features,) based on user input.
 
-        Scalars are broadcast to all bands while sequences are checked against the
-        number of bands and cast to ndarrays. There is no need to specify np.nan as a
-        NoData value because it will be masked automatically for floating point images.
+        Scalars are broadcast to all features while sequences are checked against the
+        number of features and cast to ndarrays. There is no need to specify np.nan as a
+        NoData value because it will be masked automatically for floating point arrays.
         """
         if nodata_input is None:
             return None
 
-        # If it's a numeric scalar, broadcast it to all bands
+        # If it's a numeric scalar, broadcast it to all features
         if isinstance(nodata_input, (float, int)) and not isinstance(
             nodata_input, bool
         ):
-            return np.full((self.n_bands,), nodata_input)
+            return np.full((self.n_features,), nodata_input)
 
         # If it's not a scalar, it must be an iterable
         if not isinstance(nodata_input, Sized) or isinstance(nodata_input, (str, dict)):
             raise TypeError(
                 f"Invalid type `{type(nodata_input).__name__}` for `nodata_input`. "
-                "Provide a single number to apply to all bands, a sequence of numbers, "
-                "or None."
+                "Provide a single number to apply to all features, a sequence of "
+                "numbers, or None."
             )
 
-        # If it's an iterable, it must contain one element per band
-        if len(nodata_input) != self.n_bands:
+        # If it's an iterable, it must contain one element per feature
+        if len(nodata_input) != self.n_features:
             raise ValueError(
-                f"Expected {self.n_bands} NoData values but got {len(nodata_input)}. "
-                f"The length of `nodata_input` must match the number of bands."
+                f"Expected {self.n_features} NoData values but got {len(nodata_input)}."
+                f" The length of `nodata_input` must match the number of features."
             )
 
         return np.asarray(nodata_input)
 
-    def apply_ufunc_across_bands(
+    def apply_ufunc_across_features(
         self,
         func: ArrayUfunc,
         *,
@@ -75,15 +75,15 @@ class Image(Generic[ImageType], ABC):
         allow_cast: bool = False,
         check_output_for_nodata: bool = True,
         **ufunc_kwargs,
-    ) -> ImageType | tuple[ImageType]:
-        """Apply a universal function to all bands of the image."""
+    ) -> FeatureType | tuple[FeatureType]:
+        """Apply a universal function to all features of the array."""
         if output_sizes is not None:
             # Default to sequential coordinates for each output dimension
             output_coords = output_coords or {
                 k: list(range(s)) for k, s in output_sizes.items()
             }
 
-        @image_to_samples
+        @reshape_to_samples
         def ufunc(x):
             return UfuncSampleProcessor(x, nodata_input=self.nodata_input).apply(
                 func,
@@ -98,10 +98,10 @@ class Image(Generic[ImageType], ABC):
 
         result = xr.apply_ufunc(
             ufunc,
-            self._preprocess_ufunc_input(self.image),
+            self._preprocess_ufunc_input(self.features),
             dask="parallelized",
-            input_core_dims=[[self.band_dim_name]],
-            exclude_dims=set((self.band_dim_name,)),
+            input_core_dims=[[self.feature_dim_name]],
+            exclude_dims=set((self.feature_dim_name,)),
             output_core_dims=output_dims,
             output_dtypes=output_dtypes,
             keep_attrs=True,
@@ -115,21 +115,21 @@ class Image(Generic[ImageType], ABC):
             result, output_coords=output_coords, nodata_output=nodata_output
         )
 
-    def _preprocess_ufunc_input(self, image: ImageType) -> ImageType:
+    def _preprocess_ufunc_input(self, features: FeatureType) -> FeatureType:
         """
         Preprocess the input of an applied ufunc. No-op unless overridden by subclasses.
         """
-        return image
+        return features
 
     @abstractmethod
     @map_method_over_tuples
     def _postprocess_ufunc_output(
         self,
-        result: ImageType,
+        result: FeatureType,
         *,
         nodata_output: float | int,
         output_coords: dict[str, list[str | int]] | None = None,
-    ) -> ImageType:
+    ) -> FeatureType:
         """
         Postprocess the output of an applied ufunc.
 
@@ -138,65 +138,65 @@ class Image(Generic[ImageType], ABC):
         """
 
     @staticmethod
-    def from_image(image: Any, nodata_input: NoDataType = None) -> Image:
-        """Create an Image object from a supported image type."""
-        if isinstance(image, np.ndarray):
-            return NDArrayImage(image, nodata_input=nodata_input)
+    def from_features(features: Any, nodata_input: NoDataType = None) -> FeatureArray:
+        """Create an FeatureArray from a supported feature type."""
+        if isinstance(features, np.ndarray):
+            return NDArrayFeatures(features, nodata_input=nodata_input)
 
-        if isinstance(image, xr.DataArray):
-            return DataArrayImage(image, nodata_input=nodata_input)
+        if isinstance(features, xr.DataArray):
+            return DataArrayFeatures(features, nodata_input=nodata_input)
 
-        if isinstance(image, xr.Dataset):
-            return DatasetImage(image, nodata_input=nodata_input)
+        if isinstance(features, xr.Dataset):
+            return DatasetFeatures(features, nodata_input=nodata_input)
 
-        raise TypeError(f"Unsupported image type `{type(image).__name__}`.")
+        raise TypeError(f"Unsupported feature type `{type(features).__name__}`.")
 
 
-class NDArrayImage(Image):
-    """An image stored in a Numpy NDArray of shape (band, y, x)."""
+class NDArrayFeatures(FeatureArray):
+    """Features stored in a Numpy NDArray of shape (features, ...)."""
 
-    band_names = np.array([])
+    feature_names = np.array([])
 
-    def __init__(self, image: NDArray, nodata_input: NoDataType = None):
-        super().__init__(image, nodata_input=nodata_input)
+    def __init__(self, features: NDArray, nodata_input: NoDataType = None):
+        super().__init__(features, nodata_input=nodata_input)
 
-    def _preprocess_ufunc_input(self, image: NDArray) -> NDArray:
-        """Preprocess the image by transposing to (y, x, band) for apply_ufunc."""
-        # Copy to avoid mutating the original image
-        return np.moveaxis(image.copy(), 0, -1)
+    def _preprocess_ufunc_input(self, features: NDArray) -> NDArray:
+        """Preprocess by moving features to the last dimension for apply_ufunc."""
+        # Copy to avoid mutating the original array
+        return np.moveaxis(features.copy(), 0, -1)
 
     @map_method_over_tuples
     def _postprocess_ufunc_output(
         self, result: NDArray, *, nodata_output: float | int, output_coords=None
     ) -> NDArray:
-        """Postprocess the ufunc output by transposing back to (band, y, x)."""
+        """Postprocess the output by moving features back to the first dimension."""
         return np.moveaxis(result, -1, 0)
 
 
-class DataArrayImage(Image):
-    """An image stored in an xarray DataArray of shape (band, y, x)."""
+class DataArrayFeatures(FeatureArray):
+    """Features stored in an xarray DataArray of shape (features, ...)."""
 
-    def __init__(self, image: xr.DataArray, nodata_input: NoDataType = None):
-        super().__init__(image, nodata_input=nodata_input)
-        self.band_dim_name = image.dims[self.band_dim]
+    def __init__(self, features: xr.DataArray, nodata_input: NoDataType = None):
+        super().__init__(features, nodata_input=nodata_input)
+        self.feature_dim_name = features.dims[self.feature_dim]
 
     @property
-    def band_names(self) -> NDArray:
-        return self.image[self.band_dim_name].values
+    def feature_names(self) -> NDArray:
+        return self.features[self.feature_dim_name].values
 
     def _validate_nodata_input(self, nodata_input: NoDataType) -> NDArray | None:
         """
-        Get an array of NoData values in the shape (bands,) based on user input and
+        Get an array of NoData values in the shape (features,) based on user input and
         DataArray metadata.
         """
         # Defer to user-provided NoData values over stored attributes
         if nodata_input is not None:
             return super()._validate_nodata_input(nodata_input)
 
-        # If present, broadcast the _FillValue attribute to all bands
-        fill_val = self.image.attrs.get("_FillValue")
+        # If present, broadcast the _FillValue attribute to all features
+        fill_val = self.features.attrs.get("_FillValue")
         if fill_val is not None:
-            return np.full((self.n_bands,), fill_val)
+            return np.full((self.n_features,), fill_val)
 
         return None
 
@@ -212,7 +212,7 @@ class DataArrayImage(Image):
         if output_coords is not None:
             result = result.assign_coords(output_coords)
 
-        # Transpose from (y, x, band) to (band, y, x)
+        # Transpose features from the last to the first dimension
         result = result.transpose(result.dims[-1], ...)
 
         if not np.isnan(nodata_output):
@@ -224,22 +224,22 @@ class DataArrayImage(Image):
         return result
 
 
-class DatasetImage(DataArrayImage):
-    """An image stored in an xarray Dataset of shape (y, x) with bands as variables."""
+class DatasetFeatures(DataArrayFeatures):
+    """Features stored in an xarray Dataset with features as variables."""
 
-    def __init__(self, image: xr.Dataset, nodata_input: NoDataType = None):
-        # The image itself will be stored as a DataArray, but keep the Dataset for
-        # metadata like _FillValues.
-        self.dataset = image
-        super().__init__(image.to_dataarray(), nodata_input=nodata_input)
+    def __init__(self, features: xr.Dataset, nodata_input: NoDataType = None):
+        # The data will be stored as a DataArray, but keep the Dataset for metadata
+        # like _FillValues.
+        self.dataset = features
+        super().__init__(features.to_dataarray(), nodata_input=nodata_input)
 
     @property
-    def band_names(self) -> NDArray:
+    def feature_names(self) -> NDArray:
         return np.array(list(self.dataset.data_vars))
 
     def _validate_nodata_input(self, nodata_input: NoDataType) -> NDArray | None:
         """
-        Get an array of NoData values in the shape (bands,) based on user input and
+        Get an array of NoData values in the shape (features,) based on user input and
         Dataset metadata.
         """
         fill_vals = [
@@ -267,7 +267,7 @@ class DatasetImage(DataArrayImage):
         result = super()._postprocess_ufunc_output(
             result, output_coords=output_coords, nodata_output=nodata_output
         )
-        var_dim = result.dims[self.band_dim]
+        var_dim = result.dims[self.feature_dim]
         ds = result.to_dataset(dim=var_dim)
 
         for var in ds.data_vars:

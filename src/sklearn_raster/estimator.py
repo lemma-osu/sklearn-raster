@@ -9,7 +9,7 @@ from sklearn.base import clone
 from sklearn.utils.validation import _get_feature_names, check_is_fitted
 from typing_extensions import Literal, overload
 
-from .image import Image
+from .features import FeatureArray
 from .types import EstimatorType
 from .utils.estimator import is_fitted, suppress_feature_name_warnings
 from .utils.wrapper import AttrWrapper, check_wrapper_implements
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     import pandas as pd
     from numpy.typing import NDArray
 
-    from .types import ImageType, NoDataType
+    from .types import FeatureType, NoDataType
 
 ESTIMATOR_OUTPUT_DTYPES: dict[str, np.dtype] = {
     "classifier": np.int32,
@@ -36,15 +36,16 @@ class FittedMetadata:
     feature_names: NDArray
 
 
-class ImageEstimator(AttrWrapper[EstimatorType]):
+class RasterEstimator(AttrWrapper[EstimatorType]):
     """
-    An sklearn-compatible estimator wrapper with overriden methods for image data.
+    An sklearn-compatible estimator wrapper with overriden methods for n-dimensional
+    rasters.
 
     Parameters
     ----------
     wrapped : BaseEstimator
-        An sklearn-compatible estimator to wrap with image methods. Fitted estimators
-        will be reset when wrapped and must be re-fit after wrapping.
+        An sklearn-compatible estimator to wrap with n-d raster methods. Fitted
+        estimators will be reset when wrapped and must be re-fit after wrapping.
     """
 
     _wrapped: EstimatorType
@@ -90,7 +91,7 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
         return tuple(range(self._get_n_targets(y)))
 
     @check_wrapper_implements
-    def fit(self, X, y=None, **kwargs) -> ImageEstimator[EstimatorType]:
+    def fit(self, X, y=None, **kwargs) -> RasterEstimator[EstimatorType]:
         """
         Fit an estimator from a training set (X, y).
 
@@ -108,7 +109,7 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
 
         Returns
         -------
-        self : ImageEstimator
+        self : RasterEstimator
             The wrapper around the fitted estimator.
         """
         if y is not None:
@@ -133,7 +134,7 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
     @check_wrapper_implements
     def predict(
         self,
-        X_image: ImageType,
+        X: FeatureType,
         *,
         skip_nodata: bool = True,
         nodata_input: NoDataType = None,
@@ -142,61 +143,63 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
         allow_cast: bool = False,
         check_output_for_nodata: bool = True,
         **predict_kwargs,
-    ) -> ImageType:
+    ) -> FeatureType:
         """
-        Predict target(s) for X_image.
+        Predict target(s) for raster X features.
 
         Parameters
         ----------
-        X_image : Numpy or Xarray image with 3 dimensions (y, x, band)
-            The input image. Features in the band dimension should correspond with the
-            features used to fit the estimator.
+        X : Numpy or Xarray raster
+            The n-dimensional input raster. Array types should be in the shape
+            (features, ...) while xr.Dataset should include features as variables.
+            Features should correspond with those used to fit the estimator.
         skip_nodata : bool, default=False
             If True, NoData and NaN values will be skipped during prediction. This
-            speeds up processing of partially masked images, but may be incompatible if
+            speeds up processing of partially masked rasters, but may be incompatible if
             estimators expect a consistent number of input samples.
         nodata_input : float or sequence of floats, optional
-            NoData values other than NaN to mask in the output image. A single value
-            will be broadcast to all bands while sequences of values will be assigned
-            band-wise. If None, values will be inferred if possible based on image
+            NoData values other than NaN to mask in the output raster. A single value
+            will be broadcast to all features while sequences of values will be assigned
+            feature-wise. If None, values will be inferred if possible based on raster
             metadata.
         nodata_output : float or int, default np.nan
-            NoData pixels in the input features will be replaced with this value in the
+            NoData in the input features will be replaced with this value in the
             output targets. If the value does not fit the array dtype returned by the
             estimator, an error will be raised unless `allow_cast` is True.
         ensure_min_samples : int, default 1
             The minimum number of samples that should be passed to `predict`. If the
-            array is fully masked and `skip_nodata=True`, dummy values (0) will be
+            raster is fully masked and `skip_nodata=True`, dummy values (0) will be
             inserted to ensure this number of samples. The minimum supported number of
-            samples depends on the estimator used. No effect if the array contains
-            enough valid pixels or if `skip_nodata=False`.
+            samples depends on the estimator used. No effect if the raster contains
+            enough unmasked samples or if `skip_nodata=False`.
         allow_cast : bool, default=False
             If True and the estimator output dtype is incompatible with the chosen
-            `nodata_output` value, the output will be cast to the correct dtype.
-            Otherwise, an error will be raised.
+            `nodata_output` value, the output will be cast to the correct dtype instead
+            of raising an error.
         check_output_for_nodata : bool, default True
             If True and `nodata_output` is not np.nan, a warning will be raised if the
             selected `nodata_output` value is returned by the estimator, as this may
-            indicate a valid pixel being masked.
+            indicate a valid sample being masked.
         **predict_kwargs
             Additional arguments passed to the estimator's predict method.
 
         Returns
         -------
-        y_image : Numpy or Xarray image with 3 dimensions (y, x, targets)
-            The predicted values.
+        Numpy or Xarray raster
+            The predicted values. Array types will be in the shape (targets, ...) while
+            xr.Dataset will store targets as variables.
         """
         output_dim_name = "variable"
-        image = Image.from_image(X_image, nodata_input=nodata_input)
+        features = FeatureArray.from_features(X, nodata_input=nodata_input)
 
-        self._check_feature_names(image.band_names)
+        self._check_feature_names(features.feature_names)
 
         # Any estimator with an undefined type should fall back to floating
         # point for safety.
         estimator_type = getattr(self._wrapped, "_estimator_type", "")
         output_dtype = ESTIMATOR_OUTPUT_DTYPES.get(estimator_type, np.float64)
 
-        return image.apply_ufunc_across_bands(
+        return features.apply_ufunc_across_features(
             suppress_feature_name_warnings(self._wrapped.predict),
             output_dims=[[output_dim_name]],
             output_dtypes=[output_dtype],
@@ -215,7 +218,7 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
     @overload
     def kneighbors(
         self,
-        X_image: ImageType,
+        X: FeatureType,
         *,
         n_neighbors: int | None = None,
         return_distance: Literal[False] = False,
@@ -226,13 +229,13 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
         allow_cast: bool = False,
         check_output_for_nodata: bool = True,
         **kneighbors_kwargs,
-    ) -> ImageType: ...
+    ) -> FeatureType: ...
 
     @check_wrapper_implements
     @overload
     def kneighbors(
         self,
-        X_image: ImageType,
+        X: FeatureType,
         *,
         n_neighbors: int | None = None,
         return_distance: Literal[True] = True,
@@ -243,12 +246,12 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
         allow_cast: bool = False,
         check_output_for_nodata: bool = True,
         **kneighbors_kwargs,
-    ) -> tuple[ImageType, ImageType]: ...
+    ) -> tuple[FeatureType, FeatureType]: ...
 
     @check_wrapper_implements
     def kneighbors(
         self,
-        X_image: ImageType,
+        X: FeatureType,
         *,
         n_neighbors: int | None = None,
         return_distance: bool = True,
@@ -259,17 +262,18 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
         allow_cast: bool = False,
         check_output_for_nodata: bool = True,
         **kneighbors_kwargs,
-    ) -> ImageType | tuple[ImageType, ImageType]:
+    ) -> FeatureType | tuple[FeatureType, FeatureType]:
         """
-        Find the K-neighbors of each pixel in an image.
+        Find the K-neighbors of each value in a raster.
 
         Returns indices of and distances to the neighbors for each pixel.
 
         Parameters
         ----------
-        X_image : Numpy or Xarray image with 3 dimensions (y, x, band)
-            The input image. Features in the band dimension should correspond with the
-            features used to fit the estimator.
+        X : Numpy or Xarray raster
+            The n-dimensional input raster. Array types should be in the shape
+            (features, ...) while xr.Dataset should include features as variables.
+            Features should correspond with those used to fit the estimator.
         n_neighbors : int, optional
             Number of neighbors required for each sample. The default is the value
             passed to the wrapped estimator's constructor.
@@ -278,49 +282,51 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
             indices only.
         skip_nodata : bool, default=False
             If True, NoData and NaN values will be skipped during prediction. This
-            speeds up processing of partially masked images, but may be incompatible if
+            speeds up processing of partially masked rasters, but may be incompatible if
             estimators expect a consistent number of input samples.
         nodata_input : float or sequence of floats, optional
-            NoData values other than NaN to mask in the output image. A single value
-            will be broadcast to all bands while sequences of values will be assigned
-            band-wise. If None, values will be inferred if possible based on image
+            NoData values other than NaN to mask in the output raster. A single value
+            will be broadcast to all features while sequences of values will be assigned
+            feature-wise. If None, values will be inferred if possible based on raster
             metadata.
-        nodata_output : float or int, default -2147483648
-            NoData pixels in the input features will be replaced with this value in the
-            output neighbor IDs and distances. The default value is the minimum value
-            If the value does not fit the array dtype returned by the estimator, an
-            error will be raised unless `allow_cast` is True.
+        nodata_output : float or int, default np.nan
+            NoData in the input features will be replaced with this value in the
+            output targets. If the value does not fit the array dtype returned by the
+            estimator, an error will be raised unless `allow_cast` is True.
         ensure_min_samples : int, default 1
-            The minimum number of samples that should be passed to `kneighbors`. If the
-            array is fully masked and `skip_nodata=True`, dummy values (0) will be
+            The minimum number of samples that should be passed to `predict`. If the
+            raster is fully masked and `skip_nodata=True`, dummy values (0) will be
             inserted to ensure this number of samples. The minimum supported number of
-            samples depends on the estimator used. No effect if the array contains
-            enough valid pixels or if `skip_nodata=False`.
+            samples depends on the estimator used. No effect if the raster contains
+            enough unmasked samples or if `skip_nodata=False`.
         allow_cast : bool, default=False
             If True and the estimator output dtype is incompatible with the chosen
-            `nodata_output` value, the output will be cast to the correct dtype.
-            Otherwise, an error will be raised.
+            `nodata_output` value, the output will be cast to the correct dtype instead
+            of raising an error.
         check_output_for_nodata : bool, default True
             If True and `nodata_output` is not np.nan, a warning will be raised if the
             selected `nodata_output` value is returned by the estimator, as this may
-            indicate a valid pixel being masked.
+            indicate a valid sample being masked.
         **kneighbors_kwargs
             Additional arguments passed to the estimator's kneighbors method.
 
         Returns
         -------
-        neigh_dist : Numpy or Xarray image with 3 dimensions (y, x, neighbor)
-            Array representing the lengths to points, only present if
-            return_distance=True.
-        neigh_ind : Numpy or Xarray image with 3 dimensions (y, x, neighbor)
-            Indices of the nearest points in the population matrix.
+        neigh_dist : Numpy or Xarray raster
+            Raster representing the lengths to neighbors, present if
+            return_distance=True. Array types will be in the shape (neighbor, ...) while
+            xr.Dataset will store neighbors as variables.
+        neigh_ind : Numpy or Xarray raster
+            Raster representing the nearest neighbor indices in the population matrix.
+            Array types will be in the shape (neighbor, ...) while xr.Dataset will store
+            neighbors as variables.
         """
-        image = Image.from_image(X_image, nodata_input=nodata_input)
+        features = FeatureArray.from_features(X, nodata_input=nodata_input)
         k = n_neighbors or cast(int, getattr(self._wrapped, "n_neighbors", 5))
 
-        self._check_feature_names(image.band_names)
+        self._check_feature_names(features.feature_names)
 
-        return image.apply_ufunc_across_bands(
+        return features.apply_ufunc_across_features(
             suppress_feature_name_warnings(self._wrapped.kneighbors),
             output_dims=[["k"], ["k"]] if return_distance else [["k"]],
             output_dtypes=[float, int] if return_distance else [int],
@@ -337,44 +343,44 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
             **kneighbors_kwargs,
         )
 
-    def _check_feature_names(self, image_feature_names: NDArray) -> None:
-        """Check that image feature names match feature names seen during fitting."""
+    def _check_feature_names(self, raster_feature_names: NDArray) -> None:
+        """Check that raster feature names match feature names seen during fitting."""
         check_is_fitted(self._wrapped)
         fitted_feature_names = self._wrapped_meta.feature_names
 
         no_fitted_names = len(fitted_feature_names) == 0
-        no_image_names = len(image_feature_names) == 0
+        no_raster_names = len(raster_feature_names) == 0
 
-        if no_fitted_names and no_image_names:
+        if no_fitted_names and no_raster_names:
             return
 
         if no_fitted_names:
             warn(
-                f"X_image has feature names, but {self._wrapped.__class__.__name__} was"
+                f"X has feature names, but {self._wrapped.__class__.__name__} was"
                 " fitted without feature names",
                 stacklevel=2,
             )
             return
 
-        if no_image_names:
+        if no_raster_names:
             warn(
-                "X_image does not have feature names, but"
+                "X does not have feature names, but"
                 f" {self._wrapped.__class__.__name__} was fitted with feature names",
                 stacklevel=2,
             )
             return
 
-        if len(fitted_feature_names) != len(image_feature_names) or np.any(
-            fitted_feature_names != image_feature_names
+        if len(fitted_feature_names) != len(raster_feature_names) or np.any(
+            fitted_feature_names != raster_feature_names
         ):
-            msg = "Image band names should match those that were passed during fit.\n"
+            msg = "Raster feature names should match those passed during fit.\n"
             fitted_feature_names_set = set(fitted_feature_names)
-            image_feature_names_set = set(image_feature_names)
+            raster_feature_names_set = set(raster_feature_names)
 
             unexpected_names = sorted(
-                image_feature_names_set - fitted_feature_names_set
+                raster_feature_names_set - fitted_feature_names_set
             )
-            missing_names = sorted(fitted_feature_names_set - image_feature_names_set)
+            missing_names = sorted(fitted_feature_names_set - raster_feature_names_set)
 
             def add_names(names):
                 max_n_names = 5
@@ -384,35 +390,34 @@ class ImageEstimator(AttrWrapper[EstimatorType]):
                 return "".join([f"- {name}\n" for name in names])
 
             if unexpected_names:
-                msg += "Band names unseen at fit time:\n"
+                msg += "Feature names unseen at fit time:\n"
                 msg += add_names(unexpected_names)
 
             if missing_names:
-                msg += "Band names seen at fit time, yet now missing:\n"
+                msg += "Feature names seen at fit time, yet now missing:\n"
                 msg += add_names(missing_names)
 
             if not missing_names and not unexpected_names:
-                msg += "Band names must be in the same order as they were in fit.\n"
+                msg += "Feature names must be in the same order as they were in fit.\n"
 
             raise ValueError(msg)
 
 
-def wrap(estimator: EstimatorType) -> ImageEstimator[EstimatorType]:
+def wrap(estimator: EstimatorType) -> RasterEstimator[EstimatorType]:
     """
-    Wrap an sklearn-compatible estimator with overriden methods for image data.
+    Wrap an sklearn-compatible estimator with overriden methods for raster data.
 
     Parameters
     ----------
     estimator : BaseEstimator
-        An sklearn-compatible estimator to wrap with image methods. Fitted estimators
-        will be reset when wrapped and must be re-fit after wrapping.
+        An sklearn-compatible estimator to wrap with n-d raster methods. Fitted
+        estimators will be reset when wrapped and must be re-fit after wrapping.
 
     Returns
     -------
-    ImageEstimator
-        An estimator with relevant methods overriden to work with image data, e.g.
-        `predict` and `kneighbors`. Methods will continue to work with non-image data
-        and non-overriden methods and attributes will be unchanged.
+    RasterEstimator
+        An estimator with relevant methods overriden to work with raster data, e.g.
+        `predict` and `kneighbors`.
 
     Examples
     --------
@@ -423,10 +428,10 @@ def wrap(estimator: EstimatorType) -> ImageEstimator[EstimatorType]:
     >>> X_img, X, y = load_swo_ecoplot(as_dataset=True)
     >>> est = wrap(KNeighborsRegressor(n_neighbors=3)).fit(X, y)
 
-    Use a wrapped estimator to predict from image data stored in Numpy or Xarray arrays:
+    Use a wrapped estimator to predict from raster data stored in Numpy or Xarray types:
 
     >>> pred = est.predict(X_img)
     >>> pred.PSME_COV.shape
     (128, 128)
     """
-    return ImageEstimator(estimator)
+    return RasterEstimator(estimator)

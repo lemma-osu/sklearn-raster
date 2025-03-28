@@ -8,11 +8,11 @@ from ..types import MaybeTuple, P
 from .wrapper import map_function_over_tuples
 
 
-def image_to_samples(
+def reshape_to_samples(
     func: Callable[Concatenate[NDArray, P], MaybeTuple[NDArray]],
 ) -> Callable[Concatenate[NDArray, P], MaybeTuple[NDArray]]:
     """
-    Decorator that flattens input images to samples and unflattens results to images.
+    Decorator that reshapes to and from samples by flattening non-feature dimensions.
 
     Parameters
     ----------
@@ -23,22 +23,22 @@ def image_to_samples(
     Returns
     -------
     Callable
-        The decorated function that instead takes an image of shape (y, x, bands) and
-        returns one or more images of the same shape.
+        The decorated function that instead takes an array of shape (..., features) and
+        returns one or more arrays of the same shape.
 
     Notes
     -----
-    The dimension order (y, x, band) matches the chunks passed by `xarray.apply_ufunc`,
-    rather than the (band, y, x) order used by rasterio.
+    This expects features in the last dimension, as passed by `xarray.apply_ufunc`,
+    rather than in the first dimension as expected elsewhere in the package.
     """
 
     @wraps(func)
-    def wrapper(image: NDArray, *args, **kwargs) -> MaybeTuple[NDArray]:
-        result = func(image.reshape(-1, image.shape[-1]), *args, **kwargs)
+    def wrapper(array: NDArray, *args, **kwargs) -> MaybeTuple[NDArray]:
+        result = func(array.reshape(-1, array.shape[-1]), *args, **kwargs)
 
         @map_function_over_tuples
         def unflatten(r: NDArray) -> NDArray:
-            return r.reshape(*image.shape[:-1], -1)
+            return r.reshape(*array.shape[:-1], -1)
 
         return unflatten(result)
 
