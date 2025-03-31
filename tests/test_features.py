@@ -10,7 +10,7 @@ from numpy.testing import assert_array_equal
 from sklearn_raster.features import FeatureArray
 from sklearn_raster.types import FeatureType
 
-from .raster_utils import (
+from .feature_utils import (
     parametrize_feature_types,
     unwrap_features,
     wrap_features,

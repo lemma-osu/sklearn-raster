@@ -14,7 +14,7 @@ from sklearn.utils.validation import NotFittedError
 from sklearn_raster import wrap
 from sklearn_raster.estimator import is_fitted
 
-from .raster_utils import ModelData, parametrize_model_data, unwrap_features
+from .feature_utils import ModelData, parametrize_model_data, unwrap_features
 
 
 @parametrize_model_data()
