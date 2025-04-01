@@ -36,16 +36,16 @@ class FittedMetadata:
     feature_names: NDArray
 
 
-class RasterEstimator(AttrWrapper[EstimatorType]):
+class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
     """
-    An sklearn-compatible estimator wrapper with overriden methods for n-dimensional
-    rasters.
+    An estimator wrapper with overriden methods for n-dimensional feature arrays.
 
     Parameters
     ----------
     wrapped : BaseEstimator
-        An sklearn-compatible estimator to wrap with n-d raster methods. Fitted
-        estimators will be reset when wrapped and must be re-fit after wrapping.
+        An sklearn-compatible estimator. Supported methods will be overriden to work
+        with n-dimensional feature arrays. If the estimator is already fit, it will be
+        reset and a warning will be raised.
     """
 
     _wrapped: EstimatorType
@@ -91,7 +91,7 @@ class RasterEstimator(AttrWrapper[EstimatorType]):
         return tuple(range(self._get_n_targets(y)))
 
     @check_wrapper_implements
-    def fit(self, X, y=None, **kwargs) -> RasterEstimator[EstimatorType]:
+    def fit(self, X, y=None, **kwargs) -> FeatureArrayEstimator[EstimatorType]:
         """
         Fit an estimator from a training set (X, y).
 
@@ -109,7 +109,7 @@ class RasterEstimator(AttrWrapper[EstimatorType]):
 
         Returns
         -------
-        self : RasterEstimator
+        self : FeatureArrayEstimator
             The wrapper around the fitted estimator.
         """
         if y is not None:
@@ -145,32 +145,32 @@ class RasterEstimator(AttrWrapper[EstimatorType]):
         **predict_kwargs,
     ) -> FeatureType:
         """
-        Predict target(s) for raster X features.
+        Predict target(s) for n-dimensional X features.
 
         Parameters
         ----------
-        X : Numpy or Xarray raster
-            The n-dimensional input raster. Array types should be in the shape
+        X : Numpy or Xarray features
+            The n-dimensional input features. Array types should be in the shape
             (features, ...) while xr.Dataset should include features as variables.
             Features should correspond with those used to fit the estimator.
         skip_nodata : bool, default=False
             If True, NoData and NaN values will be skipped during prediction. This
-            speeds up processing of partially masked rasters, but may be incompatible if
+            speeds up processing of partially masked arrays, but may be incompatible if
             estimators expect a consistent number of input samples.
         nodata_input : float or sequence of floats, optional
-            NoData values other than NaN to mask in the output raster. A single value
+            NoData values other than NaN to mask in the output array. A single value
             will be broadcast to all features while sequences of values will be assigned
-            feature-wise. If None, values will be inferred if possible based on raster
-            metadata.
+            feature-wise. If None, values will be inferred if possible based on
+            available metadata.
         nodata_output : float or int, default np.nan
             NoData in the input features will be replaced with this value in the
             output targets. If the value does not fit the array dtype returned by the
             estimator, an error will be raised unless `allow_cast` is True.
         ensure_min_samples : int, default 1
             The minimum number of samples that should be passed to `predict`. If the
-            raster is fully masked and `skip_nodata=True`, dummy values (0) will be
+            array is fully masked and `skip_nodata=True`, dummy values (0) will be
             inserted to ensure this number of samples. The minimum supported number of
-            samples depends on the estimator used. No effect if the raster contains
+            samples depends on the estimator used. No effect if the array contains
             enough unmasked samples or if `skip_nodata=False`.
         allow_cast : bool, default=False
             If True and the estimator output dtype is incompatible with the chosen
@@ -185,7 +185,7 @@ class RasterEstimator(AttrWrapper[EstimatorType]):
 
         Returns
         -------
-        Numpy or Xarray raster
+        Numpy or Xarray features
             The predicted values. Array types will be in the shape (targets, ...) while
             xr.Dataset will store targets as variables.
         """
@@ -264,14 +264,14 @@ class RasterEstimator(AttrWrapper[EstimatorType]):
         **kneighbors_kwargs,
     ) -> FeatureType | tuple[FeatureType, FeatureType]:
         """
-        Find the K-neighbors of each value in a raster.
+        Find the K-neighbors of each value in a feature array.
 
         Returns indices of and distances to the neighbors for each pixel.
 
         Parameters
         ----------
-        X : Numpy or Xarray raster
-            The n-dimensional input raster. Array types should be in the shape
+        X : Numpy or Xarray features
+            The n-dimensional input features. Array types should be in the shape
             (features, ...) while xr.Dataset should include features as variables.
             Features should correspond with those used to fit the estimator.
         n_neighbors : int, optional
@@ -282,22 +282,22 @@ class RasterEstimator(AttrWrapper[EstimatorType]):
             indices only.
         skip_nodata : bool, default=False
             If True, NoData and NaN values will be skipped during prediction. This
-            speeds up processing of partially masked rasters, but may be incompatible if
-            estimators expect a consistent number of input samples.
+            speeds up processing of partially masked features, but may be incompatible
+            if estimators expect a consistent number of input samples.
         nodata_input : float or sequence of floats, optional
-            NoData values other than NaN to mask in the output raster. A single value
+            NoData values other than NaN to mask in the output features. A single value
             will be broadcast to all features while sequences of values will be assigned
-            feature-wise. If None, values will be inferred if possible based on raster
-            metadata.
+            feature-wise. If None, values will be inferred if possible based on
+            available metadata.
         nodata_output : float or int, default np.nan
             NoData in the input features will be replaced with this value in the
             output targets. If the value does not fit the array dtype returned by the
             estimator, an error will be raised unless `allow_cast` is True.
         ensure_min_samples : int, default 1
             The minimum number of samples that should be passed to `predict`. If the
-            raster is fully masked and `skip_nodata=True`, dummy values (0) will be
+            array is fully masked and `skip_nodata=True`, dummy values (0) will be
             inserted to ensure this number of samples. The minimum supported number of
-            samples depends on the estimator used. No effect if the raster contains
+            samples depends on the estimator used. No effect if the array contains
             enough unmasked samples or if `skip_nodata=False`.
         allow_cast : bool, default=False
             If True and the estimator output dtype is incompatible with the chosen
@@ -312,12 +312,12 @@ class RasterEstimator(AttrWrapper[EstimatorType]):
 
         Returns
         -------
-        neigh_dist : Numpy or Xarray raster
-            Raster representing the lengths to neighbors, present if
+        neigh_dist : Numpy or Xarray features
+            Array representing the lengths to neighbors, present if
             return_distance=True. Array types will be in the shape (neighbor, ...) while
             xr.Dataset will store neighbors as variables.
-        neigh_ind : Numpy or Xarray raster
-            Raster representing the nearest neighbor indices in the population matrix.
+        neigh_ind : Numpy or Xarray features
+            Array representing the nearest neighbor indices in the population matrix.
             Array types will be in the shape (neighbor, ...) while xr.Dataset will store
             neighbors as variables.
         """
@@ -343,15 +343,15 @@ class RasterEstimator(AttrWrapper[EstimatorType]):
             **kneighbors_kwargs,
         )
 
-    def _check_feature_names(self, raster_feature_names: NDArray) -> None:
-        """Check that raster feature names match feature names seen during fitting."""
+    def _check_feature_names(self, feature_array_names: NDArray) -> None:
+        """Check that feature array names match feature names seen during fitting."""
         check_is_fitted(self._wrapped)
         fitted_feature_names = self._wrapped_meta.feature_names
 
         no_fitted_names = len(fitted_feature_names) == 0
-        no_raster_names = len(raster_feature_names) == 0
+        no_feature_names = len(feature_array_names) == 0
 
-        if no_fitted_names and no_raster_names:
+        if no_fitted_names and no_feature_names:
             return
 
         if no_fitted_names:
@@ -362,7 +362,7 @@ class RasterEstimator(AttrWrapper[EstimatorType]):
             )
             return
 
-        if no_raster_names:
+        if no_feature_names:
             warn(
                 "X does not have feature names, but"
                 f" {self._wrapped.__class__.__name__} was fitted with feature names",
@@ -370,17 +370,17 @@ class RasterEstimator(AttrWrapper[EstimatorType]):
             )
             return
 
-        if len(fitted_feature_names) != len(raster_feature_names) or np.any(
-            fitted_feature_names != raster_feature_names
+        if len(fitted_feature_names) != len(feature_array_names) or np.any(
+            fitted_feature_names != feature_array_names
         ):
-            msg = "Raster feature names should match those passed during fit.\n"
+            msg = "Feature array names should match those passed during fit.\n"
             fitted_feature_names_set = set(fitted_feature_names)
-            raster_feature_names_set = set(raster_feature_names)
+            feature_array_names_set = set(feature_array_names)
 
             unexpected_names = sorted(
-                raster_feature_names_set - fitted_feature_names_set
+                feature_array_names_set - fitted_feature_names_set
             )
-            missing_names = sorted(fitted_feature_names_set - raster_feature_names_set)
+            missing_names = sorted(fitted_feature_names_set - feature_array_names_set)
 
             def add_names(names):
                 max_n_names = 5
@@ -403,21 +403,22 @@ class RasterEstimator(AttrWrapper[EstimatorType]):
             raise ValueError(msg)
 
 
-def wrap(estimator: EstimatorType) -> RasterEstimator[EstimatorType]:
+def wrap(estimator: EstimatorType) -> FeatureArrayEstimator[EstimatorType]:
     """
-    Wrap an sklearn-compatible estimator with overriden methods for raster data.
+    Wrap an estimator with overriden methods for n-dimensional feature arrays.
 
     Parameters
     ----------
     estimator : BaseEstimator
-        An sklearn-compatible estimator to wrap with n-d raster methods. Fitted
-        estimators will be reset when wrapped and must be re-fit after wrapping.
+        An sklearn-compatible estimator. Supported methods will be overriden to work
+        with n-dimensional feature arrays. If the estimator is already fit, it will be
+        reset and a warning will be raised.
 
     Returns
     -------
-    RasterEstimator
-        An estimator with relevant methods overriden to work with raster data, e.g.
-        `predict` and `kneighbors`.
+    FeatureArrayEstimator
+        An estimator with relevant methods overriden to work with n-dimensional feature
+        arrays.
 
     Examples
     --------
@@ -434,4 +435,4 @@ def wrap(estimator: EstimatorType) -> RasterEstimator[EstimatorType]:
     >>> pred.PSME_COV.shape
     (128, 128)
     """
-    return RasterEstimator(estimator)
+    return FeatureArrayEstimator(estimator)
