@@ -163,7 +163,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             feature-wise. If None, values will be inferred if possible based on
             available metadata.
         nodata_output : float or int, default np.nan
-            NoData in the input features will be replaced with this value in the
+            NoData samples in the input features will be replaced with this value in the
             output targets. If the value does not fit the array dtype returned by the
             estimator, an error will be raised unless `allow_cast` is True.
         ensure_min_samples : int, default 1
@@ -264,7 +264,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
         **kneighbors_kwargs,
     ) -> FeatureArrayType | tuple[FeatureArrayType, FeatureArrayType]:
         """
-        Find the K-neighbors of each value in a feature array.
+        Find the K-neighbors of each sample in a feature array.
 
         Returns indices of and distances to the neighbors for each pixel.
 
@@ -290,7 +290,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             feature-wise. If None, values will be inferred if possible based on
             available metadata.
         nodata_output : float or int, default np.nan
-            NoData in the input features will be replaced with this value in the
+            NoData samples in the input features will be replaced with this value in the
             output targets. If the value does not fit the array dtype returned by the
             estimator, an error will be raised unless `allow_cast` is True.
         ensure_min_samples : int, default 1
