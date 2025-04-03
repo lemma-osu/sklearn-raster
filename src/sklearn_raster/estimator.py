@@ -294,7 +294,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             output targets. If the value does not fit the array dtype returned by the
             estimator, an error will be raised unless `allow_cast` is True.
         ensure_min_samples : int, default 1
-            The minimum number of samples that should be passed to `predict`. If the
+            The minimum number of samples that should be passed to `kneighbors`. If the
             array is fully masked and `skip_nodata=True`, dummy values (0) will be
             inserted to ensure this number of samples. The minimum supported number of
             samples depends on the estimator used. No effect if the array contains
