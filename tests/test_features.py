@@ -28,7 +28,7 @@ def test_input_array_not_mutated(
 
     array = wrap_features(a, type=feature_type)
 
-    features = FeatureArray.from_features(array, nodata_input=0)
+    features = FeatureArray.from_feature_array(array, nodata_input=0)
     features.apply_ufunc_across_features(
         lambda x: x * 2.0,
         skip_nodata=skip_nodata,
@@ -52,7 +52,7 @@ def test_nodata_output_with_unsupported_dtype(
     # Make sure there's a value to mask in the input array
     a = np.array([[[np.nan]]])
     array = wrap_features(a, type=feature_type)
-    features = FeatureArray.from_features(array, nodata_input=0)
+    features = FeatureArray.from_feature_array(array, nodata_input=0)
 
     output_nodata, output_dtype = val_dtype
     with pytest.raises(ValueError, match="does not fit in the array dtype"):
@@ -83,7 +83,7 @@ def test_nodata_output_with_allow_cast(
     # Make sure there's a value to mask in the input array
     a = np.array([[[np.nan]]])
     array = wrap_features(a, type=feature_type)
-    features = FeatureArray.from_features(array, nodata_input=0)
+    features = FeatureArray.from_feature_array(array, nodata_input=0)
 
     output_nodata, output_dtype, expected_dtype = val_dtypes
     # Unwrap to force computation for lazy arrays
@@ -116,7 +116,7 @@ def test_nodata_output_set(
     a = np.array([[[nodata_input, 1, np.nan]]])
     expected_output = np.array([[[nodata_output, 1, nodata_output]]])
 
-    features = FeatureArray.from_features(
+    features = FeatureArray.from_feature_array(
         wrap_features(a, type=feature_type), nodata_input=nodata_input
     )
     result = features.apply_ufunc_across_features(
@@ -144,7 +144,7 @@ def test_shape_when_ufunc_squeezes_dimension(
     a = np.full((n_features, 3, 3), 1)
     a[0, 0, 0] = nodata_input
 
-    features = FeatureArray.from_features(
+    features = FeatureArray.from_feature_array(
         wrap_features(a, type=feature_type), nodata_input=nodata_input
     )
     result = features.apply_ufunc_across_features(
@@ -171,7 +171,7 @@ def test_warn_when_ufunc_returns_nodata(
 
     # The input features need to contain NoData since the check only occurs when filling
     a = np.full((1, 1, 1), nodata_input, dtype=np.int16)
-    features = FeatureArray.from_features(
+    features = FeatureArray.from_feature_array(
         wrap_features(a, type=feature_type), nodata_input=nodata_input
     )
     with pytest.warns(UserWarning, match=f"{nodata_output} was found in the array"):
@@ -197,7 +197,7 @@ def test_ensure_min_samples(min_samples: int, feature_type: type[FeatureArrayTyp
         assert x.size == n
         return x
 
-    features = FeatureArray.from_features(
+    features = FeatureArray.from_feature_array(
         wrap_features(a, type=feature_type), nodata_input=0
     )
     result = features.apply_ufunc_across_features(
@@ -217,7 +217,7 @@ def test_ensure_too_many_samples(feature_type: type[FeatureArrayType]):
     """Test that an error is raised if ensure_min_samples is larger than the array."""
     a = np.full((1, 1, 10), np.nan, dtype=np.float64)
 
-    features = FeatureArray.from_features(
+    features = FeatureArray.from_feature_array(
         wrap_features(a, type=feature_type), nodata_input=0
     )
     with pytest.raises(ValueError, match="Cannot ensure 50 samples with only 10"):
@@ -251,7 +251,7 @@ def test_ensure_min_samples_doesnt_overwrite(feature_type: type[FeatureArrayType
         assert_array_equal(x.squeeze(), [nan_fill, valid_pixel, nan_fill])
         return x
 
-    features = FeatureArray.from_features(
+    features = FeatureArray.from_feature_array(
         wrap_features(a, type=feature_type), nodata_input=0
     )
     result = unwrap_features(
@@ -288,7 +288,7 @@ def test_nodata_is_skipped(
         assert x.size == n
         return x
 
-    features = FeatureArray.from_features(
+    features = FeatureArray.from_feature_array(
         wrap_features(a, type=feature_type), nodata_input=nodata_input
     )
     result = features.apply_ufunc_across_features(
@@ -308,7 +308,7 @@ def test_nodata_is_skipped(
 def test_nan_filled(feature_type: type[FeatureArrayType], nan_fill: float | None):
     """Test that NaNs in the features are filled before passing to func."""
     a = np.array([[[1, np.nan]]])
-    features = FeatureArray.from_features(wrap_features(a, type=feature_type))
+    features = FeatureArray.from_feature_array(wrap_features(a, type=feature_type))
 
     def nan_check(x):
         fill_val = nan_fill if nan_fill is not None else np.nan
@@ -331,7 +331,7 @@ def test_nan_filled(feature_type: type[FeatureArrayType], nan_fill: float | None
 def test_skip_nodata_mask_if_unneeded():
     """If features are not float and nodata isn't specified, there should be no mask."""
     a = np.ones((3, 2, 2), dtype=int)
-    features = FeatureArray.from_features(a, nodata_input=None)
+    features = FeatureArray.from_feature_array(a, nodata_input=None)
 
     assert features.nodata_input is None
 
@@ -344,7 +344,7 @@ def test_nodata_validates_type(nodata_input):
     with pytest.raises(
         TypeError, match=f"Invalid type `{type(nodata_input).__name__}`"
     ):
-        FeatureArray.from_features(a, nodata_input=nodata_input)
+        FeatureArray.from_feature_array(a, nodata_input=nodata_input)
 
 
 def test_nodata_validates_length():
@@ -355,7 +355,7 @@ def test_nodata_validates_length():
     with pytest.raises(
         ValueError, match=f"Expected {n_features} NoData values but got 1"
     ):
-        FeatureArray.from_features(a, nodata_input=[-32768])
+        FeatureArray.from_feature_array(a, nodata_input=[-32768])
 
 
 def test_nodata_single_value():
@@ -364,7 +364,7 @@ def test_nodata_single_value():
     nodata_val = -32768
     a = np.zeros((n_features, 2, 2))
 
-    features = FeatureArray.from_features(a, nodata_input=nodata_val)
+    features = FeatureArray.from_feature_array(a, nodata_input=nodata_val)
     assert features.nodata_input.tolist() == [nodata_val] * n_features
 
 
@@ -374,7 +374,7 @@ def test_nodata_multiple_values():
     nodata_input = [-32768, 0, 255]
     a = np.zeros((n_features, 2, 2))
 
-    features = FeatureArray.from_features(a, nodata_input=nodata_input)
+    features = FeatureArray.from_feature_array(a, nodata_input=nodata_input)
     assert features.nodata_input.tolist() == nodata_input
 
 
@@ -387,7 +387,7 @@ def test_nodata_dataarray_fillvalue(nodata_input):
     da = xr.DataArray(np.ones((n_features, 2, 2))).assign_attrs(
         {"_FillValue": fill_val}
     )
-    features = FeatureArray.from_features(da, nodata_input=nodata_input)
+    features = FeatureArray.from_feature_array(da, nodata_input=nodata_input)
 
     # _FillValue should be ignored if nodata_input is provided
     if nodata_input is not None:
@@ -412,7 +412,7 @@ def test_nodata_dataset_some_fillvalues(nodata_input, fill_vals):
         das[i] = das[i].assign_attrs({"_FillValue": fill_val}).rename(i)
 
     ds = xr.merge(das)
-    features = FeatureArray.from_features(ds, nodata_input=nodata_input)
+    features = FeatureArray.from_feature_array(ds, nodata_input=nodata_input)
 
     # _FillValue should be ignored if nodata_input is provided
     if nodata_input is not None:
@@ -434,7 +434,7 @@ def test_nodata_dataset_global_fillvalue(nodata_input):
     ]
 
     ds = xr.merge(das).assign_attrs({"_FillValue": global_fill_val})
-    features = FeatureArray.from_features(ds, nodata_input=nodata_input)
+    features = FeatureArray.from_feature_array(ds, nodata_input=nodata_input)
 
     # _FillValue should be ignored if nodata_input is provided
     if nodata_input is not None:
@@ -448,7 +448,7 @@ def test_nodata_dataset_global_fillvalue(nodata_input):
 def test_nodata_output_set_in_dataarray_attrs(nodata_output: int | float):
     """Test that the output NoData value is stored as the _FillValue for a DataArray."""
     a = np.array([[[1, 2, 3]]])
-    features = FeatureArray.from_features(
+    features = FeatureArray.from_feature_array(
         wrap_features(a, type=xr.DataArray), nodata_input=0
     )
 
@@ -471,7 +471,7 @@ def test_nodata_output_set_in_dataarray_attrs(nodata_output: int | float):
 def test_nodata_output_set_in_dataset_attrs(nodata_output: int | float):
     """Test that the output NoData value is stored as the _FillValue for a DataArray."""
     a = np.array([[[1, 2, 3]]])
-    features = FeatureArray.from_features(
+    features = FeatureArray.from_feature_array(
         wrap_features(a, type=xr.Dataset), nodata_input=0
     )
 

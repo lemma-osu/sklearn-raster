@@ -21,14 +21,16 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
     feature_dim: int = 0
     feature_names: NDArray
 
-    def __init__(self, features: FeatureArrayType, nodata_input: NoDataType = None):
-        self.features = features
-        self.n_features = self.features.shape[self.feature_dim]
+    def __init__(
+        self, feature_array: FeatureArrayType, nodata_input: NoDataType = None
+    ):
+        self.feature_array = feature_array
+        self.n_features = self.feature_array.shape[self.feature_dim]
         self.nodata_input = self._validate_nodata_input(nodata_input)
 
     def _validate_nodata_input(self, nodata_input: NoDataType) -> NDArray | None:
         """
-        Get an array of NoData values in the shape (features,) based on user input.
+        Get an array of NoData values in the shape (n_features,) based on user input.
 
         Scalars are broadcast to all features while sequences are checked against the
         number of features and cast to ndarrays. There is no need to specify np.nan as a
@@ -98,7 +100,7 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
 
         result = xr.apply_ufunc(
             ufunc,
-            self._preprocess_ufunc_input(self.features),
+            self._preprocess_ufunc_input(self.feature_array),
             dask="parallelized",
             input_core_dims=[[self.feature_dim_name]],
             exclude_dims=set((self.feature_dim_name,)),
@@ -138,18 +140,21 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
         """
 
     @staticmethod
-    def from_features(features: Any, nodata_input: NoDataType = None) -> FeatureArray:
-        """Create an FeatureArray from a supported feature type."""
-        if isinstance(features, np.ndarray):
-            return NDArrayFeatures(features, nodata_input=nodata_input)
+    def from_feature_array(
+        feature_array: Any, nodata_input: NoDataType = None
+    ) -> FeatureArray:
+        """Create a FeatureArray from a supported feature type."""
+        if isinstance(feature_array, np.ndarray):
+            return NDArrayFeatures(feature_array, nodata_input=nodata_input)
 
-        if isinstance(features, xr.DataArray):
-            return DataArrayFeatures(features, nodata_input=nodata_input)
+        if isinstance(feature_array, xr.DataArray):
+            return DataArrayFeatures(feature_array, nodata_input=nodata_input)
 
-        if isinstance(features, xr.Dataset):
-            return DatasetFeatures(features, nodata_input=nodata_input)
+        if isinstance(feature_array, xr.Dataset):
+            return DatasetFeatures(feature_array, nodata_input=nodata_input)
 
-        raise TypeError(f"Unsupported feature type `{type(features).__name__}`.")
+        msg = f"Unsupported feature array type `{type(feature_array).__name__}`."
+        raise TypeError(msg)
 
 
 class NDArrayFeatures(FeatureArray):
@@ -182,7 +187,7 @@ class DataArrayFeatures(FeatureArray):
 
     @property
     def feature_names(self) -> NDArray:
-        return self.features[self.feature_dim_name].values
+        return self.feature_array[self.feature_dim_name].values
 
     def _validate_nodata_input(self, nodata_input: NoDataType) -> NDArray | None:
         """
@@ -194,7 +199,7 @@ class DataArrayFeatures(FeatureArray):
             return super()._validate_nodata_input(nodata_input)
 
         # If present, broadcast the _FillValue attribute to all features
-        fill_val = self.features.attrs.get("_FillValue")
+        fill_val = self.feature_array.attrs.get("_FillValue")
         if fill_val is not None:
             return np.full((self.n_features,), fill_val)
 

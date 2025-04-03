@@ -190,7 +190,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             xr.Dataset will store targets as variables.
         """
         output_dim_name = "variable"
-        features = FeatureArray.from_features(X, nodata_input=nodata_input)
+        features = FeatureArray.from_feature_array(X, nodata_input=nodata_input)
 
         self._check_feature_names(features.feature_names)
 
@@ -321,7 +321,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             Array types will be in the shape (neighbor, ...) while xr.Dataset will store
             neighbors as variables.
         """
-        features = FeatureArray.from_features(X, nodata_input=nodata_input)
+        features = FeatureArray.from_feature_array(X, nodata_input=nodata_input)
         k = n_neighbors or cast(int, getattr(self._wrapped, "n_neighbors", 5))
 
         self._check_feature_names(features.feature_names)
