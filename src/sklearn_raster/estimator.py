@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     import pandas as pd
     from numpy.typing import NDArray
 
-    from .types import FeatureType, NoDataType
+    from .types import FeatureArrayType, NoDataType
 
 ESTIMATOR_OUTPUT_DTYPES: dict[str, np.dtype] = {
     "classifier": np.int32,
@@ -134,7 +134,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
     @check_wrapper_implements
     def predict(
         self,
-        X: FeatureType,
+        X: FeatureArrayType,
         *,
         skip_nodata: bool = True,
         nodata_input: NoDataType = None,
@@ -143,7 +143,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
         allow_cast: bool = False,
         check_output_for_nodata: bool = True,
         **predict_kwargs,
-    ) -> FeatureType:
+    ) -> FeatureArrayType:
         """
         Predict target(s) for n-dimensional X features.
 
@@ -218,7 +218,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
     @overload
     def kneighbors(
         self,
-        X: FeatureType,
+        X: FeatureArrayType,
         *,
         n_neighbors: int | None = None,
         return_distance: Literal[False] = False,
@@ -229,13 +229,13 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
         allow_cast: bool = False,
         check_output_for_nodata: bool = True,
         **kneighbors_kwargs,
-    ) -> FeatureType: ...
+    ) -> FeatureArrayType: ...
 
     @check_wrapper_implements
     @overload
     def kneighbors(
         self,
-        X: FeatureType,
+        X: FeatureArrayType,
         *,
         n_neighbors: int | None = None,
         return_distance: Literal[True] = True,
@@ -246,12 +246,12 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
         allow_cast: bool = False,
         check_output_for_nodata: bool = True,
         **kneighbors_kwargs,
-    ) -> tuple[FeatureType, FeatureType]: ...
+    ) -> tuple[FeatureArrayType, FeatureArrayType]: ...
 
     @check_wrapper_implements
     def kneighbors(
         self,
-        X: FeatureType,
+        X: FeatureArrayType,
         *,
         n_neighbors: int | None = None,
         return_distance: bool = True,
@@ -262,7 +262,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
         allow_cast: bool = False,
         check_output_for_nodata: bool = True,
         **kneighbors_kwargs,
-    ) -> FeatureType | tuple[FeatureType, FeatureType]:
+    ) -> FeatureArrayType | tuple[FeatureArrayType, FeatureArrayType]:
         """
         Find the K-neighbors of each value in a feature array.
 

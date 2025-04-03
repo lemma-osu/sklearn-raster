@@ -9,7 +9,7 @@ from sklearn.base import BaseEstimator
 from typing_extensions import Any, Concatenate, ParamSpec, TypeVar
 
 DaskBackedType = TypeVar("DaskBackedType", xr.DataArray, xr.Dataset)
-FeatureType = TypeVar("FeatureType", NDArray, xr.DataArray, xr.Dataset)
+FeatureArrayType = TypeVar("FeatureArrayType", NDArray, xr.DataArray, xr.Dataset)
 EstimatorType = TypeVar("EstimatorType", bound=BaseEstimator)
 AnyType = TypeVar("AnyType", bound=Any)
 NoDataType = Union[float, Sequence[float], None]

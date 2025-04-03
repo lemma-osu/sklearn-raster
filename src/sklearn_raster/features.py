@@ -8,20 +8,20 @@ import numpy as np
 import xarray as xr
 from numpy.typing import NDArray
 
-from .types import ArrayUfunc, FeatureType, NoDataType
+from .types import ArrayUfunc, FeatureArrayType, NoDataType
 from .ufunc import UfuncSampleProcessor
 from .utils.features import reshape_to_samples
 from .utils.wrapper import map_method_over_tuples
 
 
-class FeatureArray(Generic[FeatureType], ABC):
+class FeatureArray(Generic[FeatureArrayType], ABC):
     """A wrapper around an n-dimensional array of features."""
 
     feature_dim_name: str | None = None
     feature_dim: int = 0
     feature_names: NDArray
 
-    def __init__(self, features: FeatureType, nodata_input: NoDataType = None):
+    def __init__(self, features: FeatureArrayType, nodata_input: NoDataType = None):
         self.features = features
         self.n_features = self.features.shape[self.feature_dim]
         self.nodata_input = self._validate_nodata_input(nodata_input)
@@ -75,7 +75,7 @@ class FeatureArray(Generic[FeatureType], ABC):
         allow_cast: bool = False,
         check_output_for_nodata: bool = True,
         **ufunc_kwargs,
-    ) -> FeatureType | tuple[FeatureType]:
+    ) -> FeatureArrayType | tuple[FeatureArrayType]:
         """Apply a universal function to all features of the array."""
         if output_sizes is not None:
             # Default to sequential coordinates for each output dimension
@@ -115,7 +115,7 @@ class FeatureArray(Generic[FeatureType], ABC):
             result, output_coords=output_coords, nodata_output=nodata_output
         )
 
-    def _preprocess_ufunc_input(self, features: FeatureType) -> FeatureType:
+    def _preprocess_ufunc_input(self, features: FeatureArrayType) -> FeatureArrayType:
         """
         Preprocess the input of an applied ufunc. No-op unless overridden by subclasses.
         """
@@ -125,11 +125,11 @@ class FeatureArray(Generic[FeatureType], ABC):
     @map_method_over_tuples
     def _postprocess_ufunc_output(
         self,
-        result: FeatureType,
+        result: FeatureArrayType,
         *,
         nodata_output: float | int,
         output_coords: dict[str, list[str | int]] | None = None,
-    ) -> FeatureType:
+    ) -> FeatureArrayType:
         """
         Postprocess the output of an applied ufunc.
 

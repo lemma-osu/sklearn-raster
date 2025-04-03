@@ -8,7 +8,7 @@ import pytest
 import xarray as xr
 from numpy.typing import NDArray
 
-from sklearn_raster.types import FeatureType
+from sklearn_raster.types import FeatureArrayType
 
 # Dimension names to use when building Xarray features, in order of increasing
 # dimensionality, excluding the first "variable" dimension.
@@ -23,7 +23,7 @@ def parametrize_feature_types(
     return pytest.mark.parametrize(label, feature_types, ids=lambda t: t.__name__)
 
 
-class ModelData(Generic[FeatureType]):
+class ModelData(Generic[FeatureArrayType]):
     """
     Data used to train and predict with raster-compatible estimators for testing.
 
@@ -57,7 +57,7 @@ class ModelData(Generic[FeatureType]):
         X_image: NDArray,
         X: NDArray,
         y: NDArray,
-        feature_type: type[FeatureType] = np.ndarray,
+        feature_type: type[FeatureArrayType] = np.ndarray,
     ):
         self._feature_type = feature_type
         self._X_image = X_image
@@ -87,7 +87,7 @@ class ModelData(Generic[FeatureType]):
         return self._X_image.shape[0]
 
     @property
-    def X_image(self) -> FeatureType:
+    def X_image(self) -> FeatureArrayType:
         """Feature image."""
         return wrap_features(self._X_image, self._feature_type)
 
@@ -178,7 +178,7 @@ def parametrize_model_data(
     )
 
 
-def wrap_features(features: NDArray, type: type[FeatureType]) -> FeatureType:
+def wrap_features(features: NDArray, type: type[FeatureArrayType]) -> FeatureArrayType:
     """
     Wrap a Numpy NDArray with features in the first dimension into the specified type.
 
@@ -192,7 +192,7 @@ def wrap_features(features: NDArray, type: type[FeatureType]) -> FeatureType:
 
     Returns
     -------
-    FeatureType
+    FeatureArrayType
         The features in the desired format.
 
     Examples
