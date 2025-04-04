@@ -9,6 +9,7 @@
 - 🗺️ Raster predictions from [scikit-learn](https://scikit-learn.org/stable/) estimators 
 - ⚡ Parallelized functions + larger-than-memory data using [Dask](https://www.dask.org/)
 - 🌐 Automatic handling of spatial references, band names, and masks
+- 🔢 Support for n-dimensional feature arrays, e.g. time series rasters
 
 ## Quick-Start
 
