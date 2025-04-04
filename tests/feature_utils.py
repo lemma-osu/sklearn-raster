@@ -15,12 +15,12 @@ from sklearn_raster.types import FeatureArrayType
 EXTRA_DIM_NAMES = ["x", "y", "z", "time"]
 
 
-def parametrize_feature_types(
-    label="feature_type",
-    feature_types=(np.ndarray, xr.DataArray, xr.Dataset),
+def parametrize_feature_array_types(
+    label="feature_array_type",
+    feature_array_types=(np.ndarray, xr.DataArray, xr.Dataset),
 ):
     """Parametrize over multiple feature types."""
-    return pytest.mark.parametrize(label, feature_types, ids=lambda t: t.__name__)
+    return pytest.mark.parametrize(label, feature_array_types, ids=lambda t: t.__name__)
 
 
 class ModelData(Generic[FeatureArrayType]):
@@ -35,7 +35,7 @@ class ModelData(Generic[FeatureArrayType]):
     >>> X_image = np.random.random((5, 16, 16))
     >>> X = np.random.random((10, 5))
     >>> y = np.random.random((10, 3))
-    >>> model_data = ModelData(X_image, X, y, feature_type=xr.Dataset)
+    >>> model_data = ModelData(X_image, X, y, feature_array_type=xr.Dataset)
     >>> X_image, X, y = model_data
     >>> type(X_image)
     <class 'xarray.core.dataset.Dataset'>
@@ -57,9 +57,9 @@ class ModelData(Generic[FeatureArrayType]):
         X_image: NDArray,
         X: NDArray,
         y: NDArray,
-        feature_type: type[FeatureArrayType] = np.ndarray,
+        feature_array_type: type[FeatureArrayType] = np.ndarray,
     ):
-        self._feature_type = feature_type
+        self._feature_array_type = feature_array_type
         self._X_image = X_image
         self._X = X
         self._y = y
@@ -89,14 +89,14 @@ class ModelData(Generic[FeatureArrayType]):
     @property
     def X_image(self) -> FeatureArrayType:
         """Feature image."""
-        return wrap_features(self._X_image, self._feature_type)
+        return wrap_features(self._X_image, self._feature_array_type)
 
     @property
     def X(self) -> NDArray | pd.DataFrame:
         """Feature data in array or dataframe format."""
         X = self._X.copy()
 
-        if self._feature_type in (xr.DataArray, xr.Dataset):
+        if self._feature_array_type in (xr.DataArray, xr.Dataset):
             feature_names = [f"b{i}" for i in range(self.n_features)]
             X = pd.DataFrame(X, columns=feature_names)
 
@@ -112,7 +112,7 @@ class ModelData(Generic[FeatureArrayType]):
             y = y[:, :1]
             n_targets = 1
 
-        if self._feature_type in (xr.DataArray, xr.Dataset):
+        if self._feature_array_type in (xr.DataArray, xr.Dataset):
             target_names = [f"t{i}" for i in range(n_targets)]
             y = pd.DataFrame(y, columns=target_names)
 
@@ -154,7 +154,7 @@ def parametrize_model_data(
     X_image=None,
     X=None,
     y=None,
-    feature_types=(np.ndarray, xr.DataArray, xr.Dataset),
+    feature_array_types=(np.ndarray, xr.DataArray, xr.Dataset),
 ):
     """Parametrize over multiple feature types with the same test data."""
     n_features = (
@@ -171,10 +171,10 @@ def parametrize_model_data(
     if y is None:
         y = np.random.rand(n_rows, n_targets)
 
-    model_data = [ModelData(X_image, X, y, cls) for cls in feature_types]
+    model_data = [ModelData(X_image, X, y, cls) for cls in feature_array_types]
 
     return pytest.mark.parametrize(
-        label, model_data, ids=map(lambda x: x.__name__, feature_types)
+        label, model_data, ids=map(lambda x: x.__name__, feature_array_types)
     )
 
 

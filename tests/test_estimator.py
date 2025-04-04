@@ -158,7 +158,7 @@ def test_kneighbors_with_custom_kwarg(model_data: ModelData):
     )
 
 
-@parametrize_model_data(feature_types=(xr.DataArray,))
+@parametrize_model_data(feature_array_types=(xr.DataArray,))
 def test_predict_dataarray_with_custom_dim_name(model_data: ModelData):
     """Test that predict works if the feature dimension is not named "variable"."""
     X_image, X, y = model_data
@@ -173,7 +173,7 @@ def test_predict_dataarray_with_custom_dim_name(model_data: ModelData):
     )
 
 
-@parametrize_model_data(feature_types=(xr.DataArray, xr.Dataset))
+@parametrize_model_data(feature_array_types=(xr.DataArray, xr.Dataset))
 @pytest.mark.parametrize("crs", ["EPSG:5070", None])
 def test_crs_preserved(model_data: ModelData, crs):
     """Test that the original image CRS is preserved."""
@@ -195,7 +195,7 @@ def test_crs_preserved(model_data: ModelData, crs):
     assert nn.rio.crs == crs
 
 
-@parametrize_model_data(feature_types=(np.ndarray,))
+@parametrize_model_data(feature_array_types=(np.ndarray,))
 def test_with_non_1d_data(model_data: ModelData):
     """Test that 1D sample data is correctly handled."""
     _, X, y = model_data
@@ -216,7 +216,7 @@ def test_with_non_1d_data(model_data: ModelData):
     assert_array_equal(ref_nn, check_nn.T)
 
 
-@parametrize_model_data(feature_types=(xr.DataArray, xr.Dataset))
+@parametrize_model_data(feature_array_types=(xr.DataArray, xr.Dataset))
 @pytest.mark.parametrize(
     "fit_with", [np.ndarray, pd.DataFrame, pd.Series], ids=lambda x: x.__name__
 )
@@ -261,12 +261,12 @@ def test_raises_if_not_fitted(model_data: ModelData):
         wrapped.kneighbors(X_image)
 
 
-@parametrize_model_data(feature_types=(np.ndarray,))
+@parametrize_model_data(feature_array_types=(np.ndarray,))
 def test_predict_warns_missing_feature_names(model_data: ModelData):
     """Test that predict warns when feature names are missing."""
     # Retrieve model data with and without feature names
     X_image_unnamed, X_unnamed, y = model_data
-    X_image_named, X_named, _ = model_data.set(feature_type=xr.DataArray)
+    X_image_named, X_named, _ = model_data.set(feature_array_type=xr.DataArray)
 
     estimator_fit_with_names = wrap(RandomForestRegressor()).fit(X_named, y)
     estimator_fit_without_names = wrap(RandomForestRegressor()).fit(X_unnamed, y)
@@ -279,7 +279,7 @@ def test_predict_warns_missing_feature_names(model_data: ModelData):
 
 
 @parametrize_model_data(
-    X_image=np.random.random((2, 2, 10)), feature_types=(xr.DataArray,)
+    X_image=np.random.random((2, 2, 10)), feature_array_types=(xr.DataArray,)
 )
 def test_predict_raises_mismatched_feature_names(model_data: ModelData):
     """Test that predict raises when feature names are mismatched."""

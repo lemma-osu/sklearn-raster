@@ -11,22 +11,22 @@ from sklearn_raster.features import FeatureArray
 from sklearn_raster.types import FeatureArrayType
 
 from .feature_utils import (
-    parametrize_feature_types,
+    parametrize_feature_array_types,
     unwrap_features,
     wrap_features,
 )
 
 
-@parametrize_feature_types()
+@parametrize_feature_array_types()
 @pytest.mark.parametrize("skip_nodata", [True, False])
 def test_input_array_not_mutated(
-    feature_type: type[FeatureArrayType], skip_nodata: bool
+    feature_array_type: type[FeatureArrayType], skip_nodata: bool
 ):
     """Ensure that applying a ufunc to features doesn't mutate the original array."""
     a = np.array([[[0, 1]], [[1, np.nan]]])
     original_array = a.copy()
 
-    array = wrap_features(a, type=feature_type)
+    array = wrap_features(a, type=feature_array_type)
 
     features = FeatureArray.from_feature_array(array, nodata_input=0)
     features.apply_ufunc_across_features(
@@ -40,18 +40,18 @@ def test_input_array_not_mutated(
     assert_array_equal(a, original_array)
 
 
-@parametrize_feature_types()
+@parametrize_feature_array_types()
 @pytest.mark.parametrize("skip_nodata", [True, False])
 @pytest.mark.parametrize("val_dtype", [(-1, np.uint8), (np.nan, np.int16)])
 def test_nodata_output_with_unsupported_dtype(
     val_dtype: tuple[int | float, np.dtype],
-    feature_type: type[FeatureArrayType],
+    feature_array_type: type[FeatureArrayType],
     skip_nodata: bool,
 ):
     """Test that an unsupported nodata_output value raises an error."""
     # Make sure there's a value to mask in the input array
     a = np.array([[[np.nan]]])
-    array = wrap_features(a, type=feature_type)
+    array = wrap_features(a, type=feature_array_type)
     features = FeatureArray.from_feature_array(array, nodata_input=0)
 
     output_nodata, output_dtype = val_dtype
@@ -69,20 +69,20 @@ def test_nodata_output_with_unsupported_dtype(
         )
 
 
-@parametrize_feature_types()
+@parametrize_feature_array_types()
 @pytest.mark.parametrize("skip_nodata", [True, False])
 @pytest.mark.parametrize(
     "val_dtypes", [(-1, np.uint8, np.int8), (np.nan, np.int16, np.float64)]
 )
 def test_nodata_output_with_allow_cast(
     val_dtypes: tuple[int | float, np.dtype, np.dtype],
-    feature_type: type[FeatureArrayType],
+    feature_array_type: type[FeatureArrayType],
     skip_nodata: bool,
 ):
     """Test that an unsupported nodata_output value correctly casts if allowed."""
     # Make sure there's a value to mask in the input array
     a = np.array([[[np.nan]]])
-    array = wrap_features(a, type=feature_type)
+    array = wrap_features(a, type=feature_array_type)
     features = FeatureArray.from_feature_array(array, nodata_input=0)
 
     output_nodata, output_dtype, expected_dtype = val_dtypes
@@ -103,10 +103,12 @@ def test_nodata_output_with_allow_cast(
 
 
 @pytest.mark.parametrize("nodata_output", [np.nan, 42.0])
-@parametrize_feature_types()
+@parametrize_feature_array_types()
 @pytest.mark.parametrize("skip_nodata", [True, False])
 def test_nodata_output_set(
-    nodata_output: int | float, feature_type: type[FeatureArrayType], skip_nodata: bool
+    nodata_output: int | float,
+    feature_array_type: type[FeatureArrayType],
+    skip_nodata: bool,
 ):
     """Test that NoData in the features are filled or not."""
     nodata_input = 0
@@ -117,7 +119,7 @@ def test_nodata_output_set(
     expected_output = np.array([[[nodata_output, 1, nodata_output]]])
 
     features = FeatureArray.from_feature_array(
-        wrap_features(a, type=feature_type), nodata_input=nodata_input
+        wrap_features(a, type=feature_array_type), nodata_input=nodata_input
     )
     result = features.apply_ufunc_across_features(
         lambda x: x,
@@ -132,9 +134,9 @@ def test_nodata_output_set(
 
 
 @pytest.mark.parametrize("n_features", [1, 2])
-@parametrize_feature_types()
+@parametrize_feature_array_types()
 def test_shape_when_ufunc_squeezes_dimension(
-    n_features: int, feature_type: type[FeatureArrayType]
+    n_features: int, feature_array_type: type[FeatureArrayType]
 ):
     """Test the output shape when a ufunc squeezes the feature dimension."""
     nodata_input = 0
@@ -145,7 +147,7 @@ def test_shape_when_ufunc_squeezes_dimension(
     a[0, 0, 0] = nodata_input
 
     features = FeatureArray.from_feature_array(
-        wrap_features(a, type=feature_type), nodata_input=nodata_input
+        wrap_features(a, type=feature_array_type), nodata_input=nodata_input
     )
     result = features.apply_ufunc_across_features(
         # Squeeze out the feature dimension (like a single-output predict method would)
@@ -160,10 +162,10 @@ def test_shape_when_ufunc_squeezes_dimension(
     assert unwrap_features(result).shape == (1, 3, 3)
 
 
-@parametrize_feature_types()
+@parametrize_feature_array_types()
 @pytest.mark.parametrize("skip_nodata", [True, False])
 def test_warn_when_ufunc_returns_nodata(
-    feature_type: type[FeatureArrayType], skip_nodata: bool
+    feature_array_type: type[FeatureArrayType], skip_nodata: bool
 ):
     """Test that a warning is raised when `nodata_output` is returned by the ufunc."""
     nodata_input = 0
@@ -172,7 +174,7 @@ def test_warn_when_ufunc_returns_nodata(
     # The input features need to contain NoData since the check only occurs when filling
     a = np.full((1, 1, 1), nodata_input, dtype=np.int16)
     features = FeatureArray.from_feature_array(
-        wrap_features(a, type=feature_type), nodata_input=nodata_input
+        wrap_features(a, type=feature_array_type), nodata_input=nodata_input
     )
     with pytest.warns(UserWarning, match=f"{nodata_output} was found in the array"):
         unwrap_features(
@@ -188,8 +190,10 @@ def test_warn_when_ufunc_returns_nodata(
 
 
 @pytest.mark.parametrize("min_samples", [0, 1, 30])
-@parametrize_feature_types()
-def test_ensure_min_samples(min_samples: int, feature_type: type[FeatureArrayType]):
+@parametrize_feature_array_types()
+def test_ensure_min_samples(
+    min_samples: int, feature_array_type: type[FeatureArrayType]
+):
     """Test that the correct number of minimum samples are passed."""
     a = np.full((1, 1, 50), np.nan, dtype=np.float64)
 
@@ -198,7 +202,7 @@ def test_ensure_min_samples(min_samples: int, feature_type: type[FeatureArrayTyp
         return x
 
     features = FeatureArray.from_feature_array(
-        wrap_features(a, type=feature_type), nodata_input=0
+        wrap_features(a, type=feature_array_type), nodata_input=0
     )
     result = features.apply_ufunc_across_features(
         lambda x: assert_array_size(x, min_samples),
@@ -212,13 +216,13 @@ def test_ensure_min_samples(min_samples: int, feature_type: type[FeatureArrayTyp
     unwrap_features(result)
 
 
-@parametrize_feature_types()
-def test_ensure_too_many_samples(feature_type: type[FeatureArrayType]):
+@parametrize_feature_array_types()
+def test_ensure_too_many_samples(feature_array_type: type[FeatureArrayType]):
     """Test that an error is raised if ensure_min_samples is larger than the array."""
     a = np.full((1, 1, 10), np.nan, dtype=np.float64)
 
     features = FeatureArray.from_feature_array(
-        wrap_features(a, type=feature_type), nodata_input=0
+        wrap_features(a, type=feature_array_type), nodata_input=0
     )
     with pytest.raises(ValueError, match="Cannot ensure 50 samples with only 10"):
         unwrap_features(
@@ -233,8 +237,10 @@ def test_ensure_too_many_samples(feature_type: type[FeatureArrayType]):
         )
 
 
-@parametrize_feature_types()
-def test_ensure_min_samples_doesnt_overwrite(feature_type: type[FeatureArrayType]):
+@parametrize_feature_array_types()
+def test_ensure_min_samples_doesnt_overwrite(
+    feature_array_type: type[FeatureArrayType],
+):
     """
     Test that valid samples aren't overwritten by dummy samples when ensuring size.
     """
@@ -252,7 +258,7 @@ def test_ensure_min_samples_doesnt_overwrite(feature_type: type[FeatureArrayType
         return x
 
     features = FeatureArray.from_feature_array(
-        wrap_features(a, type=feature_type), nodata_input=0
+        wrap_features(a, type=feature_array_type), nodata_input=0
     )
     result = unwrap_features(
         features.apply_ufunc_across_features(
@@ -274,9 +280,11 @@ def test_ensure_min_samples_doesnt_overwrite(feature_type: type[FeatureArrayType
 
 @pytest.mark.parametrize("num_valid", [0, 1, 3])
 @pytest.mark.parametrize("nodata_input", [-32768, np.nan])
-@parametrize_feature_types()
+@parametrize_feature_array_types()
 def test_nodata_is_skipped(
-    num_valid: int, nodata_input: int | float, feature_type: type[FeatureArrayType]
+    num_valid: int,
+    nodata_input: int | float,
+    feature_array_type: type[FeatureArrayType],
 ):
     """Test that NoData values are skipped if the flag is set."""
     # Create a full NoData array and the expected number of valid values
@@ -289,7 +297,7 @@ def test_nodata_is_skipped(
         return x
 
     features = FeatureArray.from_feature_array(
-        wrap_features(a, type=feature_type), nodata_input=nodata_input
+        wrap_features(a, type=feature_array_type), nodata_input=nodata_input
     )
     result = features.apply_ufunc_across_features(
         lambda x: assert_array_size(x, num_valid),
@@ -303,12 +311,14 @@ def test_nodata_is_skipped(
     unwrap_features(result)
 
 
-@parametrize_feature_types()
+@parametrize_feature_array_types()
 @pytest.mark.parametrize("nan_fill", [None, 42.0])
-def test_nan_filled(feature_type: type[FeatureArrayType], nan_fill: float | None):
+def test_nan_filled(feature_array_type: type[FeatureArrayType], nan_fill: float | None):
     """Test that NaNs in the features are filled before passing to func."""
     a = np.array([[[1, np.nan]]])
-    features = FeatureArray.from_feature_array(wrap_features(a, type=feature_type))
+    features = FeatureArray.from_feature_array(
+        wrap_features(a, type=feature_array_type)
+    )
 
     def nan_check(x):
         fill_val = nan_fill if nan_fill is not None else np.nan
@@ -491,11 +501,11 @@ def test_nodata_output_set_in_dataset_attrs(nodata_output: int | float):
             assert result[var].attrs.get("_FillValue") == nodata_output
 
 
-@parametrize_feature_types()
-def test_wrappers(feature_type):
+@parametrize_feature_array_types()
+def test_wrappers(feature_array_type):
     """Confirm that the test wrappers function as expected."""
     array = np.random.rand(3, 32, 16)
 
-    wrapped = wrap_features(array, type=feature_type)
-    assert isinstance(wrapped, feature_type)
+    wrapped = wrap_features(array, type=feature_array_type)
+    assert isinstance(wrapped, feature_array_type)
     assert_array_equal(unwrap_features(wrapped), array)
