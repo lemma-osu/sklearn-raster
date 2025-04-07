@@ -7,6 +7,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from .types import ArrayUfunc, MaybeTuple
+from .utils.features import get_minimum_precise_numeric_dtype
 from .utils.wrapper import map_function_over_tuples
 
 
@@ -250,13 +251,7 @@ class UfuncSampleProcessor:
         Cast (if allowed) or raise if not. Also optionally check for NoData values in
         the output that may indicate valid samples being masked.
         """
-        # Use the minimum dtype for integers. Otherwise, just use the value's type to
-        # avoid casting to low-precision float16.
-        nodata_output_type = (
-            np.min_scalar_type(nodata_output)
-            if np.issubdtype(type(nodata_output), np.integer)
-            else type(nodata_output)
-        )
+        nodata_output_type = get_minimum_precise_numeric_dtype(nodata_output)
 
         if not np.can_cast(nodata_output_type, output.dtype):
             if allow_cast:
