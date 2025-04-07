@@ -258,10 +258,21 @@ class UfuncSampleProcessor:
                 output = output.astype(nodata_output_type)
             else:
                 msg = (
-                    f"The selected `nodata_output` value {nodata_output} does not fit "
-                    f"in the array dtype {output.dtype}. Choose a different value or "
-                    "set `allow_cast=True` to automatically cast the output."
+                    f"The selected `nodata_output` value {nodata_output} "
+                    f"({nodata_output_type}) does not fit in the array dtype "
+                    f"({output.dtype}). "
                 )
+                if nodata_output_type.kind == "f" and output.dtype.kind == "f":
+                    msg += (
+                        "Consider casting `nodata_output` to a lower precision or set "
+                        "`allow_cast=True` to automatically cast the output."
+                    )
+                else:
+                    msg += (
+                        "Consider choosing a different `nodata_output` value or set "
+                        "`allow_cast=True` to automatically cast the output."
+                    )
+
                 raise ValueError(msg)
 
         if (
