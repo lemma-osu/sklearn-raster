@@ -262,7 +262,7 @@ class UfuncSampleProcessor:
                     f"({nodata_output_type}) does not fit in the array dtype "
                     f"({output.dtype}). "
                 )
-                if nodata_output_type.kind == "f" and output.dtype.kind == "f":
+                if nodata_output_type.kind == output.dtype.kind == "f":
                     msg += (
                         "Consider casting `nodata_output` to a lower precision or set "
                         "`allow_cast=True` to automatically cast the output."
