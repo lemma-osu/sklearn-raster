@@ -264,8 +264,8 @@ class UfuncSampleProcessor:
                 )
                 if nodata_output_type.kind == output.dtype.kind == "f":
                     msg += (
-                        "Consider casting `nodata_output` to a lower precision or set "
-                        "`allow_cast=True` to automatically cast the output."
+                        "Consider casting `nodata_output` to a lower precision float "
+                        "or set `allow_cast=True` to automatically cast the output."
                     )
                 else:
                     msg += (
