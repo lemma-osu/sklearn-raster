@@ -7,6 +7,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from .types import ArrayUfunc, MaybeTuple
+from .utils.features import get_minimum_precise_numeric_dtype
 from .utils.wrapper import map_function_over_tuples
 
 
@@ -250,23 +251,28 @@ class UfuncSampleProcessor:
         Cast (if allowed) or raise if not. Also optionally check for NoData values in
         the output that may indicate valid samples being masked.
         """
-        # Use the minimum dtype for integers. Otherwise, just use the value's type to
-        # avoid casting to low-precision float16.
-        nodata_output_type = (
-            np.min_scalar_type(nodata_output)
-            if np.issubdtype(type(nodata_output), np.integer)
-            else type(nodata_output)
-        )
+        nodata_output_type = get_minimum_precise_numeric_dtype(nodata_output)
 
         if not np.can_cast(nodata_output_type, output.dtype):
             if allow_cast:
                 output = output.astype(nodata_output_type)
             else:
                 msg = (
-                    f"The selected `nodata_output` value {nodata_output} does not fit "
-                    f"in the array dtype {output.dtype}. Choose a different value or "
-                    "set `allow_cast=True` to automatically cast the output."
+                    f"The selected `nodata_output` value {nodata_output} "
+                    f"({nodata_output_type}) does not fit in the array dtype "
+                    f"({output.dtype}). "
                 )
+                if nodata_output_type.kind == output.dtype.kind == "f":
+                    msg += (
+                        "Consider casting `nodata_output` to a lower precision float "
+                        "or set `allow_cast=True` to automatically cast the output."
+                    )
+                else:
+                    msg += (
+                        "Consider choosing a different `nodata_output` value or set "
+                        "`allow_cast=True` to automatically cast the output."
+                    )
+
                 raise ValueError(msg)
 
         if (

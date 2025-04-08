@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 import numpy as np
 import pytest
 import xarray as xr
@@ -9,6 +11,7 @@ from numpy.testing import assert_array_equal
 
 from sklearn_raster.features import FeatureArray
 from sklearn_raster.types import FeatureArrayType
+from sklearn_raster.utils.features import get_minimum_precise_numeric_dtype
 
 from .feature_utils import (
     parametrize_feature_array_types,
@@ -42,26 +45,60 @@ def test_input_array_not_mutated(
 
 @parametrize_feature_array_types()
 @pytest.mark.parametrize("skip_nodata", [True, False])
-@pytest.mark.parametrize("val_dtype", [(-1, np.uint8), (np.nan, np.int16)])
+@pytest.mark.parametrize(
+    "val_dtype", [(-1, np.dtype(np.uint8)), (np.nan, np.dtype(np.int16))]
+)
 def test_nodata_output_with_unsupported_dtype(
     val_dtype: tuple[int | float, np.dtype],
     feature_array_type: type[FeatureArrayType],
     skip_nodata: bool,
 ):
-    """Test that an unsupported nodata_output value raises an error."""
+    """Test that an error is raised when nodata_output is the wrong dtype."""
     # Make sure there's a value to mask in the input array
     a = np.array([[[np.nan]]])
     array = wrap_features(a, type=feature_array_type)
     features = FeatureArray.from_feature_array(array, nodata_input=0)
 
-    output_nodata, output_dtype = val_dtype
-    with pytest.raises(ValueError, match="does not fit in the array dtype"):
+    output_nodata, return_dtype = val_dtype
+    nodata_output_type = get_minimum_precise_numeric_dtype(output_nodata)
+    expected_msg = (
+        f"({nodata_output_type}) does not fit in the array dtype ({return_dtype})"
+    )
+    with pytest.raises(ValueError, match=re.escape(expected_msg)):
         # Unwrap to force computation for lazy arrays
         unwrap_features(
             features.apply_ufunc_across_features(
-                lambda x: np.ones_like(x).astype(output_dtype),
+                lambda x: np.ones_like(x).astype(return_dtype),
                 nodata_output=output_nodata,
                 skip_nodata=skip_nodata,
+                output_dims=[["variable"]],
+                output_sizes={"variable": a.shape[0]},
+                output_dtypes=[a.dtype],
+            )
+        )
+
+
+@parametrize_feature_array_types()
+@pytest.mark.parametrize(
+    "dtypes", [(np.float64, np.dtype(np.float32)), (np.float32, np.dtype(np.float16))]
+)
+def test_nodata_output_float_precision(
+    feature_array_type: type[FeatureArrayType], dtypes: tuple[np.dtype, np.dtype]
+):
+    """Test that an error is raised when nodata_output is the wrong float precision."""
+    # Make sure there's a value to mask in the input array
+    a = np.array([[[np.nan]]])
+    array = wrap_features(a, type=feature_array_type)
+    features = FeatureArray.from_feature_array(array, nodata_input=0)
+
+    chosen_dtype, return_dtype = dtypes
+    expected_msg = "Consider casting `nodata_output` to a lower precision"
+    with pytest.raises(ValueError, match=expected_msg):
+        # Unwrap to force computation for lazy arrays
+        unwrap_features(
+            features.apply_ufunc_across_features(
+                lambda x: np.ones_like(x).astype(return_dtype),
+                nodata_output=chosen_dtype(np.nan),
                 output_dims=[["variable"]],
                 output_sizes={"variable": a.shape[0]},
                 output_dtypes=[a.dtype],

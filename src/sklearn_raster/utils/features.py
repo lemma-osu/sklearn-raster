@@ -1,6 +1,9 @@
+from __future__ import annotations
+
 from functools import wraps
 from typing import Callable
 
+import numpy as np
 from numpy.typing import NDArray
 from typing_extensions import Concatenate
 
@@ -43,3 +46,17 @@ def reshape_to_samples(
         return unflatten(result)
 
     return wrapper
+
+
+def get_minimum_precise_numeric_dtype(value: int | float) -> np.dtype:
+    """
+    Get the minimum numeric dtype for a value without reducing precision.
+
+    Integers will return the smallest integer type that can hold the value, while floats
+    will return their current precision.
+    """
+    return (
+        np.min_scalar_type(value)
+        if np.issubdtype(type(value), np.integer)
+        else np.dtype(type(value))
+    )
