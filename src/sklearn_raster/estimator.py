@@ -215,6 +215,98 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
         )
 
     @check_wrapper_implements
+    def predict_proba(
+        self,
+        X: FeatureArrayType,
+        *,
+        skip_nodata: bool = True,
+        nodata_input: NoDataType = None,
+        nodata_output: float | int = np.nan,
+        ensure_min_samples: int = 1,
+        allow_cast: bool = False,
+        check_output_for_nodata: bool = True,
+        **predict_proba_kwargs,
+    ) -> FeatureArrayType:
+        """
+        Predict class probabilities for n-dimensional X features.
+
+        Parameters
+        ----------
+        X : Numpy or Xarray features
+            The n-dimensional input features. Array types should be in the shape
+            (features, ...) while xr.Dataset should include features as variables.
+            Features should correspond with those used to fit the estimator.
+        skip_nodata : bool, default=False
+            If True, NoData and NaN values will be skipped during prediction. This
+            speeds up processing of partially masked arrays, but may be incompatible if
+            estimators expect a consistent number of input samples.
+        nodata_input : float or sequence of floats, optional
+            NoData values other than NaN to mask in the output array. A single value
+            will be broadcast to all features while sequences of values will be assigned
+            feature-wise. If None, values will be inferred if possible based on
+            available metadata.
+        nodata_output : float or int, default np.nan
+            NoData samples in the input features will be replaced with this value in the
+            output targets. If the value does not fit the array dtype returned by the
+            estimator, an error will be raised unless `allow_cast` is True.
+        ensure_min_samples : int, default 1
+            The minimum number of samples that should be passed to `predict`. If the
+            array is fully masked and `skip_nodata=True`, dummy values (0) will be
+            inserted to ensure this number of samples. The minimum supported number of
+            samples depends on the estimator used. No effect if the array contains
+            enough unmasked samples or if `skip_nodata=False`.
+        allow_cast : bool, default=False
+            If True and the estimator output dtype is incompatible with the chosen
+            `nodata_output` value, the output will be cast to the correct dtype instead
+            of raising an error.
+        check_output_for_nodata : bool, default True
+            If True and `nodata_output` is not np.nan, a warning will be raised if the
+            selected `nodata_output` value is returned by the estimator, as this may
+            indicate a valid sample being masked.
+        **predict_proba_kwargs
+            Additional arguments passed to the estimator's predict_proba method.
+
+        Returns
+        -------
+        Numpy or Xarray features
+            The predicted class probabilities. Array types will be in the shape
+            (classes, ...) while xr.Dataset will store classes as variables.
+        """
+        output_dim_name = "class"
+        features = FeatureArray.from_feature_array(X, nodata_input=nodata_input)
+
+        self._check_feature_names(features.feature_names)
+
+        if self._wrapped_meta.n_targets > 1:
+            msg = (
+                "`predict_proba` does not currently support multi-output "
+                "classification."
+            )
+            raise NotImplementedError(msg)
+
+        if (classes := getattr(self._wrapped, "classes_", None)) is None:
+            msg = (
+                "The wrapped estimator does not have a `classes_` attribute, which is "
+                "required by `predict_proba`."
+            )
+            raise AttributeError(msg) from None
+
+        return features.apply_ufunc_across_features(
+            suppress_feature_name_warnings(self._wrapped.predict_proba),
+            output_dims=[[output_dim_name]],
+            output_dtypes=[np.float64],
+            output_sizes={output_dim_name: len(classes)},
+            output_coords={output_dim_name: list(classes)},
+            skip_nodata=skip_nodata,
+            nodata_output=nodata_output,
+            ensure_min_samples=ensure_min_samples,
+            allow_cast=allow_cast,
+            check_output_for_nodata=check_output_for_nodata,
+            nan_fill=0.0,
+            **predict_proba_kwargs,
+        )
+
+    @check_wrapper_implements
     @overload
     def kneighbors(
         self,
