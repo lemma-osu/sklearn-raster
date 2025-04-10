@@ -153,7 +153,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             The n-dimensional input features. Array types should be in the shape
             (features, ...) while xr.Dataset should include features as variables.
             Features should correspond with those used to fit the estimator.
-        skip_nodata : bool, default=False
+        skip_nodata : bool, default=True
             If True, NoData and NaN values will be skipped during prediction. This
             speeds up processing of partially masked arrays, but may be incompatible if
             estimators expect a consistent number of input samples.
@@ -236,7 +236,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             The n-dimensional input features. Array types should be in the shape
             (features, ...) while xr.Dataset should include features as variables.
             Features should correspond with those used to fit the estimator.
-        skip_nodata : bool, default=False
+        skip_nodata : bool, default=True
             If True, NoData and NaN values will be skipped during prediction. This
             speeds up processing of partially masked arrays, but may be incompatible if
             estimators expect a consistent number of input samples.
@@ -314,7 +314,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
         *,
         n_neighbors: int | None = None,
         return_distance: Literal[False] = False,
-        skip_nodata: bool = False,
+        skip_nodata: bool = True,
         nodata_input: NoDataType = None,
         nodata_output: float | int = -2147483648,
         ensure_min_samples: int = 1,
@@ -331,7 +331,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
         *,
         n_neighbors: int | None = None,
         return_distance: Literal[True] = True,
-        skip_nodata: bool = False,
+        skip_nodata: bool = True,
         nodata_input: NoDataType = None,
         nodata_output: float | int = -2147483648,
         ensure_min_samples: int = 1,
@@ -347,7 +347,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
         *,
         n_neighbors: int | None = None,
         return_distance: bool = True,
-        skip_nodata: bool = False,
+        skip_nodata: bool = True,
         nodata_input: NoDataType = None,
         nodata_output: float | int = -2147483648,
         ensure_min_samples: int = 1,
@@ -372,7 +372,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
         return_distance : bool, default=True
             If True, return distances to the neighbors of each sample. If False, return
             indices only.
-        skip_nodata : bool, default=False
+        skip_nodata : bool, default=True
             If True, NoData and NaN values will be skipped during prediction. This
             speeds up processing of partially masked features, but may be incompatible
             if estimators expect a consistent number of input samples.
