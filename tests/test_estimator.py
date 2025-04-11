@@ -7,8 +7,12 @@ import xarray as xr
 from numpy.testing import assert_array_equal
 from sklearn.base import clone
 from sklearn.cluster import AffinityPropagation, KMeans, MeanShift
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.neighbors import KNeighborsRegressor, NearestNeighbors
+from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
+from sklearn.neighbors import (
+    KNeighborsClassifier,
+    KNeighborsRegressor,
+    NearestNeighbors,
+)
 from sklearn.utils.validation import NotFittedError
 
 from sklearn_raster import wrap
@@ -51,6 +55,31 @@ def test_predict_unsupervised(model_data: ModelData, estimator):
     assert y_pred.ndim == 3
     expected_shape = (1, model_data.n_rows, model_data.n_cols)
     assert_array_equal(y_pred.shape, expected_shape)
+
+
+@parametrize_model_data(mode="classification")
+@pytest.mark.parametrize("estimator", [KNeighborsClassifier, RandomForestClassifier])
+@pytest.mark.parametrize("squeeze", [True, False], ids=["squeezed", "unsqueezed"])
+def test_predict_proba(model_data: ModelData, estimator, squeeze):
+    """Test that predict_proba generates the expected output shape."""
+    # Hard-coded in parametrize_model_data
+    n_classes = 2
+
+    X_image, X, y = model_data.set(
+        single_output=True,
+        squeeze=squeeze,
+    )
+
+    estimator = wrap(estimator()).fit(X, y)
+    y_prob = unwrap_features(estimator.predict_proba(X_image))
+
+    assert y_prob.ndim == 3
+    expected_shape = (
+        n_classes,
+        model_data.n_rows,
+        model_data.n_cols,
+    )
+    assert_array_equal(y_prob.shape, expected_shape)
 
 
 @parametrize_model_data()
@@ -245,6 +274,40 @@ def test_predicted_var_names(model_data: ModelData, fit_with):
         var_names = y_pred.data_vars
 
     assert list(var_names) == expected_var_names
+
+
+@parametrize_model_data(
+    feature_array_types=(xr.DataArray, xr.Dataset), mode="classification"
+)
+def test_predict_proba_class_names(model_data: ModelData):
+    """Test that class names correspond with class values in a Dataset or DataArray."""
+    X_image, X, y = model_data.set(single_output=True)
+    # Make sure the class values aren't just [0, 1]
+    y += 99
+    expected_class_names = np.unique(y)
+
+    estimator = wrap(KNeighborsClassifier()).fit(X, y)
+    y_prob = estimator.predict_proba(X_image)
+
+    if isinstance(X_image, xr.DataArray):
+        var_names = y_prob["class"].values
+    else:
+        var_names = y_prob.data_vars
+
+    assert list(var_names) == list(expected_class_names)
+
+
+@parametrize_model_data(
+    feature_array_types=(xr.DataArray, xr.Dataset), mode="classification"
+)
+def test_predict_proba_raises_for_multioutput(model_data: ModelData):
+    """Test that an error is raised for multi-output classifiers."""
+    X_image, X, y = model_data.set(single_output=False)
+    estimator = wrap(KNeighborsClassifier()).fit(X, y)
+
+    expected_msg = "does not currently support multi-output classification"
+    with pytest.raises(NotImplementedError, match=expected_msg):
+        estimator.predict_proba(X_image)
 
 
 @parametrize_model_data()

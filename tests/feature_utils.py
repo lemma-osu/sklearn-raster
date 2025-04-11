@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Generic
+from typing import Any, Generic, Literal
 
 import numpy as np
 import pandas as pd
@@ -155,6 +155,7 @@ def parametrize_model_data(
     X=None,
     y=None,
     feature_array_types=(np.ndarray, xr.DataArray, xr.Dataset),
+    mode: Literal["regression", "classification"] = "regression",
 ):
     """Parametrize over multiple feature types with the same test data."""
     n_features = (
@@ -169,7 +170,10 @@ def parametrize_model_data(
     if X is None:
         X = np.random.rand(n_rows, n_features)
     if y is None:
-        y = np.random.rand(n_rows, n_targets)
+        if mode == "classification":
+            y = np.random.choice([0, 1], (n_rows, n_targets))
+        else:
+            y = np.random.rand(n_rows, n_targets)
 
     model_data = [ModelData(X_image, X, y, cls) for cls in feature_array_types]
 
