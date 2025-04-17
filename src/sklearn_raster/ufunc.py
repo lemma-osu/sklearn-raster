@@ -8,7 +8,7 @@ from numpy.typing import NDArray
 
 from .types import ArrayUfunc, MaybeTuple
 from .utils.features import get_minimum_precise_numeric_dtype
-from .utils.wrapper import map_function_over_tuples
+from .utils.wrapper import map_over_arguments
 
 
 class UfuncSampleProcessor:
@@ -149,7 +149,7 @@ class UfuncSampleProcessor:
     ) -> NDArray | tuple[NDArray, ...]:
         """Apply a function to all samples in an array."""
 
-        @map_function_over_tuples
+        @map_over_arguments("result")
         def mask_nodata(result: NDArray) -> NDArray:
             """Replace NoData values in the input array with `output_nodata`."""
             result = self._validate_nodata_output(
@@ -202,7 +202,7 @@ class UfuncSampleProcessor:
             # Temporarily disable the mask so that dummy samples aren't skipped
             nodata_mask[:ensure_min_samples] = False
 
-        @map_function_over_tuples
+        @map_over_arguments("result")
         def populate_missing_samples(result: NDArray) -> NDArray:
             """Insert the array result for valid samples into the full-shaped array."""
             result = self._validate_nodata_output(

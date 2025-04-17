@@ -3,7 +3,7 @@ from typing import Callable, Generic
 
 from typing_extensions import Concatenate, TypeVar
 
-from ..types import RT, AnyType, MaybeTuple, P, Self, T
+from ..types import RT, AnyType, MaybeTuple, P
 
 
 class AttrWrapper(Generic[AnyType]):
@@ -42,40 +42,72 @@ def check_wrapper_implements(
     return wrapper
 
 
-def map_function_over_tuples(
-    func: Callable[Concatenate[T, P], T],
-) -> Callable[Concatenate[MaybeTuple[T], P], MaybeTuple[T]]:
+def map_over_arguments(*map_args: str, mappable=(tuple, list)):
     """
-    Decorate a function that accepts and returns type T to also accept and return tuples
-    of type T by mapping the function over each element.
+    A decorator that allows a function to map over selected arguments.
 
-    The function will be mapped over the first positional argument.
+    When the selected arguments are mappable, the function will be called once with
+    each value and a tuple of results will be returned. Non-mapped arguments and scalar
+    mapped arguments will be passed to each call. To map over an argument, it must be
+    provided by name.
+
+    Examples
+    --------
+
+    Providing an iterable to a mapped argument will return a tuple of results mapped
+    over each value:
+
+    >>> @map_over_arguments('b')
+    ... def func(a, b):
+    ...     return a + b
+    >>> func(1, b=[2, 3])
+    (3, 4)
+
+    When multiple arguments are mapped, they will be mapped together:
+
+    >>> @map_over_arguments('a', 'b')
+    ... def func(a, b):
+    ...     return a + b
+    >>> func(a=[1, 2], b=[3, 4])
+    (4, 6)
+
+    Providing a mapped argument as a scalar will disable mapping over that argument:
+
+    >>> @map_over_arguments('a', 'b')
+    ... def func(a, b):
+    ...     return a + b
+    >>> func(a=1, b=[2, 3])
+    (3, 4)
+    >>> func(a=1, b=2)
+    3
     """
 
-    def wrapper(arg: MaybeTuple[T], *args: P.args, **kwargs: P.kwargs) -> MaybeTuple[T]:
-        if isinstance(arg, tuple):
-            return tuple(func(arg, *args, **kwargs) for arg in arg)
-        return func(arg, *args, **kwargs)
+    def arg_mapper(func: Callable[P, RT]) -> Callable[P, MaybeTuple[RT]]:
+        def wrapper(*args, **kwargs):
+            # Collect the mapped arguments that have mappable values
+            to_map = {
+                name: kwargs.pop(name)
+                for name in map_args
+                if isinstance(kwargs.get(name), mappable)
+            }
+            if not to_map:
+                return func(*args, **kwargs)
 
-    return wrapper
+            num_mapped_vals = [len(v) for v in to_map.values()]
+            if any([val < max(num_mapped_vals) for val in num_mapped_vals]):
+                raise ValueError(
+                    "All mapped arguments must be the same length or scalar."
+                )
 
+            # Group the mapped arguments for each call
+            map_groups = [
+                {**{k: v[i] for k, v in to_map.items()}}
+                for i in range(max(num_mapped_vals))
+            ]
+            return tuple(
+                [func(*args, **map_group, **kwargs) for map_group in map_groups]
+            )
 
-def map_method_over_tuples(
-    func: Callable[Concatenate[Self, T, P], T],
-) -> Callable[Concatenate[Self, MaybeTuple[T], P], MaybeTuple[T]]:
-    """
-    Decorate a method that accepts and returns type T to also accept and return tuples
-    of type T by mapping the method over each element.
+        return wrapper
 
-    The method will be mapped over the second positional argument (i.e. excluding
-    `self`).
-    """
-
-    def wrapper(
-        self: Self, arg: MaybeTuple[T], *args: P.args, **kwargs: P.kwargs
-    ) -> MaybeTuple[T]:
-        if isinstance(arg, tuple):
-            return tuple(func(self, arg, *args, **kwargs) for arg in arg)
-        return func(self, arg, *args, **kwargs)
-
-    return wrapper
+    return arg_mapper
