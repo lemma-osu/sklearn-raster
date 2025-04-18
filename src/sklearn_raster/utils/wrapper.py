@@ -1,4 +1,5 @@
 from functools import wraps
+from inspect import signature
 from typing import Callable, Generic
 
 from typing_extensions import Concatenate, TypeVar
@@ -42,7 +43,11 @@ def check_wrapper_implements(
     return wrapper
 
 
-def map_over_arguments(*map_args: str, mappable=(tuple, list)):
+def map_over_arguments(
+    *map_args: str,
+    mappable=(tuple, list),
+    validate_args=True,
+):
     """
     A decorator that allows a function to map over selected arguments.
 
@@ -50,6 +55,16 @@ def map_over_arguments(*map_args: str, mappable=(tuple, list)):
     each value and a tuple of results will be returned. Non-mapped arguments and scalar
     mapped arguments will be passed to each call. To map over an argument, it must be
     provided by name.
+
+    Parameters
+    ----------
+    map_args : str
+        The names of the arguments to support mapping over.
+    mappable : tuple[type], default (list, tuple)
+        The types that will be mapped over when passed to a mapped argument.
+    validate_args : bool, default True
+        If True, the decorator will check that all mapped arguments are defined as
+        parameters of the decorated function and raise a ValueError if not.
 
     Examples
     --------
@@ -83,6 +98,16 @@ def map_over_arguments(*map_args: str, mappable=(tuple, list)):
     """
 
     def arg_mapper(func: Callable[P, RT]) -> Callable[P, MaybeTuple[RT]]:
+        if validate_args:
+            accepted_args = signature(func).parameters
+            invalid_args = [arg for arg in map_args if arg not in accepted_args]
+            if invalid_args:
+                msg = (
+                    "The following arguments are not accepted by the decorated "
+                    f"function and cannot be mapped over: {invalid_args}"
+                )
+                raise ValueError(msg)
+
         def wrapper(*args, **kwargs):
             # Collect the mapped arguments that have mappable values
             to_map = {
