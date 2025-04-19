@@ -313,23 +313,6 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
         X: FeatureArrayType,
         *,
         n_neighbors: int | None = None,
-        return_distance: Literal[False] = False,
-        skip_nodata: bool = True,
-        nodata_input: NoDataType = None,
-        nodata_output: float | int | None = None,
-        ensure_min_samples: int = 1,
-        allow_cast: bool = False,
-        check_output_for_nodata: bool = True,
-        **kneighbors_kwargs,
-    ) -> FeatureArrayType: ...
-
-    @check_wrapper_implements
-    @overload
-    def kneighbors(
-        self,
-        X: FeatureArrayType,
-        *,
-        n_neighbors: int | None = None,
         return_distance: Literal[True] = True,
         skip_nodata: bool = True,
         nodata_input: NoDataType = None,
@@ -339,6 +322,23 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
         check_output_for_nodata: bool = True,
         **kneighbors_kwargs,
     ) -> tuple[FeatureArrayType, FeatureArrayType]: ...
+
+    @check_wrapper_implements
+    @overload
+    def kneighbors(
+        self,
+        X: FeatureArrayType,
+        *,
+        n_neighbors: int | None = None,
+        return_distance: Literal[False] = False,
+        skip_nodata: bool = True,
+        nodata_input: NoDataType = None,
+        nodata_output: float | int | None = None,
+        ensure_min_samples: int = 1,
+        allow_cast: bool = False,
+        check_output_for_nodata: bool = True,
+        **kneighbors_kwargs,
+    ) -> FeatureArrayType: ...
 
     @check_wrapper_implements
     def kneighbors(
