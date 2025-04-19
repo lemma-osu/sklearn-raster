@@ -187,6 +187,30 @@ def test_kneighbors_with_custom_kwarg(model_data: ModelData):
     )
 
 
+@parametrize_model_data()
+def test_kneighbors_nodata_outputs(model_data: ModelData):
+    """Test that kneighbors assigns single or multiple nodata_outputs correctly."""
+    shape = model_data.X_image_shape
+    # Set the image to be fully masked so that the kneighbors returns arrays filled with
+    # the nodata_output values
+    model_data.set(X_image=np.full(shape, np.nan))
+
+    X_image, X, y = model_data
+    estimator = wrap(KNeighborsRegressor()).fit(X, y)
+
+    # A scalar nodata_output should be assigned to distances and neighbors
+    dist, nn = estimator.kneighbors(X_image, return_distance=True, nodata_output=-32768)
+    assert np.unique(unwrap_features(dist)) == [-32768]
+    assert np.unique(unwrap_features(nn)) == [-32768]
+
+    # Two nodata_outputs should be assigned in order to distances and neighbors
+    dist, nn = estimator.kneighbors(
+        X_image, return_distance=True, nodata_output=(-32768, 255)
+    )
+    assert np.unique(unwrap_features(dist)) == [-32768]
+    assert np.unique(unwrap_features(nn)) == [255]
+
+
 @parametrize_model_data(feature_array_types=(xr.DataArray,))
 def test_predict_dataarray_with_custom_dim_name(model_data: ModelData):
     """Test that predict works if the feature dimension is not named "variable"."""

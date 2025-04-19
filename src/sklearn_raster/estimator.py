@@ -316,7 +316,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
         return_distance: Literal[False] = False,
         skip_nodata: bool = True,
         nodata_input: NoDataType = None,
-        nodata_output: float | int = -2147483648,
+        nodata_output: float | int | None = None,
         ensure_min_samples: int = 1,
         allow_cast: bool = False,
         check_output_for_nodata: bool = True,
@@ -333,7 +333,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
         return_distance: Literal[True] = True,
         skip_nodata: bool = True,
         nodata_input: NoDataType = None,
-        nodata_output: MaybeTuple[float | int] = (np.nan, -2147483648),
+        nodata_output: MaybeTuple[float | int] | None = None,
         ensure_min_samples: int = 1,
         allow_cast: bool = False,
         check_output_for_nodata: bool = True,
@@ -349,7 +349,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
         return_distance: bool = True,
         skip_nodata: bool = True,
         nodata_input: NoDataType = None,
-        nodata_output: MaybeTuple[float | int] = -2147483648,
+        nodata_output: MaybeTuple[float | int] | None = None,
         ensure_min_samples: int = 1,
         allow_cast: bool = False,
         check_output_for_nodata: bool = True,
@@ -381,12 +381,13 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             will be broadcast to all features while sequences of values will be assigned
             feature-wise. If None, values will be inferred if possible based on
             available metadata.
-        nodata_output : float or int or tuple of floats or ints, default -2147483648
+        nodata_output : float or int or tuple, optional
             NoData samples in the input features will be replaced with this value in the
             output targets. If the value does not fit the array dtype returned by the
             estimator, an error will be raised unless `allow_cast` is True. If
             `return_distance` is True, you can provide a tuple of two values to use
-            for distances and indexes, respectively.
+            for distances and indexes, respectively. Defaults to np.nan for the distance
+            array and -2147483648 for the neighbor array.
         ensure_min_samples : int, default 1
             The minimum number of samples that should be passed to `kneighbors`. If the
             array is fully masked and `skip_nodata=True`, dummy values (0) will be
@@ -415,6 +416,9 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             Array types will be in the shape (neighbor, ...) while xr.Dataset will store
             neighbors as variables.
         """
+        if nodata_output is None:
+            nodata_output = (np.nan, -2147483648) if return_distance else -2147483648
+
         features = FeatureArray.from_feature_array(X, nodata_input=nodata_input)
         k = n_neighbors or cast(int, getattr(self._wrapped, "n_neighbors", 5))
 
