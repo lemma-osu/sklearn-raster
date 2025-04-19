@@ -8,7 +8,7 @@ import numpy as np
 import xarray as xr
 from numpy.typing import NDArray
 
-from .types import ArrayUfunc, FeatureArrayType, NoDataType
+from .types import ArrayUfunc, FeatureArrayType, MaybeTuple, NoDataType
 from .ufunc import UfuncSampleProcessor
 from .utils.features import reshape_to_samples
 from .utils.wrapper import map_over_arguments
@@ -71,7 +71,7 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
         output_sizes: dict[str, int] | None = None,
         output_coords: dict[str, list[str | int]] | None = None,
         skip_nodata: bool = True,
-        nodata_output: float | int = np.nan,
+        nodata_output: MaybeTuple[float | int] = np.nan,
         nan_fill: float | int | None = None,
         ensure_min_samples: int = 1,
         allow_cast: bool = False,
@@ -126,7 +126,7 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
         return features
 
     @abstractmethod
-    @map_over_arguments("result")
+    @map_over_arguments("result", "nodata_output")
     def _postprocess_ufunc_output(
         self,
         result: FeatureArrayType,
@@ -207,7 +207,7 @@ class DataArrayFeatures(FeatureArray):
 
         return None
 
-    @map_over_arguments("result")
+    @map_over_arguments("result", "nodata_output")
     def _postprocess_ufunc_output(
         self,
         result: xr.DataArray,
@@ -262,7 +262,7 @@ class DatasetFeatures(DataArrayFeatures):
         # Fall back to the DataArray logic for handling NoData
         return super()._validate_nodata_input(nodata_input)
 
-    @map_over_arguments("result")
+    @map_over_arguments("result", "nodata_output")
     def _postprocess_ufunc_output(
         self,
         result: xr.DataArray,

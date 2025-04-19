@@ -142,15 +142,15 @@ class UfuncSampleProcessor:
         func: ArrayUfunc,
         *,
         samples: NDArray,
-        nodata_output: float | int,
+        nodata_output: MaybeTuple[float | int],
         allow_cast: bool,
         check_output_for_nodata: bool,
         **kwargs,
     ) -> NDArray | tuple[NDArray, ...]:
         """Apply a function to all samples in an array."""
 
-        @map_over_arguments("result")
-        def mask_nodata(result: NDArray) -> NDArray:
+        @map_over_arguments("result", "nodata_output")
+        def mask_nodata(result: NDArray, nodata_output: float | int) -> NDArray:
             """Replace NoData values in the input array with `output_nodata`."""
             result = self._validate_nodata_output(
                 result,
@@ -164,7 +164,7 @@ class UfuncSampleProcessor:
 
         result = func(samples, **kwargs)
         if self._num_masked > 0:
-            return mask_nodata(result)
+            return mask_nodata(result=result, nodata_output=nodata_output)
 
         return result
 
@@ -173,7 +173,7 @@ class UfuncSampleProcessor:
         func: ArrayUfunc,
         *,
         samples: NDArray,
-        nodata_output: float | int,
+        nodata_output: MaybeTuple[float | int],
         ensure_min_samples: int,
         allow_cast: bool,
         nan_fill: float | int | None,
@@ -202,8 +202,10 @@ class UfuncSampleProcessor:
             # Temporarily disable the mask so that dummy samples aren't skipped
             nodata_mask[:ensure_min_samples] = False
 
-        @map_over_arguments("result")
-        def populate_missing_samples(result: NDArray) -> NDArray:
+        @map_over_arguments("result", "nodata_output")
+        def populate_missing_samples(
+            result: NDArray, nodata_output: float | int
+        ) -> NDArray:
             """Insert the array result for valid samples into the full-shaped array."""
             result = self._validate_nodata_output(
                 result,
@@ -236,7 +238,7 @@ class UfuncSampleProcessor:
 
         # Apply the func only to valid samples
         func_result = func(samples[~nodata_mask], **kwargs)
-        return populate_missing_samples(func_result)
+        return populate_missing_samples(result=func_result, nodata_output=nodata_output)
 
     def _validate_nodata_output(
         self,
