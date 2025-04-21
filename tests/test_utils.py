@@ -27,8 +27,11 @@ def test_map_over_arguments():
         return a + b
 
     assert func(1, 2) == 3
-    assert func(1, b=[2, 3]) == (3, 4)
+    assert func(1, [2, 3]) == (3, 4)
     assert func(a=[1, 2], b=[3, 4]) == (4, 6)
+
+    with pytest.raises(ValueError, match="must be the same length or scalar"):
+        func(a=[1, 2], b=[3, 4, 5])
 
 
 def test_map_over_arguments_validation():

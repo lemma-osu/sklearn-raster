@@ -53,8 +53,7 @@ def map_over_arguments(
 
     When the selected arguments are mappable, the function will be called once with
     each value and a tuple of results will be returned. Non-mapped arguments and scalar
-    mapped arguments will be passed to each call. To map over an argument, it must be
-    provided by name.
+    mapped arguments will be passed to each call.
 
     Parameters
     ----------
@@ -109,11 +108,16 @@ def map_over_arguments(
                 raise ValueError(msg)
 
         def wrapper(*args, **kwargs):
+            # Bind the arguments as they will be called to allow mapping over positional
+            # or keyword arguments.
+            bound_args = signature(func).bind(*args, **kwargs)
+            bound_args.apply_defaults()
+
             # Collect the mapped arguments that have mappable values
             to_map = {
-                name: kwargs.pop(name)
-                for name in map_args
-                if isinstance(kwargs.get(name), mappable)
+                arg: val
+                for arg, val in bound_args.arguments.items()
+                if arg in map_args and isinstance(val, mappable)
             }
             if not to_map:
                 return func(*args, **kwargs)
@@ -129,9 +133,13 @@ def map_over_arguments(
                 {**{k: v[i] for k, v in to_map.items()}}
                 for i in range(max(num_mapped_vals))
             ]
-            return tuple(
-                [func(*args, **map_group, **kwargs) for map_group in map_groups]
-            )
+
+            # Return one result per group of mapped values
+            results = []
+            for map_group in map_groups:
+                bound_args.arguments.update(map_group)
+                results.append(func(*bound_args.args, **bound_args.kwargs))
+            return tuple(results)
 
         return wrapper
 

@@ -43,7 +43,7 @@ def reshape_to_samples(
         def unflatten(r: NDArray) -> NDArray:
             return r.reshape(*array.shape[:-1], -1)
 
-        return unflatten(r=result)
+        return unflatten(result)
 
     return wrapper
 
