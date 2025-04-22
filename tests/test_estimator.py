@@ -210,6 +210,14 @@ def test_kneighbors_nodata_outputs(model_data: ModelData):
     assert np.unique(unwrap_features(dist)) == [-32768]
     assert np.unique(unwrap_features(nn)) == [255]
 
+    expected_msg = "`nodata_output` must be a scalar when `return_distance` is False"
+    with pytest.raises(ValueError, match=expected_msg):
+        unwrap_features(
+            estimator.kneighbors(
+                X_image, return_distance=False, nodata_output=(np.nan, -32768)
+            )
+        )
+
 
 @parametrize_model_data(feature_array_types=(xr.DataArray,))
 def test_predict_dataarray_with_custom_dim_name(model_data: ModelData):

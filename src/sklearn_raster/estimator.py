@@ -418,6 +418,9 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
         """
         if nodata_output is None:
             nodata_output = (np.nan, -2147483648) if return_distance else -2147483648
+        elif return_distance is False and isinstance(nodata_output, (tuple, list)):
+            msg = "`nodata_output` must be a scalar when `return_distance` is False."
+            raise ValueError(msg)
 
         features = FeatureArray.from_feature_array(X, nodata_input=nodata_input)
         k = n_neighbors or cast(int, getattr(self._wrapped, "n_neighbors", 5))
