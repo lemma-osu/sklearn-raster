@@ -8,10 +8,10 @@ import numpy as np
 import xarray as xr
 from numpy.typing import NDArray
 
-from .types import ArrayUfunc, FeatureArrayType, NoDataType
+from .types import ArrayUfunc, FeatureArrayType, MaybeTuple, NoDataType
 from .ufunc import UfuncSampleProcessor
 from .utils.features import reshape_to_samples
-from .utils.wrapper import map_method_over_tuples
+from .utils.wrapper import map_over_arguments
 
 
 class FeatureArray(Generic[FeatureArrayType], ABC):
@@ -71,7 +71,7 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
         output_sizes: dict[str, int] | None = None,
         output_coords: dict[str, list[str | int]] | None = None,
         skip_nodata: bool = True,
-        nodata_output: float | int = np.nan,
+        nodata_output: MaybeTuple[float | int] = np.nan,
         nan_fill: float | int | None = None,
         ensure_min_samples: int = 1,
         allow_cast: bool = False,
@@ -114,7 +114,9 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
         )
 
         return self._postprocess_ufunc_output(
-            result, output_coords=output_coords, nodata_output=nodata_output
+            result=result,
+            output_coords=output_coords,
+            nodata_output=nodata_output,
         )
 
     def _preprocess_ufunc_input(self, features: FeatureArrayType) -> FeatureArrayType:
@@ -124,7 +126,7 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
         return features
 
     @abstractmethod
-    @map_method_over_tuples
+    @map_over_arguments("result", "nodata_output")
     def _postprocess_ufunc_output(
         self,
         result: FeatureArrayType,
@@ -170,7 +172,7 @@ class NDArrayFeatures(FeatureArray):
         # Copy to avoid mutating the original array
         return np.moveaxis(features.copy(), 0, -1)
 
-    @map_method_over_tuples
+    @map_over_arguments("result")
     def _postprocess_ufunc_output(
         self, result: NDArray, *, nodata_output: float | int, output_coords=None
     ) -> NDArray:
@@ -205,7 +207,7 @@ class DataArrayFeatures(FeatureArray):
 
         return None
 
-    @map_method_over_tuples
+    @map_over_arguments("result", "nodata_output")
     def _postprocess_ufunc_output(
         self,
         result: xr.DataArray,
@@ -260,7 +262,7 @@ class DatasetFeatures(DataArrayFeatures):
         # Fall back to the DataArray logic for handling NoData
         return super()._validate_nodata_input(nodata_input)
 
-    @map_method_over_tuples
+    @map_over_arguments("result", "nodata_output")
     def _postprocess_ufunc_output(
         self,
         result: xr.DataArray,
@@ -270,7 +272,9 @@ class DatasetFeatures(DataArrayFeatures):
     ) -> xr.Dataset:
         """Process the ufunc output converting from DataArray to Dataset."""
         result = super()._postprocess_ufunc_output(
-            result, output_coords=output_coords, nodata_output=nodata_output
+            result=result,
+            output_coords=output_coords,
+            nodata_output=nodata_output,
         )
         var_dim = result.dims[self.feature_dim]
         ds = result.to_dataset(dim=var_dim)

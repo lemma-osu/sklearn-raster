@@ -8,7 +8,7 @@ from numpy.typing import NDArray
 from typing_extensions import Concatenate
 
 from ..types import MaybeTuple, P
-from .wrapper import map_function_over_tuples
+from .wrapper import map_over_arguments
 
 
 def reshape_to_samples(
@@ -39,7 +39,7 @@ def reshape_to_samples(
     def wrapper(array: NDArray, *args, **kwargs) -> MaybeTuple[NDArray]:
         result = func(array.reshape(-1, array.shape[-1]), *args, **kwargs)
 
-        @map_function_over_tuples
+        @map_over_arguments("r")
         def unflatten(r: NDArray) -> NDArray:
             return r.reshape(*array.shape[:-1], -1)
 

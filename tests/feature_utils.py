@@ -87,6 +87,10 @@ class ModelData(Generic[FeatureArrayType]):
         return self._X_image.shape[0]
 
     @property
+    def X_image_shape(self):
+        return self._X_image.shape
+
+    @property
     def X_image(self) -> FeatureArrayType:
         """Feature image."""
         return wrap_features(self._X_image, self._feature_array_type)

@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     import pandas as pd
     from numpy.typing import NDArray
 
-    from .types import FeatureArrayType, NoDataType
+    from .types import FeatureArrayType, MaybeTuple, NoDataType
 
 ESTIMATOR_OUTPUT_DTYPES: dict[str, np.dtype] = {
     "classifier": np.int32,
@@ -313,15 +313,15 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
         X: FeatureArrayType,
         *,
         n_neighbors: int | None = None,
-        return_distance: Literal[False] = False,
+        return_distance: Literal[True] = True,
         skip_nodata: bool = True,
         nodata_input: NoDataType = None,
-        nodata_output: float | int = -2147483648,
+        nodata_output: MaybeTuple[float | int] | None = None,
         ensure_min_samples: int = 1,
         allow_cast: bool = False,
         check_output_for_nodata: bool = True,
         **kneighbors_kwargs,
-    ) -> FeatureArrayType: ...
+    ) -> tuple[FeatureArrayType, FeatureArrayType]: ...
 
     @check_wrapper_implements
     @overload
@@ -330,15 +330,15 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
         X: FeatureArrayType,
         *,
         n_neighbors: int | None = None,
-        return_distance: Literal[True] = True,
+        return_distance: Literal[False] = False,
         skip_nodata: bool = True,
         nodata_input: NoDataType = None,
-        nodata_output: float | int = -2147483648,
+        nodata_output: float | int | None = None,
         ensure_min_samples: int = 1,
         allow_cast: bool = False,
         check_output_for_nodata: bool = True,
         **kneighbors_kwargs,
-    ) -> tuple[FeatureArrayType, FeatureArrayType]: ...
+    ) -> FeatureArrayType: ...
 
     @check_wrapper_implements
     def kneighbors(
@@ -349,7 +349,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
         return_distance: bool = True,
         skip_nodata: bool = True,
         nodata_input: NoDataType = None,
-        nodata_output: float | int = -2147483648,
+        nodata_output: MaybeTuple[float | int] | None = None,
         ensure_min_samples: int = 1,
         allow_cast: bool = False,
         check_output_for_nodata: bool = True,
@@ -381,10 +381,13 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             will be broadcast to all features while sequences of values will be assigned
             feature-wise. If None, values will be inferred if possible based on
             available metadata.
-        nodata_output : float or int, default np.nan
+        nodata_output : float or int or tuple, optional
             NoData samples in the input features will be replaced with this value in the
             output targets. If the value does not fit the array dtype returned by the
-            estimator, an error will be raised unless `allow_cast` is True.
+            estimator, an error will be raised unless `allow_cast` is True. If
+            `return_distance` is True, you can provide a tuple of two values to use
+            for distances and indexes, respectively. Defaults to np.nan for the distance
+            array and -2147483648 for the neighbor array.
         ensure_min_samples : int, default 1
             The minimum number of samples that should be passed to `kneighbors`. If the
             array is fully masked and `skip_nodata=True`, dummy values (0) will be
@@ -413,6 +416,12 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             Array types will be in the shape (neighbor, ...) while xr.Dataset will store
             neighbors as variables.
         """
+        if nodata_output is None:
+            nodata_output = (np.nan, -2147483648) if return_distance else -2147483648
+        elif return_distance is False and isinstance(nodata_output, (tuple, list)):
+            msg = "`nodata_output` must be a scalar when `return_distance` is False."
+            raise ValueError(msg)
+
         features = FeatureArray.from_feature_array(X, nodata_input=nodata_input)
         k = n_neighbors or cast(int, getattr(self._wrapped, "n_neighbors", 5))
 
