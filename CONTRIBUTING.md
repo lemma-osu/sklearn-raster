@@ -32,18 +32,21 @@ hatch run docs:serve
 hatch run docs:build
 ```
 
-## Publish
+## Releasing
 
-Increment versions with Hatch:
-
-```bash
-hatch version <patch|minor|major>
-```
-
-Build and publish with Hatch:
+First, use `hatch` to [update the version number](https://hatch.pypa.io/latest/version/#updating) in a new release branch and merge into `main`.
 
 ```bash
-hatch clean
-hatch build
-hatch publish
+$ hatch version [major|minor|patch|alpha|beta|rc|post|dev]
 ```
+
+Checkout `main` and confirm that it is up-to-date with the remote, including the bumped version. Finally, create and push the release tag.
+
+```bash
+$ git checkout main
+$ git pull
+$ git tag "$(hatch version)"
+$ git push --tags
+```
+
+Pushing the updated tag will trigger [a workflow](https://github.com/lemma-osu/sklearn-raster/actions/workflows/publish.yml) that publishes the release to PyPI.
