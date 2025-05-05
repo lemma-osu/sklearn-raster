@@ -444,6 +444,88 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             **kneighbors_kwargs,
         )
 
+    @check_wrapper_implements
+    def transform(
+        self,
+        X: FeatureArrayType,
+        *,
+        skip_nodata: bool = True,
+        nodata_input: NoDataType = None,
+        nodata_output: float | int = np.nan,
+        ensure_min_samples: int = 1,
+        allow_cast: bool = False,
+        check_output_for_nodata: bool = True,
+        **transform_kwargs,
+    ) -> FeatureArrayType:
+        if not hasattr(self._wrapped, "get_feature_names_out"):
+            msg = (
+                "The `get_feature_names_out` method is required to infer the "
+                "transformed output shape, but the wrapped estimator does not "
+                "implement it."
+            )
+            raise AttributeError(msg) from None
+        feature_names = self._wrapped.get_feature_names_out()
+
+        output_dim_name = "variable"
+        features = FeatureArray.from_feature_array(X, nodata_input=nodata_input)
+
+        self._check_feature_names(features.feature_names)
+
+        # TODO: Think about this
+        output_dtype = np.float64
+
+        return features.apply_ufunc_across_features(
+            suppress_feature_name_warnings(self._wrapped.transform),
+            output_dims=[[output_dim_name]],
+            output_dtypes=[output_dtype],
+            output_sizes={output_dim_name: len(feature_names)},
+            output_coords={output_dim_name: list(feature_names)},
+            skip_nodata=skip_nodata,
+            nodata_output=nodata_output,
+            ensure_min_samples=ensure_min_samples,
+            allow_cast=allow_cast,
+            check_output_for_nodata=check_output_for_nodata,
+            nan_fill=0.0,
+            **transform_kwargs,
+        )
+
+    @check_wrapper_implements
+    def inverse_transform(
+        self,
+        X: FeatureArrayType,
+        *,
+        skip_nodata: bool = True,
+        nodata_input: NoDataType = None,
+        nodata_output: float | int = np.nan,
+        ensure_min_samples: int = 1,
+        allow_cast: bool = False,
+        check_output_for_nodata: bool = True,
+        **inverse_transform_kwargs,
+    ) -> FeatureArrayType:
+        output_dim_name = "variable"
+        features = FeatureArray.from_feature_array(X, nodata_input=nodata_input)
+
+        # TODO: How does sklearn handle this?
+        # self._check_feature_names(features.feature_names)
+
+        # TODO: Think about this
+        output_dtype = np.float64
+
+        return features.apply_ufunc_across_features(
+            suppress_feature_name_warnings(self._wrapped.inverse_transform),
+            output_dims=[[output_dim_name]],
+            output_dtypes=[output_dtype],
+            output_sizes={output_dim_name: len(self._wrapped_meta.feature_names)},
+            output_coords={output_dim_name: list(self._wrapped_meta.feature_names)},
+            skip_nodata=skip_nodata,
+            nodata_output=nodata_output,
+            ensure_min_samples=ensure_min_samples,
+            allow_cast=allow_cast,
+            check_output_for_nodata=check_output_for_nodata,
+            nan_fill=0.0,
+            **inverse_transform_kwargs,
+        )
+
     def _check_feature_names(self, feature_array_names: NDArray) -> None:
         """Check that feature array names match feature names seen during fitting."""
         check_is_fitted(self._wrapped)
