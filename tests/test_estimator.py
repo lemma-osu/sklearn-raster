@@ -7,6 +7,7 @@ import xarray as xr
 from numpy.testing import assert_array_equal
 from sklearn.base import BaseEstimator, clone
 from sklearn.cluster import AffinityPropagation, KMeans, MeanShift
+from sklearn.decomposition import PCA
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.neighbors import (
     KNeighborsClassifier,
@@ -233,6 +234,45 @@ def test_predict_dataarray_with_custom_dim_name(model_data: ModelData):
     assert_array_equal(
         y_pred.shape, (model_data.n_targets, model_data.n_rows, model_data.n_cols)
     )
+
+
+@parametrize_model_data()
+def test_roundtrip_transform_preserves_shape(model_data: ModelData):
+    """Test forward and inverse PCA transformation produce correct shapes."""
+    X_image, X, _ = model_data
+    n_components = 2
+    transformer = wrap(PCA(n_components=n_components)).fit(X)
+    components = transformer.transform(X_image)
+
+    expected_components_shape = (
+        n_components,
+        model_data.n_rows,
+        model_data.n_cols,
+    )
+    assert_array_equal(unwrap_features(components).shape, expected_components_shape)
+
+    inverted = unwrap_features(transformer.inverse_transform(components))
+    assert_array_equal(inverted.shape, unwrap_features(X_image).shape)
+
+
+# TODO: Remove this test once we have regression tests in place that confirm
+# transformations more robustly.
+@parametrize_model_data()
+def test_roundtrip_transform_values(model_data: ModelData):
+    """Test forward and inverse standard scale transformation produce correct values."""
+    # Set the features to a constant value so we get exact scaled means
+    constant = 42
+    model_data.set(X_image=np.full(model_data.X_image_shape, constant))
+    model_data.set(X=np.full_like(model_data.X, constant))
+    X_image, X, _ = model_data
+
+    transformer = wrap(StandardScaler(with_std=False)).fit(X)
+    scaled = transformer.transform(X_image)
+
+    assert unwrap_features(scaled).mean() == 0
+
+    inverted = unwrap_features(transformer.inverse_transform(scaled))
+    assert unwrap_features(inverted).mean() == constant
 
 
 @parametrize_model_data(feature_array_types=(xr.DataArray, xr.Dataset))
