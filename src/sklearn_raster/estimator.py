@@ -12,7 +12,7 @@ from typing_extensions import Literal, overload
 from .features import FeatureArray
 from .types import EstimatorType
 from .utils.estimator import is_fitted, suppress_feature_name_warnings
-from .utils.wrapper import AttrWrapper, check_wrapper_implements
+from .utils.wrapper import AttrWrapper, require_attributes, require_implementation
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -90,7 +90,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
         # Default to sequential identifiers
         return tuple(range(self._get_n_targets(y)))
 
-    @check_wrapper_implements
+    @require_implementation
     def fit(self, X, y=None, **kwargs) -> FeatureArrayEstimator[EstimatorType]:
         """
         Fit an estimator from a training set (X, y).
@@ -117,7 +117,6 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             # which causes inconsistent output shapes with different sklearn estimators,
             # to (n_samples,), which has a consistent output shape.
             y = y.squeeze()
-
         self._wrapped = self._wrapped.fit(X, y, **kwargs)
         fitted_feature_names = _get_feature_names(X)
 
@@ -131,7 +130,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
 
         return self
 
-    @check_wrapper_implements
+    @require_implementation
     def predict(
         self,
         X: FeatureArrayType,
@@ -214,7 +213,8 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             **predict_kwargs,
         )
 
-    @check_wrapper_implements
+    @require_implementation
+    @require_attributes("classes_")
     def predict_proba(
         self,
         X: FeatureArrayType,
@@ -284,19 +284,12 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             )
             raise NotImplementedError(msg)
 
-        if (classes := getattr(self._wrapped, "classes_", None)) is None:
-            msg = (
-                "The wrapped estimator does not have a `classes_` attribute, which is "
-                "required by `predict_proba`."
-            )
-            raise AttributeError(msg) from None
-
         return features.apply_ufunc_across_features(
             suppress_feature_name_warnings(self._wrapped.predict_proba),
             output_dims=[[output_dim_name]],
             output_dtypes=[np.float64],
-            output_sizes={output_dim_name: len(classes)},
-            output_coords={output_dim_name: list(classes)},
+            output_sizes={output_dim_name: len(self._wrapped.classes_)},
+            output_coords={output_dim_name: list(self._wrapped.classes_)},
             skip_nodata=skip_nodata,
             nodata_output=nodata_output,
             ensure_min_samples=ensure_min_samples,
@@ -306,7 +299,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             **predict_proba_kwargs,
         )
 
-    @check_wrapper_implements
+    @require_implementation
     @overload
     def kneighbors(
         self,
@@ -323,7 +316,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
         **kneighbors_kwargs,
     ) -> tuple[FeatureArrayType, FeatureArrayType]: ...
 
-    @check_wrapper_implements
+    @require_implementation
     @overload
     def kneighbors(
         self,
@@ -340,7 +333,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
         **kneighbors_kwargs,
     ) -> FeatureArrayType: ...
 
-    @check_wrapper_implements
+    @require_implementation
     def kneighbors(
         self,
         X: FeatureArrayType,
@@ -444,7 +437,8 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             **kneighbors_kwargs,
         )
 
-    @check_wrapper_implements
+    @require_implementation
+    @require_attributes("get_feature_names_out")
     def transform(
         self,
         X: FeatureArrayType,
@@ -457,13 +451,6 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
         check_output_for_nodata: bool = True,
         **transform_kwargs,
     ) -> FeatureArrayType:
-        if not hasattr(self._wrapped, "get_feature_names_out"):
-            msg = (
-                "The `get_feature_names_out` method is required to infer the "
-                "transformed output shape, but the wrapped estimator does not "
-                "implement it."
-            )
-            raise AttributeError(msg) from None
         feature_names = self._wrapped.get_feature_names_out()
 
         output_dim_name = "variable"
@@ -489,7 +476,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             **transform_kwargs,
         )
 
-    @check_wrapper_implements
+    @require_implementation
     def inverse_transform(
         self,
         X: FeatureArrayType,

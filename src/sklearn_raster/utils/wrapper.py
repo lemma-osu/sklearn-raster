@@ -26,21 +26,48 @@ class AttrWrapper(Generic[AnyType]):
 GenericWrapper = TypeVar("GenericWrapper", bound=AttrWrapper)
 
 
-def check_wrapper_implements(
+def require_implementation(
     func: Callable[Concatenate[GenericWrapper, P], RT],
 ) -> Callable[Concatenate[GenericWrapper, P], RT]:
-    """Decorator that raises if the wrapped instance doesn't implement the method."""
+    """
+    A decorator that raises if the wrapped instance doesn't implement the given method.
+    """
+    return require_attributes(func.__name__)(func)
 
-    @wraps(func)
-    def wrapper(self: GenericWrapper, *args, **kwargs):
-        if not hasattr(self._wrapped, func.__name__):
-            wrapped_class = self._wrapped.__class__.__name__
-            msg = f"{wrapped_class} does not implement {func.__name__}."
-            raise NotImplementedError(msg)
 
-        return func(self, *args, **kwargs)
+def require_attributes(
+    *attrs: str,
+) -> Callable[
+    [Callable[Concatenate[GenericWrapper, P], RT]],
+    Callable[Concatenate[GenericWrapper, P], RT],
+]:
+    """
+    A decorator that raises if the wrapped instance is missing required attributes.
+    """
 
-    return wrapper
+    def decorator(
+        func: Callable[Concatenate[GenericWrapper, P], RT],
+    ) -> Callable[Concatenate[GenericWrapper, P], RT]:
+        @wraps(func)
+        def wrapper(self: GenericWrapper, *args, **kwargs):
+            for attr in attrs:
+                if hasattr(self._wrapped, attr):
+                    continue
+                wrapped_class = self._wrapped.__class__.__name__
+                if attr == func.__name__:
+                    msg = f"`{wrapped_class}` does not implement `{func.__name__}`."
+                else:
+                    msg = (
+                        f"`{wrapped_class}` is missing a required attribute `{attr}` "
+                        f"needed to implement `{func.__name__}`."
+                    )
+                raise NotImplementedError(msg)
+
+            return func(self, *args, **kwargs)
+
+        return wrapper
+
+    return decorator
 
 
 def map_over_arguments(

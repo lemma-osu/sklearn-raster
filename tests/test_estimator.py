@@ -5,7 +5,7 @@ import pandas as pd
 import pytest
 import xarray as xr
 from numpy.testing import assert_array_equal
-from sklearn.base import clone
+from sklearn.base import BaseEstimator, clone
 from sklearn.cluster import AffinityPropagation, KMeans, MeanShift
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.neighbors import (
@@ -13,6 +13,7 @@ from sklearn.neighbors import (
     KNeighborsRegressor,
     NearestNeighbors,
 )
+from sklearn.preprocessing import StandardScaler
 from sklearn.utils.validation import NotFittedError
 
 from sklearn_raster import wrap
@@ -398,11 +399,43 @@ def test_predict_raises_mismatched_feature_names(model_data: ModelData):
         estimator.predict(X_image)
 
 
-def test_unimplemented_methods_raise():
-    """Wrapped estimators should raise NotImplementedError for unimplemented methods."""
-    estimator = wrap(RandomForestRegressor())
-    with pytest.raises(NotImplementedError):
-        estimator.kneighbors()
+@pytest.mark.parametrize(
+    ("estimator", "method"),
+    [
+        (StandardScaler, "predict"),
+        (KNeighborsRegressor, "transform"),
+        (KNeighborsRegressor, "inverse_transform"),
+        (KNeighborsRegressor, "predict_proba"),
+        (RandomForestRegressor, "kneighbors"),
+    ],
+)
+def test_unimplemented_methods_raise(estimator: BaseEstimator, method: str):
+    """Wrapped estimators should raise for unimplemented methods."""
+    expected = f"`{estimator.__name__}` does not implement `{method}`"
+    with pytest.raises(NotImplementedError, match=expected):
+        getattr(wrap(estimator()), method)()
+
+
+@pytest.mark.parametrize(
+    ("method", "required_attr"),
+    [("transform", "get_feature_names_out"), ("predict_proba", "classes_")],
+)
+def test_missing_required_attrs_raise(method: str, required_attr: str):
+    """Wrapped estimators should raise for missing required attrs."""
+
+    class DummyEstimator(BaseEstimator):
+        """Dummy estimator that implements methods but is missing attrs."""
+
+        def fit(self, *args, **kwargs): ...
+        def transform(*args, **kwargs): ...
+        def predict_proba(*args, **kwargs): ...
+
+    expected = (
+        f"`DummyEstimator` is missing a required attribute `{required_attr}` needed to "
+        f"implement `{method}`"
+    )
+    with pytest.raises(NotImplementedError, match=expected):
+        getattr(wrap(DummyEstimator()), method)(None, None)
 
 
 def test_wrapping_fitted_estimators_warns(dummy_model_data):
