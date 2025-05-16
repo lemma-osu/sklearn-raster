@@ -458,13 +458,10 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
 
         self._check_feature_names(features.feature_names)
 
-        # TODO: Think about this
-        output_dtype = np.float64
-
         return features.apply_ufunc_across_features(
             suppress_feature_name_warnings(self._wrapped.transform),
             output_dims=[[output_dim_name]],
-            output_dtypes=[output_dtype],
+            output_dtypes=[np.float64],
             output_sizes={output_dim_name: len(feature_names)},
             output_coords={output_dim_name: list(feature_names)},
             skip_nodata=skip_nodata,
@@ -492,13 +489,10 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
         output_dim_name = "variable"
         features = FeatureArray.from_feature_array(X, nodata_input=nodata_input)
 
-        # TODO: Think about this
-        output_dtype = np.float64
-
         return features.apply_ufunc_across_features(
             suppress_feature_name_warnings(self._wrapped.inverse_transform),
             output_dims=[[output_dim_name]],
-            output_dtypes=[output_dtype],
+            output_dtypes=[np.float64],
             output_sizes={output_dim_name: len(self._wrapped_meta.feature_names)},
             output_coords={output_dim_name: list(self._wrapped_meta.feature_names)},
             skip_nodata=skip_nodata,
