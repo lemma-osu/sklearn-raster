@@ -492,9 +492,6 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
         output_dim_name = "variable"
         features = FeatureArray.from_feature_array(X, nodata_input=nodata_input)
 
-        # TODO: How does sklearn handle this?
-        # self._check_feature_names(features.feature_names)
-
         # TODO: Think about this
         output_dtype = np.float64
 
