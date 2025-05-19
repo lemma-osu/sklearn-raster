@@ -6,12 +6,12 @@ from warnings import warn
 
 import numpy as np
 from sklearn.base import clone
-from sklearn.utils.validation import _get_feature_names, check_is_fitted
+from sklearn.utils.validation import _get_feature_names
 from typing_extensions import Literal, overload
 
 from .features import FeatureArray
 from .types import EstimatorType
-from .utils.estimator import is_fitted, suppress_feature_name_warnings
+from .utils.estimator import is_fitted, require_fitted, suppress_feature_name_warnings
 from .utils.wrapper import AttrWrapper, require_attributes, require_implementation
 
 if TYPE_CHECKING:
@@ -131,6 +131,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
         return self
 
     @require_implementation
+    @require_fitted
     def predict(
         self,
         X: FeatureArrayType,
@@ -214,6 +215,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
         )
 
     @require_implementation
+    @require_fitted
     @require_attributes("classes_")
     def predict_proba(
         self,
@@ -300,6 +302,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
         )
 
     @require_implementation
+    @require_fitted
     @overload
     def kneighbors(
         self,
@@ -317,6 +320,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
     ) -> tuple[FeatureArrayType, FeatureArrayType]: ...
 
     @require_implementation
+    @require_fitted
     @overload
     def kneighbors(
         self,
@@ -334,6 +338,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
     ) -> FeatureArrayType: ...
 
     @require_implementation
+    @require_fitted
     def kneighbors(
         self,
         X: FeatureArrayType,
@@ -438,6 +443,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
         )
 
     @require_implementation
+    @require_fitted
     @require_attributes("get_feature_names_out")
     def transform(
         self,
@@ -521,6 +527,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
         )
 
     @require_implementation
+    @require_fitted
     def inverse_transform(
         self,
         X: FeatureArrayType,
@@ -599,7 +606,6 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
 
     def _check_feature_names(self, feature_array_names: NDArray) -> None:
         """Check that feature array names match feature names seen during fitting."""
-        check_is_fitted(self._wrapped)
         fitted_feature_names = self._wrapped_meta.feature_names
 
         no_fitted_names = len(fitted_feature_names) == 0

@@ -383,18 +383,25 @@ def test_predict_proba_raises_for_multioutput(model_data: ModelData):
         estimator.predict_proba(X_image)
 
 
+@pytest.mark.parametrize(
+    ("estimator", "method"),
+    [
+        (RandomForestRegressor, "predict"),
+        (KNeighborsRegressor, "kneighbors"),
+        (KNeighborsClassifier, "predict_proba"),
+        (StandardScaler, "transform"),
+        (StandardScaler, "inverse_transform"),
+    ],
+)
 @parametrize_model_data()
-def test_raises_if_not_fitted(model_data: ModelData):
+def test_raises_if_not_fitted(
+    estimator: BaseEstimator, method: str, model_data: ModelData
+):
     """Test that wrapped methods raise correctly if the estimator is not fitted."""
     X_image, _, _ = model_data
-    estimator = KNeighborsRegressor()
-    wrapped = wrap(estimator)
 
     with pytest.raises(NotFittedError):
-        wrapped.predict(X_image)
-
-    with pytest.raises(NotFittedError):
-        wrapped.kneighbors(X_image)
+        getattr(wrap(estimator()), method)(X_image)
 
 
 @parametrize_model_data(feature_array_types=(np.ndarray,))
@@ -466,7 +473,10 @@ def test_missing_required_attrs_raise(method: str, required_attr: str):
     class DummyEstimator(BaseEstimator):
         """Dummy estimator that implements methods but is missing attrs."""
 
-        def fit(self, *args, **kwargs): ...
+        def fit(self, *args, **kwargs):
+            self.fitted_ = True
+            return self
+
         def transform(*args, **kwargs): ...
         def predict_proba(*args, **kwargs): ...
 
@@ -474,8 +484,10 @@ def test_missing_required_attrs_raise(method: str, required_attr: str):
         f"`DummyEstimator` is missing a required attribute `{required_attr}` needed to "
         f"implement `{method}`"
     )
+    # Fit the estimator to avoid an immediate NotFittedError
+    est = wrap(DummyEstimator()).fit(None, None)
     with pytest.raises(NotImplementedError, match=expected):
-        getattr(wrap(DummyEstimator()), method)(None, None)
+        getattr(est, method)(None, None)
 
 
 def test_wrapping_fitted_estimators_warns(dummy_model_data):
