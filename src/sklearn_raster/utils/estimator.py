@@ -1,9 +1,10 @@
 import warnings
 from functools import wraps
-from typing import Callable, Concatenate
+from typing import Callable
 
 from sklearn.base import BaseEstimator
 from sklearn.utils.validation import NotFittedError, check_is_fitted
+from typing_extensions import Concatenate
 
 from ..types import RT, P
 from .wrapper import GenericWrapper
