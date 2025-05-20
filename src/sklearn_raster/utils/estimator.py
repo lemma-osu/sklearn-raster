@@ -31,7 +31,7 @@ def suppress_feature_name_warnings(func):
     return wrapper
 
 
-def require_fitted(
+def requires_fitted(
     func: Callable[Concatenate[GenericWrapper, P], RT],
 ) -> Callable[Concatenate[GenericWrapper, P], RT]:
     """Decorator to check if an estimator is fitted before calling a method."""

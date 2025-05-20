@@ -26,16 +26,16 @@ class AttrWrapper(Generic[AnyType]):
 GenericWrapper = TypeVar("GenericWrapper", bound=AttrWrapper)
 
 
-def require_implementation(
+def requires_implementation(
     func: Callable[Concatenate[GenericWrapper, P], RT],
 ) -> Callable[Concatenate[GenericWrapper, P], RT]:
     """
     A decorator that raises if the wrapped instance doesn't implement the given method.
     """
-    return require_attributes(func.__name__)(func)
+    return requires_attributes(func.__name__)(func)
 
 
-def require_attributes(
+def requires_attributes(
     *attrs: str,
 ) -> Callable[
     [Callable[Concatenate[GenericWrapper, P], RT]],

@@ -11,8 +11,8 @@ from typing_extensions import Literal, overload
 
 from .features import FeatureArray
 from .types import EstimatorType
-from .utils.estimator import is_fitted, require_fitted, suppress_feature_name_warnings
-from .utils.wrapper import AttrWrapper, require_attributes, require_implementation
+from .utils.estimator import is_fitted, requires_fitted, suppress_feature_name_warnings
+from .utils.wrapper import AttrWrapper, requires_attributes, requires_implementation
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -90,7 +90,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
         # Default to sequential identifiers
         return tuple(range(self._get_n_targets(y)))
 
-    @require_implementation
+    @requires_implementation
     def fit(self, X, y=None, **kwargs) -> FeatureArrayEstimator[EstimatorType]:
         """
         Fit an estimator from a training set (X, y).
@@ -130,8 +130,8 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
 
         return self
 
-    @require_implementation
-    @require_fitted
+    @requires_implementation
+    @requires_fitted
     def predict(
         self,
         X: FeatureArrayType,
@@ -214,9 +214,9 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             **predict_kwargs,
         )
 
-    @require_implementation
-    @require_fitted
-    @require_attributes("classes_")
+    @requires_implementation
+    @requires_fitted
+    @requires_attributes("classes_")
     def predict_proba(
         self,
         X: FeatureArrayType,
@@ -301,8 +301,8 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             **predict_proba_kwargs,
         )
 
-    @require_implementation
-    @require_fitted
+    @requires_implementation
+    @requires_fitted
     @overload
     def kneighbors(
         self,
@@ -319,8 +319,8 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
         **kneighbors_kwargs,
     ) -> tuple[FeatureArrayType, FeatureArrayType]: ...
 
-    @require_implementation
-    @require_fitted
+    @requires_implementation
+    @requires_fitted
     @overload
     def kneighbors(
         self,
@@ -337,8 +337,8 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
         **kneighbors_kwargs,
     ) -> FeatureArrayType: ...
 
-    @require_implementation
-    @require_fitted
+    @requires_implementation
+    @requires_fitted
     def kneighbors(
         self,
         X: FeatureArrayType,
@@ -442,9 +442,9 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             **kneighbors_kwargs,
         )
 
-    @require_implementation
-    @require_fitted
-    @require_attributes("get_feature_names_out")
+    @requires_implementation
+    @requires_fitted
+    @requires_attributes("get_feature_names_out")
     def transform(
         self,
         X: FeatureArrayType,
@@ -526,8 +526,8 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             **transform_kwargs,
         )
 
-    @require_implementation
-    @require_fitted
+    @requires_implementation
+    @requires_fitted
     def inverse_transform(
         self,
         X: FeatureArrayType,
