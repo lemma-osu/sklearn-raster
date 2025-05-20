@@ -104,7 +104,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             regression). Single-output targets of shape (n_samples, 1) will be squeezed
             to shape (n_samples,) to allow consistent prediction across all estimators.
         **kwargs : dict
-            Additional keyword arguments passed to the estimator's fit method, e.g.
+            Additional keyword arguments passed to the estimator's `fit` method, e.g.
             `sample_weight`.
 
         Returns
@@ -181,7 +181,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             selected `nodata_output` value is returned by the estimator, as this may
             indicate a valid sample being masked.
         **predict_kwargs
-            Additional arguments passed to the estimator's predict method.
+            Additional arguments passed to the estimator's `predict` method.
 
         Returns
         -------
@@ -266,7 +266,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             selected `nodata_output` value is returned by the estimator, as this may
             indicate a valid sample being masked.
         **predict_proba_kwargs
-            Additional arguments passed to the estimator's predict_proba method.
+            Additional arguments passed to the estimator's `predict_proba` method.
 
         Returns
         -------
@@ -401,7 +401,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             selected `nodata_output` value is returned by the estimator, as this may
             indicate a valid sample being masked.
         **kneighbors_kwargs
-            Additional arguments passed to the estimator's kneighbors method.
+            Additional arguments passed to the estimator's `kneighbors` method.
 
         Returns
         -------
@@ -577,8 +577,8 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             If True and `nodata_output` is not np.nan, a warning will be raised if the
             selected `nodata_output` value is returned by the estimator, as this may
             indicate a valid sample being masked.
-        **transform_kwargs
-            Additional arguments passed to the estimator's `transform` method.
+        **inverse_transform_kwargs
+            Additional arguments passed to the estimator's `inverse_transform` method.
 
         Returns
         -------
