@@ -39,7 +39,7 @@ jobs:
           pip install hatch
 
       - name: Run tests
-        run: hatch run test:all
+        run: hatch run test:all -n auto
 
   lint:
     runs-on: ubuntu-latest
