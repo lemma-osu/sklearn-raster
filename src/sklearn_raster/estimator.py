@@ -6,13 +6,13 @@ from warnings import warn
 
 import numpy as np
 from sklearn.base import clone
-from sklearn.utils.validation import _get_feature_names, check_is_fitted
+from sklearn.utils.validation import _get_feature_names
 from typing_extensions import Literal, overload
 
 from .features import FeatureArray
 from .types import EstimatorType
-from .utils.estimator import is_fitted, suppress_feature_name_warnings
-from .utils.wrapper import AttrWrapper, check_wrapper_implements
+from .utils.estimator import is_fitted, requires_fitted, suppress_feature_name_warnings
+from .utils.wrapper import AttrWrapper, requires_attributes, requires_implementation
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -90,7 +90,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
         # Default to sequential identifiers
         return tuple(range(self._get_n_targets(y)))
 
-    @check_wrapper_implements
+    @requires_implementation
     def fit(self, X, y=None, **kwargs) -> FeatureArrayEstimator[EstimatorType]:
         """
         Fit an estimator from a training set (X, y).
@@ -104,7 +104,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             regression). Single-output targets of shape (n_samples, 1) will be squeezed
             to shape (n_samples,) to allow consistent prediction across all estimators.
         **kwargs : dict
-            Additional keyword arguments passed to the estimator's fit method, e.g.
+            Additional keyword arguments passed to the estimator's `fit` method, e.g.
             `sample_weight`.
 
         Returns
@@ -117,7 +117,6 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             # which causes inconsistent output shapes with different sklearn estimators,
             # to (n_samples,), which has a consistent output shape.
             y = y.squeeze()
-
         self._wrapped = self._wrapped.fit(X, y, **kwargs)
         fitted_feature_names = _get_feature_names(X)
 
@@ -131,7 +130,8 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
 
         return self
 
-    @check_wrapper_implements
+    @requires_implementation
+    @requires_fitted
     def predict(
         self,
         X: FeatureArrayType,
@@ -181,7 +181,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             selected `nodata_output` value is returned by the estimator, as this may
             indicate a valid sample being masked.
         **predict_kwargs
-            Additional arguments passed to the estimator's predict method.
+            Additional arguments passed to the estimator's `predict` method.
 
         Returns
         -------
@@ -214,7 +214,9 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             **predict_kwargs,
         )
 
-    @check_wrapper_implements
+    @requires_implementation
+    @requires_fitted
+    @requires_attributes("classes_")
     def predict_proba(
         self,
         X: FeatureArrayType,
@@ -264,7 +266,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             selected `nodata_output` value is returned by the estimator, as this may
             indicate a valid sample being masked.
         **predict_proba_kwargs
-            Additional arguments passed to the estimator's predict_proba method.
+            Additional arguments passed to the estimator's `predict_proba` method.
 
         Returns
         -------
@@ -284,19 +286,12 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             )
             raise NotImplementedError(msg)
 
-        if (classes := getattr(self._wrapped, "classes_", None)) is None:
-            msg = (
-                "The wrapped estimator does not have a `classes_` attribute, which is "
-                "required by `predict_proba`."
-            )
-            raise AttributeError(msg) from None
-
         return features.apply_ufunc_across_features(
             suppress_feature_name_warnings(self._wrapped.predict_proba),
             output_dims=[[output_dim_name]],
             output_dtypes=[np.float64],
-            output_sizes={output_dim_name: len(classes)},
-            output_coords={output_dim_name: list(classes)},
+            output_sizes={output_dim_name: len(self._wrapped.classes_)},
+            output_coords={output_dim_name: list(self._wrapped.classes_)},
             skip_nodata=skip_nodata,
             nodata_output=nodata_output,
             ensure_min_samples=ensure_min_samples,
@@ -306,7 +301,8 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             **predict_proba_kwargs,
         )
 
-    @check_wrapper_implements
+    @requires_implementation
+    @requires_fitted
     @overload
     def kneighbors(
         self,
@@ -323,7 +319,8 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
         **kneighbors_kwargs,
     ) -> tuple[FeatureArrayType, FeatureArrayType]: ...
 
-    @check_wrapper_implements
+    @requires_implementation
+    @requires_fitted
     @overload
     def kneighbors(
         self,
@@ -340,7 +337,8 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
         **kneighbors_kwargs,
     ) -> FeatureArrayType: ...
 
-    @check_wrapper_implements
+    @requires_implementation
+    @requires_fitted
     def kneighbors(
         self,
         X: FeatureArrayType,
@@ -403,7 +401,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             selected `nodata_output` value is returned by the estimator, as this may
             indicate a valid sample being masked.
         **kneighbors_kwargs
-            Additional arguments passed to the estimator's kneighbors method.
+            Additional arguments passed to the estimator's `kneighbors` method.
 
         Returns
         -------
@@ -444,9 +442,170 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             **kneighbors_kwargs,
         )
 
+    @requires_implementation
+    @requires_fitted
+    @requires_attributes("get_feature_names_out")
+    def transform(
+        self,
+        X: FeatureArrayType,
+        *,
+        skip_nodata: bool = True,
+        nodata_input: NoDataType = None,
+        nodata_output: float | int = np.nan,
+        ensure_min_samples: int = 1,
+        allow_cast: bool = False,
+        check_output_for_nodata: bool = True,
+        **transform_kwargs,
+    ) -> FeatureArrayType:
+        """
+        Apply the transformation to n-dimensional X features.
+
+        Parameters
+        ----------
+        X : Numpy or Xarray features
+            The n-dimensional input features. Array types should be in the shape
+            (features, ...) while xr.Dataset should include features as variables.
+            Features should correspond with those used to fit the estimator.
+        skip_nodata : bool, default=True
+            If True, NoData and NaN values will be skipped during prediction. This
+            speeds up processing of partially masked features, but may be incompatible
+            if estimators expect a consistent number of input samples.
+        nodata_input : float or sequence of floats, optional
+            NoData values other than NaN to mask in the output features. A single value
+            will be broadcast to all features while sequences of values will be assigned
+            feature-wise. If None, values will be inferred if possible based on
+            available metadata.
+        nodata_output : float or int or tuple, optional
+            NoData samples in the input features will be replaced with this value in the
+            output features. If the value does not fit the array dtype returned by the
+            estimator, an error will be raised unless `allow_cast` is True. Defaults to
+            np.nan.
+        ensure_min_samples : int, default 1
+            The minimum number of samples that should be passed to `transform`. If the
+            array is fully masked and `skip_nodata=True`, dummy values (0) will be
+            inserted to ensure this number of samples. The minimum supported number of
+            samples depends on the estimator used. No effect if the array contains
+            enough unmasked samples or if `skip_nodata=False`.
+        allow_cast : bool, default=False
+            If True and the estimator output dtype is incompatible with the chosen
+            `nodata_output` value, the output will be cast to the correct dtype instead
+            of raising an error.
+        check_output_for_nodata : bool, default True
+            If True and `nodata_output` is not np.nan, a warning will be raised if the
+            selected `nodata_output` value is returned by the estimator, as this may
+            indicate a valid sample being masked.
+        **transform_kwargs
+            Additional arguments passed to the estimator's `transform` method.
+
+        Returns
+        -------
+        Numpy or Xarray features
+            The transformed features. Array types will be in the shape (features, ...)
+            while xr.Dataset will store features as variables, with the feature names
+            based on the estimator's `get_feature_names_out` method.
+        """
+        feature_names = self._wrapped.get_feature_names_out()
+
+        output_dim_name = "variable"
+        features = FeatureArray.from_feature_array(X, nodata_input=nodata_input)
+
+        self._check_feature_names(features.feature_names)
+
+        return features.apply_ufunc_across_features(
+            suppress_feature_name_warnings(self._wrapped.transform),
+            output_dims=[[output_dim_name]],
+            output_dtypes=[np.float64],
+            output_sizes={output_dim_name: len(feature_names)},
+            output_coords={output_dim_name: list(feature_names)},
+            skip_nodata=skip_nodata,
+            nodata_output=nodata_output,
+            ensure_min_samples=ensure_min_samples,
+            allow_cast=allow_cast,
+            check_output_for_nodata=check_output_for_nodata,
+            nan_fill=0.0,
+            **transform_kwargs,
+        )
+
+    @requires_implementation
+    @requires_fitted
+    def inverse_transform(
+        self,
+        X: FeatureArrayType,
+        *,
+        skip_nodata: bool = True,
+        nodata_input: NoDataType = None,
+        nodata_output: float | int = np.nan,
+        ensure_min_samples: int = 1,
+        allow_cast: bool = False,
+        check_output_for_nodata: bool = True,
+        **inverse_transform_kwargs,
+    ) -> FeatureArrayType:
+        """
+        Apply the inverse transformation to n-dimensional X features.
+
+        Parameters
+        ----------
+        X : Numpy or Xarray features
+            The n-dimensional input features. Array types should be in the shape
+            (features, ...) while xr.Dataset should include features as variables.
+            Features should correspond with those used to fit the estimator.
+        skip_nodata : bool, default=True
+            If True, NoData and NaN values will be skipped during prediction. This
+            speeds up processing of partially masked features, but may be incompatible
+            if estimators expect a consistent number of input samples.
+        nodata_input : float or sequence of floats, optional
+            NoData values other than NaN to mask in the output features. A single value
+            will be broadcast to all features while sequences of values will be assigned
+            feature-wise. If None, values will be inferred if possible based on
+            available metadata.
+        nodata_output : float or int or tuple, optional
+            NoData samples in the input features will be replaced with this value in the
+            output features. If the value does not fit the array dtype returned by the
+            estimator, an error will be raised unless `allow_cast` is True. Defaults to
+            np.nan.
+        ensure_min_samples : int, default 1
+            The minimum number of samples that should be passed to `transform`. If the
+            array is fully masked and `skip_nodata=True`, dummy values (0) will be
+            inserted to ensure this number of samples. The minimum supported number of
+            samples depends on the estimator used. No effect if the array contains
+            enough unmasked samples or if `skip_nodata=False`.
+        allow_cast : bool, default=False
+            If True and the estimator output dtype is incompatible with the chosen
+            `nodata_output` value, the output will be cast to the correct dtype instead
+            of raising an error.
+        check_output_for_nodata : bool, default True
+            If True and `nodata_output` is not np.nan, a warning will be raised if the
+            selected `nodata_output` value is returned by the estimator, as this may
+            indicate a valid sample being masked.
+        **inverse_transform_kwargs
+            Additional arguments passed to the estimator's `inverse_transform` method.
+
+        Returns
+        -------
+        Numpy or Xarray features
+            The inverse-transformed features. Array types will be in the shape
+            (features, ...) while xr.Dataset will store features as variables.
+        """
+        output_dim_name = "variable"
+        features = FeatureArray.from_feature_array(X, nodata_input=nodata_input)
+
+        return features.apply_ufunc_across_features(
+            suppress_feature_name_warnings(self._wrapped.inverse_transform),
+            output_dims=[[output_dim_name]],
+            output_dtypes=[np.float64],
+            output_sizes={output_dim_name: len(self._wrapped_meta.feature_names)},
+            output_coords={output_dim_name: list(self._wrapped_meta.feature_names)},
+            skip_nodata=skip_nodata,
+            nodata_output=nodata_output,
+            ensure_min_samples=ensure_min_samples,
+            allow_cast=allow_cast,
+            check_output_for_nodata=check_output_for_nodata,
+            nan_fill=0.0,
+            **inverse_transform_kwargs,
+        )
+
     def _check_feature_names(self, feature_array_names: NDArray) -> None:
         """Check that feature array names match feature names seen during fitting."""
-        check_is_fitted(self._wrapped)
         fitted_feature_names = self._wrapped_meta.feature_names
 
         no_fitted_names = len(fitted_feature_names) == 0

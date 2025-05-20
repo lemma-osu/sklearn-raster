@@ -5,14 +5,16 @@ import pandas as pd
 import pytest
 import xarray as xr
 from numpy.testing import assert_array_equal
-from sklearn.base import clone
+from sklearn.base import BaseEstimator, clone
 from sklearn.cluster import AffinityPropagation, KMeans, MeanShift
+from sklearn.decomposition import PCA
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.neighbors import (
     KNeighborsClassifier,
     KNeighborsRegressor,
     NearestNeighbors,
 )
+from sklearn.preprocessing import StandardScaler
 from sklearn.utils.validation import NotFittedError
 
 from sklearn_raster import wrap
@@ -234,6 +236,45 @@ def test_predict_dataarray_with_custom_dim_name(model_data: ModelData):
     )
 
 
+@parametrize_model_data()
+def test_roundtrip_transform_preserves_shape(model_data: ModelData):
+    """Test forward and inverse PCA transformation produce correct shapes."""
+    X_image, X, _ = model_data
+    n_components = 2
+    transformer = wrap(PCA(n_components=n_components)).fit(X)
+    components = transformer.transform(X_image)
+
+    expected_components_shape = (
+        n_components,
+        model_data.n_rows,
+        model_data.n_cols,
+    )
+    assert_array_equal(unwrap_features(components).shape, expected_components_shape)
+
+    inverted = unwrap_features(transformer.inverse_transform(components))
+    assert_array_equal(inverted.shape, unwrap_features(X_image).shape)
+
+
+# TODO: Remove this test once we have regression tests in place that confirm
+# transformations more robustly.
+@parametrize_model_data()
+def test_roundtrip_transform_values(model_data: ModelData):
+    """Test forward and inverse standard scale transformation produce correct values."""
+    # Set the features to a constant value so we get exact scaled means
+    constant = 42
+    model_data.set(X_image=np.full(model_data.X_image_shape, constant))
+    model_data.set(X=np.full_like(model_data.X, constant))
+    X_image, X, _ = model_data
+
+    transformer = wrap(StandardScaler(with_std=False)).fit(X)
+    scaled = transformer.transform(X_image)
+
+    assert unwrap_features(scaled).mean() == 0
+
+    inverted = unwrap_features(transformer.inverse_transform(scaled))
+    assert unwrap_features(inverted).mean() == constant
+
+
 @parametrize_model_data(feature_array_types=(xr.DataArray, xr.Dataset))
 @pytest.mark.parametrize("crs", ["EPSG:5070", None])
 def test_crs_preserved(model_data: ModelData, crs):
@@ -342,18 +383,25 @@ def test_predict_proba_raises_for_multioutput(model_data: ModelData):
         estimator.predict_proba(X_image)
 
 
+@pytest.mark.parametrize(
+    ("estimator", "method"),
+    [
+        (RandomForestRegressor, "predict"),
+        (KNeighborsRegressor, "kneighbors"),
+        (KNeighborsClassifier, "predict_proba"),
+        (StandardScaler, "transform"),
+        (StandardScaler, "inverse_transform"),
+    ],
+)
 @parametrize_model_data()
-def test_raises_if_not_fitted(model_data: ModelData):
+def test_raises_if_not_fitted(
+    estimator: BaseEstimator, method: str, model_data: ModelData
+):
     """Test that wrapped methods raise correctly if the estimator is not fitted."""
     X_image, _, _ = model_data
-    estimator = KNeighborsRegressor()
-    wrapped = wrap(estimator)
 
     with pytest.raises(NotFittedError):
-        wrapped.predict(X_image)
-
-    with pytest.raises(NotFittedError):
-        wrapped.kneighbors(X_image)
+        getattr(wrap(estimator()), method)(X_image)
 
 
 @parametrize_model_data(feature_array_types=(np.ndarray,))
@@ -398,11 +446,48 @@ def test_predict_raises_mismatched_feature_names(model_data: ModelData):
         estimator.predict(X_image)
 
 
-def test_unimplemented_methods_raise():
-    """Wrapped estimators should raise NotImplementedError for unimplemented methods."""
-    estimator = wrap(RandomForestRegressor())
-    with pytest.raises(NotImplementedError):
-        estimator.kneighbors()
+@pytest.mark.parametrize(
+    ("estimator", "method"),
+    [
+        (StandardScaler, "predict"),
+        (KNeighborsRegressor, "transform"),
+        (KNeighborsRegressor, "inverse_transform"),
+        (KNeighborsRegressor, "predict_proba"),
+        (RandomForestRegressor, "kneighbors"),
+    ],
+)
+def test_unimplemented_methods_raise(estimator: BaseEstimator, method: str):
+    """Wrapped estimators should raise for unimplemented methods."""
+    expected = f"`{estimator.__name__}` does not implement `{method}`"
+    with pytest.raises(NotImplementedError, match=expected):
+        getattr(wrap(estimator()), method)()
+
+
+@pytest.mark.parametrize(
+    ("method", "required_attr"),
+    [("transform", "get_feature_names_out"), ("predict_proba", "classes_")],
+)
+def test_missing_required_attrs_raise(method: str, required_attr: str):
+    """Wrapped estimators should raise for missing required attrs."""
+
+    class DummyEstimator(BaseEstimator):
+        """Dummy estimator that implements methods but is missing attrs."""
+
+        def fit(self, *args, **kwargs):
+            self.fitted_ = True
+            return self
+
+        def transform(*args, **kwargs): ...
+        def predict_proba(*args, **kwargs): ...
+
+    expected = (
+        f"`DummyEstimator` is missing a required attribute `{required_attr}` needed to "
+        f"implement `{method}`"
+    )
+    # Fit the estimator to avoid an immediate NotFittedError
+    est = wrap(DummyEstimator()).fit(None, None)
+    with pytest.raises(NotImplementedError, match=expected):
+        getattr(est, method)(None, None)
 
 
 def test_wrapping_fitted_estimators_warns(dummy_model_data):
