@@ -123,7 +123,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
 
         self._wrapped_meta = FittedMetadata(
             n_targets=self._get_n_targets(y),
-            n_features=self._get_n_targets(X),
+            n_features=X.shape[-1],
             target_names=self._get_target_names(y),
             feature_names=fitted_feature_names
             if fitted_feature_names is not None

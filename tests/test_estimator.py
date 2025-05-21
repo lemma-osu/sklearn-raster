@@ -521,7 +521,7 @@ def test_missing_required_attrs_raise(method: str, required_attr: str):
         f"implement `{method}`"
     )
     # Fit the estimator to avoid an immediate NotFittedError
-    est = wrap(DummyEstimator()).fit(None, None)
+    est = wrap(DummyEstimator()).fit(np.ones((1, 1)))
     with pytest.raises(NotImplementedError, match=expected):
         getattr(est, method)(None, None)
 
