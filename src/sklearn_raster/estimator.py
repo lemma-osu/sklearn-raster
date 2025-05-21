@@ -593,7 +593,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
 
         feature_names = self._wrapped_meta.feature_names
         # If the estimator was fitted without feature names, use sequential integers
-        if len(feature_names) != self._wrapped_meta.n_features:
+        if not feature_names.size:
             feature_names = range(self._wrapped_meta.n_features)
 
         return features.apply_ufunc_across_features(
