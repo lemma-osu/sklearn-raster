@@ -32,6 +32,7 @@ class FittedMetadata:
     """Metadata from a fitted estimator."""
 
     n_targets: int
+    n_features: int
     target_names: tuple[str | int, ...]
     feature_names: NDArray
 
@@ -122,6 +123,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
 
         self._wrapped_meta = FittedMetadata(
             n_targets=self._get_n_targets(y),
+            n_features=X.shape[-1],
             target_names=self._get_target_names(y),
             feature_names=fitted_feature_names
             if fitted_feature_names is not None
@@ -589,12 +591,17 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
         output_dim_name = "variable"
         features = FeatureArray.from_feature_array(X, nodata_input=nodata_input)
 
+        feature_names = self._wrapped_meta.feature_names
+        # If the estimator was fitted without feature names, use sequential integers
+        if not feature_names.size:
+            feature_names = range(self._wrapped_meta.n_features)
+
         return features.apply_ufunc_across_features(
             suppress_feature_name_warnings(self._wrapped.inverse_transform),
             output_dims=[[output_dim_name]],
             output_dtypes=[np.float64],
-            output_sizes={output_dim_name: len(self._wrapped_meta.feature_names)},
-            output_coords={output_dim_name: list(self._wrapped_meta.feature_names)},
+            output_sizes={output_dim_name: self._wrapped_meta.n_features},
+            output_coords={output_dim_name: list(feature_names)},
             skip_nodata=skip_nodata,
             nodata_output=nodata_output,
             ensure_min_samples=ensure_min_samples,

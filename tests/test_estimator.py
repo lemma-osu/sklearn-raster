@@ -349,6 +349,42 @@ def test_predicted_var_names(model_data: ModelData, fit_with):
     assert list(var_names) == expected_var_names
 
 
+@pytest.mark.filterwarnings("ignore:.*fitted without feature names")
+@parametrize_model_data(feature_array_types=(xr.DataArray, xr.Dataset))
+@pytest.mark.parametrize(
+    "fit_with", [np.ndarray, pd.DataFrame], ids=lambda x: x.__name__
+)
+def test_transformed_var_names(model_data: ModelData, fit_with):
+    """
+    Test that variable names are correctly set in a Dataset or DataArray.
+    """
+    X_image, X, _ = model_data
+
+    # Models fitted without named features should inverse transform to sequential
+    # integer names
+    if fit_with is np.ndarray:
+        expected_inverted_names = list(range(model_data.n_features))
+        X = np.asarray(X)
+    # Models fitted with feature names should inverse transform back to those names
+    elif fit_with is pd.DataFrame:
+        expected_inverted_names = list(X.columns)
+
+    estimator = wrap(PCA(n_components=3)).fit(X)
+    components = estimator.transform(X_image)
+    inverted = estimator.inverse_transform(components)
+
+    if isinstance(X_image, xr.DataArray):
+        component_names = components["variable"].values
+        inverted_names = inverted["variable"].values
+    else:
+        component_names = components.data_vars
+        inverted_names = inverted.data_vars
+
+    expected_component_names = ["pca0", "pca1", "pca2"]
+    assert list(component_names) == expected_component_names
+    assert list(inverted_names) == expected_inverted_names
+
+
 @parametrize_model_data(
     feature_array_types=(xr.DataArray, xr.Dataset), mode="classification"
 )
@@ -485,7 +521,7 @@ def test_missing_required_attrs_raise(method: str, required_attr: str):
         f"implement `{method}`"
     )
     # Fit the estimator to avoid an immediate NotFittedError
-    est = wrap(DummyEstimator()).fit(None, None)
+    est = wrap(DummyEstimator()).fit(np.ones((1, 1)))
     with pytest.raises(NotImplementedError, match=expected):
         getattr(est, method)(None, None)
 
