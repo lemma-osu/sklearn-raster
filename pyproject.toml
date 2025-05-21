@@ -59,6 +59,7 @@ dependencies = [
 dependencies = [
     "pytest",
     "pytest-cov",
+    "pytest-xdist",
     "sklearn-raster[datasets]",
 ]
 
