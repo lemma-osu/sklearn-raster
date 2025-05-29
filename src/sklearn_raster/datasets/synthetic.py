@@ -114,11 +114,22 @@ def _generate_fractal_noise(
         feature_coords = generate_sequential_names(shape[0], "component")
         coords = {"variable": feature_coords}
         coords.update({f"d{i}": np.arange(s) for i, s in enumerate(shape[1:])})
-        noise = xr.DataArray(
-            noise,
-            dims=coords.keys(),
-            coords=coords,
-        ).to_dataset(dim="variable")
+        noise = (
+            xr.DataArray(
+                noise,
+                dims=coords.keys(),
+                coords=coords,
+            )
+            .to_dataset(dim="variable")
+            .assign_attrs(
+                {
+                    "description": "Synthetic fractal noise generated from PCA space.",
+                    "roughness": roughness,
+                    "percentile_mask": percentile_mask,
+                    "random_state": random_state,
+                }
+            )
+        )
 
     return noise
 
@@ -260,7 +271,7 @@ def synthesize_feature_array(
     ).fit(X)
 
     return sample_to_component.inverse_transform(
-        noise, 
+        noise,
         nodata_output=nodata,
         keep_attrs=True,
     )

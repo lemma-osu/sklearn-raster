@@ -11,10 +11,13 @@ from unittest import mock
 import numpy as np
 import pytest
 import rasterio
+from freezegun import freeze_time
 from numpy.testing import assert_array_almost_equal
+from sklearn.datasets import make_classification
 from typing_extensions import Any
+from xarray_regressions import XarrayRegressionFixture
 
-from sklearn_raster.datasets import load_swo_ecoplot
+from sklearn_raster.datasets import load_swo_ecoplot, synthesize_feature_array
 from sklearn_raster.datasets._base import _load_rasters_to_array
 
 
@@ -140,3 +143,42 @@ def test_load_rasters_promotes_dtype():
     assert array.dtype == np.float32
     # Allow for small floating point errors during writing/reading
     assert_array_almost_equal(array, expected_array)
+
+
+@freeze_time("2023-10-01T00:00:00Z")
+@pytest.mark.parametrize("as_dataset", [False, True], ids=["as_array", "as_dataset"])
+@pytest.mark.parametrize("n_features", [3, 9])
+@pytest.mark.parametrize("shape", [(16, 16), (3, 4, 4)])
+@pytest.mark.parametrize("n_components", [1, 3])
+@pytest.mark.parametrize("roughness", [0.1, 1.0])
+@pytest.mark.parametrize("percentile_mask", [0, 50])
+@pytest.mark.parametrize("nodata", [np.nan, -999])
+def test_synthesize_classification_feature_array(
+    as_dataset,
+    n_features,
+    shape,
+    n_components,
+    roughness,
+    percentile_mask,
+    nodata,
+    xarray_regression: XarrayRegressionFixture,
+    ndarrays_regression,
+):
+    X, y = make_classification(
+        n_samples=20, n_features=n_features, n_redundant=0, random_state=42
+    )
+    fa = synthesize_feature_array(
+        X,
+        shape=shape,
+        n_components=n_components,
+        roughness=roughness,
+        percentile_mask=percentile_mask,
+        nodata=nodata,
+        as_dataset=as_dataset,
+        random_state=42,
+    )
+
+    if as_dataset:
+        xarray_regression.check(fa)
+    else:
+        ndarrays_regression.check({"data": fa})
