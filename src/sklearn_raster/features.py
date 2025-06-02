@@ -69,7 +69,7 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
         output_dims: list[list[str]],
         output_dtypes: list[np.dtype] | None = None,
         output_sizes: dict[str, int] | None = None,
-        output_coords: dict[str, list[str | int]] | None = None,
+        output_coords: dict[str, list[str] | list[int]] | None = None,
         skip_nodata: bool = True,
         nodata_output: MaybeTuple[float | int] = np.nan,
         nan_fill: float | int | None = None,
