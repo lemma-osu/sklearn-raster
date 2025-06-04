@@ -23,6 +23,7 @@ def suppress_feature_name_warnings(func):
     """Suppress warnings related to missing feature names in a wrapped function."""
     msg = "X does not have valid feature names"
 
+    @wraps(func)
     def wrapper(*args, **kwargs):
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", message=msg)

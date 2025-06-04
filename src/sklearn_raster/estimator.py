@@ -216,6 +216,9 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             allow_cast=allow_cast,
             check_output_for_nodata=check_output_for_nodata,
             nan_fill=0.0,
+            set_attrs={
+                "source_method": self._wrapped.__class__.__name__ + ".predict",
+            },
             **predict_kwargs,
         )
 
@@ -303,6 +306,9 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             allow_cast=allow_cast,
             check_output_for_nodata=check_output_for_nodata,
             nan_fill=0.0,
+            set_attrs={
+                "source_method": self._wrapped.__class__.__name__ + ".predict_proba",
+            },
             **predict_proba_kwargs,
         )
 
@@ -450,6 +456,9 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             allow_cast=allow_cast,
             check_output_for_nodata=check_output_for_nodata,
             nan_fill=0.0,
+            set_attrs={
+                "source_method": self._wrapped.__class__.__name__ + ".kneighbors",
+            },
             **kneighbors_kwargs,
         )
 
@@ -533,6 +542,9 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             allow_cast=allow_cast,
             check_output_for_nodata=check_output_for_nodata,
             nan_fill=0.0,
+            set_attrs={
+                "source_method": self._wrapped.__class__.__name__ + ".transform",
+            },
             **transform_kwargs,
         )
 
@@ -618,6 +630,10 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             allow_cast=allow_cast,
             check_output_for_nodata=check_output_for_nodata,
             nan_fill=0.0,
+            set_attrs={
+                "source_method": self._wrapped.__class__.__name__
+                + ".inverse_transform",
+            },
             **inverse_transform_kwargs,
         )
 

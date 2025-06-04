@@ -76,6 +76,7 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
         ensure_min_samples: int = 1,
         allow_cast: bool = False,
         check_output_for_nodata: bool = True,
+        set_attrs: dict[str, Any] | None = None,
         **ufunc_kwargs,
     ) -> FeatureArrayType | tuple[FeatureArrayType]:
         """Apply a universal function to all features of the array."""
@@ -117,6 +118,7 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
             result=result,
             output_coords=output_coords,
             nodata_output=nodata_output,
+            set_attrs=set_attrs,
         )
 
     def _preprocess_ufunc_input(self, features: FeatureArrayType) -> FeatureArrayType:
@@ -133,6 +135,7 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
         *,
         nodata_output: float | int,
         output_coords: dict[str, list[str | int]] | None = None,
+        set_attrs: dict[str, Any] | None = None,
     ) -> FeatureArrayType:
         """
         Postprocess the output of an applied ufunc.
@@ -174,7 +177,12 @@ class NDArrayFeatures(FeatureArray):
 
     @map_over_arguments("result")
     def _postprocess_ufunc_output(
-        self, result: NDArray, *, nodata_output: float | int, output_coords=None
+        self,
+        result: NDArray,
+        *,
+        nodata_output: float | int,
+        output_coords=None,
+        set_attrs=None,
     ) -> NDArray:
         """Postprocess the output by moving features back to the first dimension."""
         return np.moveaxis(result, -1, 0)
@@ -214,6 +222,7 @@ class DataArrayFeatures(FeatureArray):
         *,
         nodata_output: float | int,
         output_coords: dict[str, list[str | int]] | None = None,
+        set_attrs: dict[str, Any] | None = None,
     ) -> xr.DataArray:
         """Process the ufunc output by assigning coordinates and transposing."""
         if output_coords is not None:
@@ -224,6 +233,8 @@ class DataArrayFeatures(FeatureArray):
         # Drop top-level attributes from the input data, but retain coordinate attrs to
         # preserve the spatial reference, if present.
         result = result.drop_attrs(deep=False)
+        if set_attrs is not None:
+            result.attrs.update(set_attrs)
         if not np.isnan(nodata_output):
             result.attrs["_FillValue"] = nodata_output
 
@@ -268,19 +279,20 @@ class DatasetFeatures(DataArrayFeatures):
         *,
         nodata_output: float | int,
         output_coords: dict[str, list[str | int]] | None = None,
+        set_attrs: dict[str, Any] | None = None,
     ) -> xr.Dataset:
         """Process the ufunc output converting from DataArray to Dataset."""
         result = super()._postprocess_ufunc_output(
             result=result,
             output_coords=output_coords,
             nodata_output=nodata_output,
+            set_attrs=set_attrs,
         )
         var_dim = result.dims[self.feature_dim]
-        ds = result.to_dataset(dim=var_dim)
-
+        ds = result.to_dataset(dim=var_dim, promote_attrs=True)
         for var in ds.data_vars:
+            ds[var].attrs["long_name"] = var
             if not np.isnan(nodata_output):
                 ds[var].attrs["_FillValue"] = nodata_output
-            ds[var].attrs["long_name"] = var
 
         return ds
