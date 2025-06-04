@@ -11,7 +11,12 @@ from typing_extensions import Literal, overload
 
 from .features import FeatureArray
 from .types import EstimatorType
-from .utils.estimator import is_fitted, requires_fitted, suppress_feature_name_warnings
+from .utils.estimator import (
+    generate_sequential_names,
+    is_fitted,
+    requires_fitted,
+    suppress_feature_name_warnings,
+)
 from .utils.wrapper import AttrWrapper, requires_attributes, requires_implementation
 
 if TYPE_CHECKING:
@@ -33,8 +38,8 @@ class FittedMetadata:
 
     n_targets: int
     n_features: int
-    target_names: tuple[str | int, ...]
-    feature_names: NDArray
+    target_names: list[str]
+    feature_names: list[str]
 
 
 class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
@@ -76,20 +81,18 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
 
         return y.shape[-1]
 
-    def _get_target_names(
-        self, y: NDArray | pd.DataFrame | pd.Series
-    ) -> tuple[str | int, ...]:
+    def _get_target_names(self, y: NDArray | pd.DataFrame | pd.Series) -> list[str]:
         """Get the target names used to fit the estimator, if available."""
         # Dataframe
         if hasattr(y, "columns"):
-            return tuple(y.columns)
+            return list(y.columns)
 
         # Series
         if hasattr(y, "name"):
-            return tuple([y.name])
+            return [y.name]
 
         # Default to sequential identifiers
-        return tuple(range(self._get_n_targets(y)))
+        return generate_sequential_names(self._get_n_targets(y), "target")
 
     @requires_implementation
     def fit(self, X, y=None, **kwargs) -> FeatureArrayEstimator[EstimatorType]:
@@ -125,9 +128,9 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             n_targets=self._get_n_targets(y),
             n_features=X.shape[-1],
             target_names=self._get_target_names(y),
-            feature_names=fitted_feature_names
+            feature_names=list(fitted_feature_names)
             if fitted_feature_names is not None
-            else np.array([]),
+            else [],
         )
 
         return self
@@ -191,7 +194,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             The predicted values. Array types will be in the shape (targets, ...) while
             xr.Dataset will store targets as variables.
         """
-        output_dim_name = "variable"
+        output_dim_name = "target"
         features = FeatureArray.from_feature_array(X, nodata_input=nodata_input)
 
         self._check_feature_names(features.feature_names)
@@ -416,6 +419,8 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             Array types will be in the shape (neighbor, ...) while xr.Dataset will store
             neighbors as variables.
         """
+        output_dim_name = "neighbor"
+
         if nodata_output is None:
             nodata_output = (np.nan, -2147483648) if return_distance else -2147483648
         elif return_distance is False and isinstance(nodata_output, (tuple, list)):
@@ -429,10 +434,14 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
 
         return features.apply_ufunc_across_features(
             suppress_feature_name_warnings(self._wrapped.kneighbors),
-            output_dims=[["k"], ["k"]] if return_distance else [["k"]],
+            output_dims=[[output_dim_name], [output_dim_name]]
+            if return_distance
+            else [[output_dim_name]],
             output_dtypes=[float, int] if return_distance else [int],
-            output_sizes={"k": k},
-            output_coords={"k": list(range(1, k + 1))},
+            output_sizes={output_dim_name: k},
+            output_coords={
+                output_dim_name: generate_sequential_names(k, output_dim_name)
+            },
             n_neighbors=k,
             return_distance=return_distance,
             skip_nodata=skip_nodata,
@@ -506,10 +515,9 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             while xr.Dataset will store features as variables, with the feature names
             based on the estimator's `get_feature_names_out` method.
         """
-        feature_names = self._wrapped.get_feature_names_out()
-
-        output_dim_name = "variable"
+        output_dim_name = "feature"
         features = FeatureArray.from_feature_array(X, nodata_input=nodata_input)
+        feature_names = self._wrapped.get_feature_names_out()
 
         self._check_feature_names(features.feature_names)
 
@@ -588,20 +596,22 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             The inverse-transformed features. Array types will be in the shape
             (features, ...) while xr.Dataset will store features as variables.
         """
-        output_dim_name = "variable"
+        output_dim_name = "feature"
         features = FeatureArray.from_feature_array(X, nodata_input=nodata_input)
-
         feature_names = self._wrapped_meta.feature_names
-        # If the estimator was fitted without feature names, use sequential integers
-        if not feature_names.size:
-            feature_names = range(self._wrapped_meta.n_features)
+
+        # If the estimator was fitted without feature names, use sequential identifiers
+        if not feature_names:
+            feature_names = generate_sequential_names(
+                self._wrapped_meta.n_features, output_dim_name
+            )
 
         return features.apply_ufunc_across_features(
             suppress_feature_name_warnings(self._wrapped.inverse_transform),
             output_dims=[[output_dim_name]],
             output_dtypes=[np.float64],
             output_sizes={output_dim_name: self._wrapped_meta.n_features},
-            output_coords={output_dim_name: list(feature_names)},
+            output_coords={output_dim_name: feature_names},
             skip_nodata=skip_nodata,
             nodata_output=nodata_output,
             ensure_min_samples=ensure_min_samples,
