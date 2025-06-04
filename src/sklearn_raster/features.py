@@ -221,12 +221,11 @@ class DataArrayFeatures(FeatureArray):
 
         # Transpose features from the last to the first dimension
         result = result.transpose(result.dims[-1], ...)
-
+        # Drop top-level attributes from the input data, but retain coordinate attrs to
+        # preserve the spatial reference, if present.
+        result = result.drop_attrs(deep=False)
         if not np.isnan(nodata_output):
             result.attrs["_FillValue"] = nodata_output
-        else:
-            # Remove the _FillValue copied from the input array
-            result.attrs.pop("_FillValue", None)
 
         return result
 
@@ -282,5 +281,6 @@ class DatasetFeatures(DataArrayFeatures):
         for var in ds.data_vars:
             if not np.isnan(nodata_output):
                 ds[var].attrs["_FillValue"] = nodata_output
+            ds[var].attrs["long_name"] = var
 
         return ds
