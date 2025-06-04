@@ -326,9 +326,9 @@ def test_predicted_var_names(model_data: ModelData, fit_with):
     """Test that variable names are correctly set in a Dataset or DataArray."""
     X_image, X, y = model_data
 
-    # Models fitted without named targets should predict sequential integer names
+    # Models fitted without named targets should predict sequential names
     if fit_with is np.ndarray:
-        expected_var_names = [0, 1, 2]
+        expected_var_names = ["target0", "target1", "target2"]
         y = np.asarray(y)
     # Models fitted with multiple target names should predict those names
     elif fit_with is pd.DataFrame:
@@ -342,11 +342,26 @@ def test_predicted_var_names(model_data: ModelData, fit_with):
     y_pred = estimator.predict(X_image)
 
     if isinstance(X_image, xr.DataArray):
-        var_names = y_pred["variable"].values
+        var_names = y_pred["target"].values
     else:
         var_names = y_pred.data_vars
 
     assert list(var_names) == expected_var_names
+
+
+@parametrize_model_data(feature_array_types=(xr.DataArray, xr.Dataset))
+def test_kneighbors_var_names(model_data: ModelData):
+    X_image, X, _ = model_data
+    estimator = wrap(NearestNeighbors()).fit(X)
+    nn = estimator.kneighbors(X_image, return_distance=False)
+
+    if isinstance(X_image, xr.DataArray):
+        var_names = list(nn["neighbor"].values)
+    else:
+        var_names = list(nn.data_vars)
+
+    expected_var_names = [f"neighbor{i}" for i in range(model_data.n_features)]
+    assert var_names == expected_var_names
 
 
 @pytest.mark.filterwarnings("ignore:.*fitted without feature names")
@@ -360,10 +375,9 @@ def test_transformed_var_names(model_data: ModelData, fit_with):
     """
     X_image, X, _ = model_data
 
-    # Models fitted without named features should inverse transform to sequential
-    # integer names
+    # Models fitted without named features should inverse transform to sequential names
     if fit_with is np.ndarray:
-        expected_inverted_names = list(range(model_data.n_features))
+        expected_inverted_names = [f"feature{i}" for i in range(model_data.n_features)]
         X = np.asarray(X)
     # Models fitted with feature names should inverse transform back to those names
     elif fit_with is pd.DataFrame:
@@ -374,8 +388,8 @@ def test_transformed_var_names(model_data: ModelData, fit_with):
     inverted = estimator.inverse_transform(components)
 
     if isinstance(X_image, xr.DataArray):
-        component_names = components["variable"].values
-        inverted_names = inverted["variable"].values
+        component_names = components["feature"].values
+        inverted_names = inverted["feature"].values
     else:
         component_names = components.data_vars
         inverted_names = inverted.data_vars

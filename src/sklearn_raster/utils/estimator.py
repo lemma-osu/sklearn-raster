@@ -42,3 +42,8 @@ def requires_fitted(
         return func(self, *args, **kwargs)
 
     return wrapper
+
+
+def generate_sequential_names(n: int, prefix: str) -> list[str]:
+    """Generate a list of `n` prefixed sequential names."""
+    return [f"{prefix}{i}" for i in range(n)]
