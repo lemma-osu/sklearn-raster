@@ -496,6 +496,29 @@ def test_predict_raises_mismatched_feature_names(model_data: ModelData):
         estimator.predict(X_image)
 
 
+@parametrize_model_data(feature_array_types=(xr.DataArray, xr.Dataset))
+def test_transform_drops_old_attrs(model_data: ModelData):
+    """Test that transform doesn't persist root attributes of the input image."""
+    X_image, X, y = model_data
+    X_image = X_image.assign_attrs(foo="bar")
+
+    scaler = wrap(StandardScaler()).fit(X, y)
+    transformed = scaler.transform(X_image)
+    assert "foo" not in transformed.attrs, "Root attributes should not persist"
+
+
+@parametrize_model_data(feature_array_types=(xr.Dataset,))
+def test_transform_sets_dataset_attrs(model_data: ModelData):
+    """Test that transform sets new metadata attrs."""
+    X_image, X, y = model_data
+
+    scaler = wrap(StandardScaler()).fit(X, y)
+    transformed = scaler.transform(X_image, nodata_output=-999)
+    assert transformed.attrs["source_method"] == "StandardScaler.transform"
+    assert transformed["b0"].attrs["long_name"] == "b0"
+    assert transformed["b0"].attrs["_FillValue"] == -999
+
+
 @pytest.mark.parametrize(
     ("estimator", "method"),
     [
