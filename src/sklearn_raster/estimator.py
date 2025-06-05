@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Callable, cast
 from warnings import warn
 
 import numpy as np
@@ -194,6 +194,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             The predicted values. Array types will be in the shape (targets, ...) while
             xr.Dataset will store targets as variables.
         """
+        wrapped_func = self._wrapped.predict
         output_dim_name = "target"
         features = FeatureArray.from_feature_array(X, nodata_input=nodata_input)
 
@@ -205,7 +206,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
         output_dtype = ESTIMATOR_OUTPUT_DTYPES.get(estimator_type, np.float64)
 
         return features.apply_ufunc_across_features(
-            suppress_feature_name_warnings(self._wrapped.predict),
+            suppress_feature_name_warnings(wrapped_func),
             output_dims=[[output_dim_name]],
             output_dtypes=[output_dtype],
             output_sizes={output_dim_name: self._wrapped_meta.n_targets},
@@ -216,9 +217,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             allow_cast=allow_cast,
             check_output_for_nodata=check_output_for_nodata,
             nan_fill=0.0,
-            set_attrs={
-                "source_method": self._wrapped.__class__.__name__ + ".predict",
-            },
+            set_attrs={"source_method": self._method_name(wrapped_func)},
             **predict_kwargs,
         )
 
@@ -282,6 +281,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             The predicted class probabilities. Array types will be in the shape
             (classes, ...) while xr.Dataset will store classes as variables.
         """
+        wrapped_func = self._wrapped.predict_proba
         output_dim_name = "class"
         features = FeatureArray.from_feature_array(X, nodata_input=nodata_input)
 
@@ -295,7 +295,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             raise NotImplementedError(msg)
 
         return features.apply_ufunc_across_features(
-            suppress_feature_name_warnings(self._wrapped.predict_proba),
+            suppress_feature_name_warnings(wrapped_func),
             output_dims=[[output_dim_name]],
             output_dtypes=[np.float64],
             output_sizes={output_dim_name: len(self._wrapped.classes_)},
@@ -306,9 +306,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             allow_cast=allow_cast,
             check_output_for_nodata=check_output_for_nodata,
             nan_fill=0.0,
-            set_attrs={
-                "source_method": self._wrapped.__class__.__name__ + ".predict_proba",
-            },
+            set_attrs={"source_method": self._method_name(wrapped_func)},
             **predict_proba_kwargs,
         )
 
@@ -425,6 +423,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             Array types will be in the shape (neighbor, ...) while xr.Dataset will store
             neighbors as variables.
         """
+        wrapped_func = self._wrapped.kneighbors
         output_dim_name = "neighbor"
 
         if nodata_output is None:
@@ -439,7 +438,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
         self._check_feature_names(features.feature_names)
 
         return features.apply_ufunc_across_features(
-            suppress_feature_name_warnings(self._wrapped.kneighbors),
+            suppress_feature_name_warnings(wrapped_func),
             output_dims=[[output_dim_name], [output_dim_name]]
             if return_distance
             else [[output_dim_name]],
@@ -456,9 +455,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             allow_cast=allow_cast,
             check_output_for_nodata=check_output_for_nodata,
             nan_fill=0.0,
-            set_attrs={
-                "source_method": self._wrapped.__class__.__name__ + ".kneighbors",
-            },
+            set_attrs={"source_method": self._method_name(wrapped_func)},
             **kneighbors_kwargs,
         )
 
@@ -524,6 +521,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             while xr.Dataset will store features as variables, with the feature names
             based on the estimator's `get_feature_names_out` method.
         """
+        wrapped_func = self._wrapped.transform
         output_dim_name = "feature"
         features = FeatureArray.from_feature_array(X, nodata_input=nodata_input)
         feature_names = self._wrapped.get_feature_names_out()
@@ -531,7 +529,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
         self._check_feature_names(features.feature_names)
 
         return features.apply_ufunc_across_features(
-            suppress_feature_name_warnings(self._wrapped.transform),
+            suppress_feature_name_warnings(wrapped_func),
             output_dims=[[output_dim_name]],
             output_dtypes=[np.float64],
             output_sizes={output_dim_name: len(feature_names)},
@@ -542,9 +540,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             allow_cast=allow_cast,
             check_output_for_nodata=check_output_for_nodata,
             nan_fill=0.0,
-            set_attrs={
-                "source_method": self._wrapped.__class__.__name__ + ".transform",
-            },
+            set_attrs={"source_method": self._method_name(wrapped_func)},
             **transform_kwargs,
         )
 
@@ -608,6 +604,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             The inverse-transformed features. Array types will be in the shape
             (features, ...) while xr.Dataset will store features as variables.
         """
+        wrapped_func = self._wrapped.inverse_transform
         output_dim_name = "feature"
         features = FeatureArray.from_feature_array(X, nodata_input=nodata_input)
         feature_names = self._wrapped_meta.feature_names
@@ -619,7 +616,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             )
 
         return features.apply_ufunc_across_features(
-            suppress_feature_name_warnings(self._wrapped.inverse_transform),
+            suppress_feature_name_warnings(wrapped_func),
             output_dims=[[output_dim_name]],
             output_dtypes=[np.float64],
             output_sizes={output_dim_name: self._wrapped_meta.n_features},
@@ -631,11 +628,14 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             check_output_for_nodata=check_output_for_nodata,
             nan_fill=0.0,
             set_attrs={
-                "source_method": self._wrapped.__class__.__name__
-                + ".inverse_transform",
+                "source_method": self._method_name(wrapped_func),
             },
             **inverse_transform_kwargs,
         )
+
+    def _method_name(self, func: Callable) -> str:
+        """Get the full method name of a wrapped function."""
+        return self._wrapped.__class__.__name__ + "." + func.__name__
 
     def _check_feature_names(self, feature_array_names: NDArray) -> None:
         """Check that feature array names match feature names seen during fitting."""
