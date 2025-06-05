@@ -231,8 +231,10 @@ class DataArrayFeatures(FeatureArray):
         # Transpose features from the last to the first dimension
         result = result.transpose(result.dims[-1], ...)
         # Drop top-level attributes from the input data, but retain coordinate attrs to
-        # preserve the spatial reference, if present.
-        result = result.drop_attrs(deep=False)
+        # preserve the spatial reference, if present. Note that we avoid using
+        # drop_attrs(deep=False) for backwards compatibility due to
+        # https://github.com/pydata/xarray/issues/10027
+        result.attrs = {}
         if set_attrs is not None:
             result.attrs.update(set_attrs)
         if not np.isnan(nodata_output):
