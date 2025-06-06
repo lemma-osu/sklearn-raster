@@ -498,13 +498,13 @@ def test_predict_raises_mismatched_feature_names(model_data: ModelData):
 
 @parametrize_model_data(feature_array_types=(xr.DataArray, xr.Dataset))
 def test_transform_drops_old_attrs(model_data: ModelData):
-    """Test that transform doesn't persist root attributes of the input image."""
+    """Test that transform doesn't persist global attributes of the input image."""
     X_image, X, y = model_data
     X_image = X_image.assign_attrs(foo="bar")
 
     scaler = wrap(StandardScaler()).fit(X, y)
     transformed = scaler.transform(X_image)
-    assert "foo" not in transformed.attrs, "Root attributes should not persist"
+    assert "foo" not in transformed.attrs, "Global attributes should not persist"
 
 
 @parametrize_model_data(feature_array_types=(xr.Dataset,))
@@ -514,9 +514,26 @@ def test_transform_sets_dataset_attrs(model_data: ModelData):
 
     scaler = wrap(StandardScaler()).fit(X, y)
     transformed = scaler.transform(X_image, nodata_output=-999)
-    assert transformed.attrs["source_method"] == "StandardScaler.transform"
+    assert transformed.attrs["_FillValue"] == -999
     assert transformed["b0"].attrs["long_name"] == "b0"
     assert transformed["b0"].attrs["_FillValue"] == -999
+
+
+@parametrize_model_data(feature_array_types=(xr.DataArray, xr.Dataset))
+def test_transform_appends_history(model_data: ModelData):
+    """Test that transform appends to the history attribute."""
+    X_image, X, y = model_data
+
+    scaler = wrap(StandardScaler()).fit(X, y)
+    X_image = X_image.assign_attrs(history="initial history")
+    transformed = scaler.transform(X_image)
+    inverse = scaler.inverse_transform(transformed)
+
+    full_history = inverse.attrs["history"].split("\n")
+    assert len(full_history) == 3
+    assert "initial history" in full_history[0]
+    assert "StandardScaler.transform" in full_history[1]
+    assert "StandardScaler.inverse_transform" in full_history[2]
 
 
 @pytest.mark.parametrize(

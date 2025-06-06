@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Callable, cast
+from typing import TYPE_CHECKING, cast
 from warnings import warn
 
 import numpy as np
@@ -217,7 +217,6 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             allow_cast=allow_cast,
             check_output_for_nodata=check_output_for_nodata,
             nan_fill=0.0,
-            set_attrs={"source_method": self._method_name(wrapped_func)},
             **predict_kwargs,
         )
 
@@ -306,7 +305,6 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             allow_cast=allow_cast,
             check_output_for_nodata=check_output_for_nodata,
             nan_fill=0.0,
-            set_attrs={"source_method": self._method_name(wrapped_func)},
             **predict_proba_kwargs,
         )
 
@@ -455,7 +453,6 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             allow_cast=allow_cast,
             check_output_for_nodata=check_output_for_nodata,
             nan_fill=0.0,
-            set_attrs={"source_method": self._method_name(wrapped_func)},
             **kneighbors_kwargs,
         )
 
@@ -540,7 +537,6 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             allow_cast=allow_cast,
             check_output_for_nodata=check_output_for_nodata,
             nan_fill=0.0,
-            set_attrs={"source_method": self._method_name(wrapped_func)},
             **transform_kwargs,
         )
 
@@ -627,15 +623,8 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             allow_cast=allow_cast,
             check_output_for_nodata=check_output_for_nodata,
             nan_fill=0.0,
-            set_attrs={
-                "source_method": self._method_name(wrapped_func),
-            },
             **inverse_transform_kwargs,
         )
-
-    def _method_name(self, func: Callable) -> str:
-        """Get the full method name of a wrapped function."""
-        return self._wrapped.__class__.__name__ + "." + func.__name__
 
     def _check_feature_names(self, feature_array_names: NDArray) -> None:
         """Check that feature array names match feature names seen during fitting."""
