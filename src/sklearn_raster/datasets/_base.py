@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
@@ -39,16 +40,50 @@ _data_fetcher = pooch.create(
 )
 
 
+@dataclass
+class _VariableMeta:
+    """Metadata for a variable in a dataset."""
+
+    name: str
+    long_name: str | None = None
+    unit: str | None = None
+    fill_value: float | None = None
+    scale_factor: float | None = None
+    add_offset: float | None = None
+
+    @property
+    def attrs(self) -> dict[str, Any]:
+        """Return the non-null attributes of the variable."""
+        attrs = {
+            "long_name": self.long_name,
+            "units": self.unit,
+            "_FillValue": self.fill_value,
+            "scale_factor": self.scale_factor,
+            "add_offset": self.add_offset,
+        }
+        return {k: v for k, v in attrs.items() if v is not None}
+
+
 def _load_rasters_to_dataset(
-    file_paths: list[Path], *, var_names: list[str], chunks=None
+    file_paths: list[Path],
+    *,
+    variables: list[_VariableMeta],
+    chunks=None,
+    global_attrs: dict[str, str] | None = None,
 ) -> xr.Dataset:
     """Load a list of rasters as an xarray Dataset."""
     das = []
-    for path, var_name in zip(file_paths, var_names):
-        da = rioxarray.open_rasterio(path, chunks=chunks).rename(var_name).squeeze()
+    for path, var_meta in zip(file_paths, variables):
+        da = (
+            rioxarray.open_rasterio(path, chunks=chunks)
+            .rename(var_meta.name)
+            .squeeze(drop=True)
+            .assign_attrs(var_meta.attrs)
+        )
         das.append(da)
-
-    return xr.merge(das)
+    ds = xr.merge(das, combine_attrs="drop_conflicts")
+    ds.attrs = global_attrs if global_attrs is not None else {}
+    return ds
 
 
 def _load_rasters_to_array(file_paths: list[Path]) -> NDArray:
@@ -157,6 +192,38 @@ def load_swo_ecoplot(
     using all available Landsat imagery. Remote Sensing of Environment. 122:75–91.
     """
     X, y = sknnr.datasets.load_swo_ecoplot(return_X_y=True, as_frame=True)
+    variables = [
+        _VariableMeta("ANNPRE", "Annual precipitation", "ln mm"),
+        _VariableMeta("ANNTMP", "Mean annual temperature", "C"),
+        _VariableMeta("AUGMAXT", "Mean August maximum temperature", "C"),
+        _VariableMeta(
+            "CONTPRE", "Percentage of annual precipitation falling in June-August", "%"
+        ),
+        _VariableMeta(
+            "CVPRE",
+            "Coefficient of variation of mean monthly precipitation of December and "
+            "July",
+        ),
+        _VariableMeta("DECMINT", "Mean December minimum temperature", "C"),
+        _VariableMeta(
+            "DIFTMP",
+            "Difference between mean August maximum and December minimum temperatures",
+            "C",
+        ),
+        _VariableMeta("SMRTMP", "Mean temperature from May-September", "C"),
+        _VariableMeta("SMRTP", "Growing season moisture stress", "C / ln mm"),
+        _VariableMeta("ASPTR", "Cosine transformation of aspect"),
+        _VariableMeta("DEM", "Elevation", "m"),
+        _VariableMeta("PRR", "Potential relative radiation", "%"),
+        _VariableMeta("SLPPCT", "Slope", "%"),
+        _VariableMeta(
+            "TPI450", "Topographic position index within a 300m to 450m annulus window"
+        ),
+        _VariableMeta("TC1", "Tasseled cap component 1 (brightness)"),
+        _VariableMeta("TC2", "Tasseled cap component 2 (greenness)"),
+        _VariableMeta("TC3", "Tasseled cap component 3 (wetness)"),
+        _VariableMeta("NBR", "Normalized burn ratio"),
+    ]
 
     if large_rasters:
         data_size = "2048x4096"
@@ -174,8 +241,26 @@ def load_swo_ecoplot(
     if as_dataset:
         X_image = _load_rasters_to_dataset(
             sorted_data_paths,
-            var_names=X.columns,
+            variables=variables,
             chunks={"x": chunk_size, "y": chunk_size} if chunks is None else chunks,
+            global_attrs={
+                "title": "Southwest Oregon USFS Region 6 Ecoplot",
+                "comment": (
+                    "This dataset contains 18 environmental and spectral variables "
+                    "collected from 3,005 plots in southwest Oregon. The data were "
+                    "collected in 2000 and Landsat imagery processed through the CCDC "
+                    "algorithm was extracted for the same year."
+                ),
+                "references": (
+                    "Atzet, T, DE White, LA McCrimmon, PA Martinez, PR Fong, and VD "
+                    "Randall. 1996. Field guide to the forested plant associations of "
+                    "southwestern Oregon. USDA Forest Service. Pacific Northwest "
+                    "Region, Technical Paper R6-NR-ECOL-TP-17-96.\n"
+                    "Zhu Z, CE Woodcock, P Olofsson. 2012. Continuous monitoring of "
+                    "forest disturbance using all available Landsat imagery. Remote "
+                    "Sensing of Environment. 122:75–91."
+                ),
+            },
         )
     else:
         X_image = _load_rasters_to_array(sorted_data_paths)
