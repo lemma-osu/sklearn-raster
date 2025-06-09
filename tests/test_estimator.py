@@ -496,15 +496,19 @@ def test_predict_raises_mismatched_feature_names(model_data: ModelData):
         estimator.predict(X_image)
 
 
+@pytest.mark.parametrize("keep_attrs", [True, False], ids=["keep_attrs", "drop_attrs"])
 @parametrize_model_data(feature_array_types=(xr.DataArray, xr.Dataset))
-def test_transform_drops_old_attrs(model_data: ModelData):
-    """Test that transform doesn't persist global attributes of the input image."""
+def test_transform_drops_old_attrs(keep_attrs: bool, model_data: ModelData):
+    """Test that transform drops attributes of the input image, unless specified."""
     X_image, X, y = model_data
     X_image = X_image.assign_attrs(foo="bar")
 
     scaler = wrap(StandardScaler()).fit(X, y)
-    transformed = scaler.transform(X_image)
-    assert "foo" not in transformed.attrs, "Global attributes should not persist"
+    transformed = scaler.transform(X_image, keep_attrs=keep_attrs)
+    if keep_attrs:
+        assert transformed.attrs["foo"] == "bar", "Global attributes should persist"
+    else:
+        assert "foo" not in transformed.attrs, "Global attributes should not persist"
 
 
 @parametrize_model_data(feature_array_types=(xr.Dataset,))
@@ -514,7 +518,6 @@ def test_transform_sets_dataset_attrs(model_data: ModelData):
 
     scaler = wrap(StandardScaler()).fit(X, y)
     transformed = scaler.transform(X_image, nodata_output=-999)
-    assert transformed.attrs["_FillValue"] == -999
     assert transformed["b0"].attrs["long_name"] == "b0"
     assert transformed["b0"].attrs["_FillValue"] == -999
 

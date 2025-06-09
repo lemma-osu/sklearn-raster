@@ -77,6 +77,7 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
         ensure_min_samples: int = 1,
         allow_cast: bool = False,
         check_output_for_nodata: bool = True,
+        keep_attrs: bool = False,
         **ufunc_kwargs,
     ) -> FeatureArrayType | tuple[FeatureArrayType]:
         """Apply a universal function to all features of the array."""
@@ -107,6 +108,8 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
             exclude_dims=set((self.feature_dim_name,)),
             output_core_dims=output_dims,
             output_dtypes=output_dtypes,
+            # Always keep_attrs here to avoid dropping coordinate atttrs. Unwanted attrs
+            # will be dropped during postprocessing.
             keep_attrs=True,
             dask_gufunc_kwargs=dict(
                 output_sizes=output_sizes,
@@ -119,6 +122,7 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
             output_coords=output_coords,
             nodata_output=nodata_output,
             func=func,
+            keep_attrs=keep_attrs,
         )
 
     def _preprocess_ufunc_input(self, features: FeatureArrayType) -> FeatureArrayType:
@@ -136,6 +140,7 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
         nodata_output: float | int,
         func: Callable,
         output_coords: dict[str, list[str | int]] | None = None,
+        keep_attrs: bool = False,
     ) -> FeatureArrayType:
         """
         Postprocess the output of an applied ufunc.
@@ -183,6 +188,7 @@ class NDArrayFeatures(FeatureArray):
         nodata_output: float | int,
         func: Callable,
         output_coords=None,
+        keep_attrs: bool = False,
     ) -> NDArray:
         """Postprocess the output by moving features back to the first dimension."""
         return np.moveaxis(result, -1, 0)
@@ -223,6 +229,7 @@ class DataArrayFeatures(FeatureArray):
         nodata_output: float | int,
         func: Callable,
         output_coords: dict[str, list[str | int]] | None = None,
+        keep_attrs: bool = False,
     ) -> xr.DataArray:
         """Process the ufunc output by assigning coordinates and transposing."""
         if output_coords is not None:
@@ -238,7 +245,7 @@ class DataArrayFeatures(FeatureArray):
             result.attrs,
             fill_value=nodata_output,
             append_to_history=func.__qualname__,
-            preserve_attrs=False,
+            keep_attrs=keep_attrs,
         )
 
         return result
@@ -248,7 +255,7 @@ class DataArrayFeatures(FeatureArray):
         attrs: dict[str, Any],
         fill_value: float | int | None = None,
         append_to_history: str | None = None,
-        preserve_attrs: bool = False,
+        keep_attrs: bool = False,
         new_attrs: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """
@@ -265,7 +272,7 @@ class DataArrayFeatures(FeatureArray):
             that was applied. If None, no history is appended.
         new_attrs : dict[str, Any], optional
             Additional attributes to set or override in the DataArray.
-        preserve_attrs : bool, default False
+        keep_attrs : bool, default False
             If True, preserve existing attributes. Otherwise, all unmodified attributes
             are dropped.
         """
@@ -286,7 +293,7 @@ class DataArrayFeatures(FeatureArray):
         if new_attrs is not None:
             set_attrs.update(new_attrs)
 
-        if preserve_attrs:
+        if keep_attrs:
             return set_attrs | attrs
 
         return set_attrs
@@ -331,6 +338,7 @@ class DatasetFeatures(DataArrayFeatures):
         nodata_output: float | int,
         func: Callable,
         output_coords: dict[str, list[str | int]] | None = None,
+        keep_attrs: bool = False,
     ) -> xr.Dataset:
         """Process the ufunc output converting from DataArray to Dataset."""
         result = super()._postprocess_ufunc_output(
@@ -338,6 +346,7 @@ class DatasetFeatures(DataArrayFeatures):
             output_coords=output_coords,
             nodata_output=nodata_output,
             func=func,
+            keep_attrs=keep_attrs,
         )
         var_dim = result.dims[self.feature_dim]
         ds = result.to_dataset(dim=var_dim, promote_attrs=True)
@@ -350,7 +359,7 @@ class DatasetFeatures(DataArrayFeatures):
                 ds[var].attrs,
                 fill_value=nodata_output,
                 new_attrs={"long_name": var},
-                preserve_attrs=False,
+                keep_attrs=keep_attrs,
             )
 
         return ds
