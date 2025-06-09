@@ -147,6 +147,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
         ensure_min_samples: int = 1,
         allow_cast: bool = False,
         check_output_for_nodata: bool = True,
+        keep_attrs: bool = False,
         **predict_kwargs,
     ) -> FeatureArrayType:
         """
@@ -185,6 +186,13 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             If True and `nodata_output` is not np.nan, a warning will be raised if the
             selected `nodata_output` value is returned by the estimator, as this may
             indicate a valid sample being masked.
+        keep_attrs : bool, default=False
+            If True and the input is an Xarray object, the output will keep all
+            attributes of the input features, unless they're set by the estimator (e.g.
+            `_FillValue` or `long_name`). Note that some attributes (e.g.
+            `scale_factor`) may become inaccurate, which is why they are dropped by
+            default. The `history` attribute will always be kept. No effect if the
+            input is a Numpy array.
         **predict_kwargs
             Additional arguments passed to the estimator's `predict` method.
 
@@ -194,6 +202,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             The predicted values. Array types will be in the shape (targets, ...) while
             xr.Dataset will store targets as variables.
         """
+        wrapped_func = self._wrapped.predict
         output_dim_name = "target"
         features = FeatureArray.from_feature_array(X, nodata_input=nodata_input)
 
@@ -205,7 +214,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
         output_dtype = ESTIMATOR_OUTPUT_DTYPES.get(estimator_type, np.float64)
 
         return features.apply_ufunc_across_features(
-            suppress_feature_name_warnings(self._wrapped.predict),
+            suppress_feature_name_warnings(wrapped_func),
             output_dims=[[output_dim_name]],
             output_dtypes=[output_dtype],
             output_sizes={output_dim_name: self._wrapped_meta.n_targets},
@@ -216,6 +225,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             allow_cast=allow_cast,
             check_output_for_nodata=check_output_for_nodata,
             nan_fill=0.0,
+            keep_attrs=keep_attrs,
             **predict_kwargs,
         )
 
@@ -232,6 +242,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
         ensure_min_samples: int = 1,
         allow_cast: bool = False,
         check_output_for_nodata: bool = True,
+        keep_attrs: bool = False,
         **predict_proba_kwargs,
     ) -> FeatureArrayType:
         """
@@ -270,6 +281,13 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             If True and `nodata_output` is not np.nan, a warning will be raised if the
             selected `nodata_output` value is returned by the estimator, as this may
             indicate a valid sample being masked.
+        keep_attrs : bool, default=False
+            If True and the input is an Xarray object, the output will keep all
+            attributes of the input features, unless they're set by the estimator (e.g.
+            `_FillValue` or `long_name`). Note that some attributes (e.g.
+            `scale_factor`) may become inaccurate, which is why they are dropped by
+            default. The `history` attribute will always be kept. No effect if the
+            input is a Numpy array.
         **predict_proba_kwargs
             Additional arguments passed to the estimator's `predict_proba` method.
 
@@ -279,6 +297,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             The predicted class probabilities. Array types will be in the shape
             (classes, ...) while xr.Dataset will store classes as variables.
         """
+        wrapped_func = self._wrapped.predict_proba
         output_dim_name = "class"
         features = FeatureArray.from_feature_array(X, nodata_input=nodata_input)
 
@@ -292,7 +311,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             raise NotImplementedError(msg)
 
         return features.apply_ufunc_across_features(
-            suppress_feature_name_warnings(self._wrapped.predict_proba),
+            suppress_feature_name_warnings(wrapped_func),
             output_dims=[[output_dim_name]],
             output_dtypes=[np.float64],
             output_sizes={output_dim_name: len(self._wrapped.classes_)},
@@ -303,6 +322,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             allow_cast=allow_cast,
             check_output_for_nodata=check_output_for_nodata,
             nan_fill=0.0,
+            keep_attrs=keep_attrs,
             **predict_proba_kwargs,
         )
 
@@ -321,6 +341,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
         ensure_min_samples: int = 1,
         allow_cast: bool = False,
         check_output_for_nodata: bool = True,
+        keep_attrs: bool = False,
         **kneighbors_kwargs,
     ) -> tuple[FeatureArrayType, FeatureArrayType]: ...
 
@@ -339,6 +360,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
         ensure_min_samples: int = 1,
         allow_cast: bool = False,
         check_output_for_nodata: bool = True,
+        keep_attrs: bool = False,
         **kneighbors_kwargs,
     ) -> FeatureArrayType: ...
 
@@ -356,6 +378,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
         ensure_min_samples: int = 1,
         allow_cast: bool = False,
         check_output_for_nodata: bool = True,
+        keep_attrs: bool = False,
         **kneighbors_kwargs,
     ) -> FeatureArrayType | tuple[FeatureArrayType, FeatureArrayType]:
         """
@@ -405,6 +428,13 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             If True and `nodata_output` is not np.nan, a warning will be raised if the
             selected `nodata_output` value is returned by the estimator, as this may
             indicate a valid sample being masked.
+        keep_attrs : bool, default=False
+            If True and the input is an Xarray object, the output will keep all
+            attributes of the input features, unless they're set by the estimator (e.g.
+            `_FillValue` or `long_name`). Note that some attributes (e.g.
+            `scale_factor`) may become inaccurate, which is why they are dropped by
+            default. The `history` attribute will always be kept. No effect if the
+            input is a Numpy array.
         **kneighbors_kwargs
             Additional arguments passed to the estimator's `kneighbors` method.
 
@@ -419,6 +449,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             Array types will be in the shape (neighbor, ...) while xr.Dataset will store
             neighbors as variables.
         """
+        wrapped_func = self._wrapped.kneighbors
         output_dim_name = "neighbor"
 
         if nodata_output is None:
@@ -433,7 +464,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
         self._check_feature_names(features.feature_names)
 
         return features.apply_ufunc_across_features(
-            suppress_feature_name_warnings(self._wrapped.kneighbors),
+            suppress_feature_name_warnings(wrapped_func),
             output_dims=[[output_dim_name], [output_dim_name]]
             if return_distance
             else [[output_dim_name]],
@@ -450,6 +481,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             allow_cast=allow_cast,
             check_output_for_nodata=check_output_for_nodata,
             nan_fill=0.0,
+            keep_attrs=keep_attrs,
             **kneighbors_kwargs,
         )
 
@@ -466,6 +498,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
         ensure_min_samples: int = 1,
         allow_cast: bool = False,
         check_output_for_nodata: bool = True,
+        keep_attrs: bool = False,
         **transform_kwargs,
     ) -> FeatureArrayType:
         """
@@ -505,6 +538,13 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             If True and `nodata_output` is not np.nan, a warning will be raised if the
             selected `nodata_output` value is returned by the estimator, as this may
             indicate a valid sample being masked.
+        keep_attrs : bool, default=False
+            If True and the input is an Xarray object, the output will keep all
+            attributes of the input features, unless they're set by the estimator (e.g.
+            `_FillValue` or `long_name`). Note that some attributes (e.g.
+            `scale_factor`) may become inaccurate, which is why they are dropped by
+            default. The `history` attribute will always be kept. No effect if the
+            input is a Numpy array.
         **transform_kwargs
             Additional arguments passed to the estimator's `transform` method.
 
@@ -515,6 +555,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             while xr.Dataset will store features as variables, with the feature names
             based on the estimator's `get_feature_names_out` method.
         """
+        wrapped_func = self._wrapped.transform
         output_dim_name = "feature"
         features = FeatureArray.from_feature_array(X, nodata_input=nodata_input)
         feature_names = self._wrapped.get_feature_names_out()
@@ -522,7 +563,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
         self._check_feature_names(features.feature_names)
 
         return features.apply_ufunc_across_features(
-            suppress_feature_name_warnings(self._wrapped.transform),
+            suppress_feature_name_warnings(wrapped_func),
             output_dims=[[output_dim_name]],
             output_dtypes=[np.float64],
             output_sizes={output_dim_name: len(feature_names)},
@@ -533,6 +574,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             allow_cast=allow_cast,
             check_output_for_nodata=check_output_for_nodata,
             nan_fill=0.0,
+            keep_attrs=keep_attrs,
             **transform_kwargs,
         )
 
@@ -548,6 +590,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
         ensure_min_samples: int = 1,
         allow_cast: bool = False,
         check_output_for_nodata: bool = True,
+        keep_attrs: bool = False,
         **inverse_transform_kwargs,
     ) -> FeatureArrayType:
         """
@@ -587,6 +630,13 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             If True and `nodata_output` is not np.nan, a warning will be raised if the
             selected `nodata_output` value is returned by the estimator, as this may
             indicate a valid sample being masked.
+        keep_attrs : bool, default=False
+            If True and the input is an Xarray object, the output will keep all
+            attributes of the input features, unless they're set by the estimator (e.g.
+            `_FillValue` or `long_name`). Note that some attributes (e.g.
+            `scale_factor`) may become inaccurate, which is why they are dropped by
+            default. The `history` attribute will always be kept. No effect if the
+            input is a Numpy array.
         **inverse_transform_kwargs
             Additional arguments passed to the estimator's `inverse_transform` method.
 
@@ -596,6 +646,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             The inverse-transformed features. Array types will be in the shape
             (features, ...) while xr.Dataset will store features as variables.
         """
+        wrapped_func = self._wrapped.inverse_transform
         output_dim_name = "feature"
         features = FeatureArray.from_feature_array(X, nodata_input=nodata_input)
         feature_names = self._wrapped_meta.feature_names
@@ -607,7 +658,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             )
 
         return features.apply_ufunc_across_features(
-            suppress_feature_name_warnings(self._wrapped.inverse_transform),
+            suppress_feature_name_warnings(wrapped_func),
             output_dims=[[output_dim_name]],
             output_dtypes=[np.float64],
             output_sizes={output_dim_name: self._wrapped_meta.n_features},
@@ -618,6 +669,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             allow_cast=allow_cast,
             check_output_for_nodata=check_output_for_nodata,
             nan_fill=0.0,
+            keep_attrs=keep_attrs,
             **inverse_transform_kwargs,
         )
 

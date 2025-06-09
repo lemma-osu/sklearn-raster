@@ -38,6 +38,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install hatch
 
+      - name: Install test environment
+        run: |
+          hatch env create test
+          hatch -e test run pip freeze
+
       - name: Run tests
         run: hatch run test:all -n 4
 

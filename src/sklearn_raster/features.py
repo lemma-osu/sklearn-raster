@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Sized
-from typing import Any, Generic
+from datetime import datetime, timezone
+from typing import Any, Callable, Generic
 
 import numpy as np
 import xarray as xr
@@ -76,6 +77,7 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
         ensure_min_samples: int = 1,
         allow_cast: bool = False,
         check_output_for_nodata: bool = True,
+        keep_attrs: bool = False,
         **ufunc_kwargs,
     ) -> FeatureArrayType | tuple[FeatureArrayType]:
         """Apply a universal function to all features of the array."""
@@ -106,6 +108,9 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
             exclude_dims=set((self.feature_dim_name,)),
             output_core_dims=output_dims,
             output_dtypes=output_dtypes,
+            # Keep all attributes here to avoid dropping the spatial reference from the
+            # coordinate attributes. Unwanted attrs will be dropped during
+            # postprocessing.
             keep_attrs=True,
             dask_gufunc_kwargs=dict(
                 output_sizes=output_sizes,
@@ -117,6 +122,8 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
             result=result,
             output_coords=output_coords,
             nodata_output=nodata_output,
+            func=func,
+            keep_attrs=keep_attrs,
         )
 
     def _preprocess_ufunc_input(self, features: FeatureArrayType) -> FeatureArrayType:
@@ -132,7 +139,9 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
         result: FeatureArrayType,
         *,
         nodata_output: float | int,
+        func: Callable,
         output_coords: dict[str, list[str | int]] | None = None,
+        keep_attrs: bool = False,
     ) -> FeatureArrayType:
         """
         Postprocess the output of an applied ufunc.
@@ -174,7 +183,13 @@ class NDArrayFeatures(FeatureArray):
 
     @map_over_arguments("result")
     def _postprocess_ufunc_output(
-        self, result: NDArray, *, nodata_output: float | int, output_coords=None
+        self,
+        result: NDArray,
+        *,
+        nodata_output: float | int,
+        func: Callable,
+        output_coords=None,
+        keep_attrs: bool = False,
     ) -> NDArray:
         """Postprocess the output by moving features back to the first dimension."""
         return np.moveaxis(result, -1, 0)
@@ -213,7 +228,9 @@ class DataArrayFeatures(FeatureArray):
         result: xr.DataArray,
         *,
         nodata_output: float | int,
+        func: Callable,
         output_coords: dict[str, list[str | int]] | None = None,
+        keep_attrs: bool = False,
     ) -> xr.DataArray:
         """Process the ufunc output by assigning coordinates and transposing."""
         if output_coords is not None:
@@ -222,13 +239,65 @@ class DataArrayFeatures(FeatureArray):
         # Transpose features from the last to the first dimension
         result = result.transpose(result.dims[-1], ...)
 
-        if not np.isnan(nodata_output):
-            result.attrs["_FillValue"] = nodata_output
-        else:
-            # Remove the _FillValue copied from the input array
-            result.attrs.pop("_FillValue", None)
+        # Reset the global attributes while setting _FillValue and modifying history.
+        # Note that coordinate attributes are retained to preserve spatial reference,
+        # if present.
+        result.attrs = self._get_attrs(
+            result.attrs,
+            fill_value=nodata_output,
+            append_to_history=func.__qualname__,
+            keep_attrs=keep_attrs,
+        )
 
         return result
+
+    def _get_attrs(
+        self,
+        attrs: dict[str, Any],
+        fill_value: float | int | None = None,
+        append_to_history: str | None = None,
+        keep_attrs: bool = False,
+        new_attrs: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """
+        Get CF-compliant attributes for the DataArray.
+
+        Parameters
+        ----------
+        attrs : dict[str, Any]
+            Existing attributes to preserve or modify.
+        fill_value : float | int, optional
+            The fill value to set for the _FillValue attribute. Ignored if None or NaN.
+        append_to_history : str, optional
+            A string to append to the history attribute, typically the function name
+            that was applied. If None, no history is appended.
+        new_attrs : dict[str, Any], optional
+            Additional attributes to set or override in the DataArray.
+        keep_attrs : bool, default False
+            If True, preserve existing attributes. Otherwise, all unmodified attributes
+            are dropped.
+        """
+        set_attrs = {}
+        prev_history = attrs.get("history", "")
+
+        if append_to_history is not None:
+            timestamp = datetime.now(tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S %Z")
+            set_attrs["history"] = (
+                prev_history + "\n" if prev_history else ""
+            ) + f"{timestamp} {append_to_history}"
+        elif prev_history:
+            set_attrs["history"] = prev_history
+
+        if fill_value is not None and not np.isnan(fill_value):
+            set_attrs["_FillValue"] = fill_value
+
+        if new_attrs is not None:
+            set_attrs.update(new_attrs)
+
+        if keep_attrs:
+            return attrs | set_attrs
+
+        return set_attrs
 
 
 class DatasetFeatures(DataArrayFeatures):
@@ -268,19 +337,30 @@ class DatasetFeatures(DataArrayFeatures):
         result: xr.DataArray,
         *,
         nodata_output: float | int,
+        func: Callable,
         output_coords: dict[str, list[str | int]] | None = None,
+        keep_attrs: bool = False,
     ) -> xr.Dataset:
         """Process the ufunc output converting from DataArray to Dataset."""
         result = super()._postprocess_ufunc_output(
             result=result,
             output_coords=output_coords,
             nodata_output=nodata_output,
+            func=func,
+            keep_attrs=keep_attrs,
         )
         var_dim = result.dims[self.feature_dim]
-        ds = result.to_dataset(dim=var_dim)
+        ds = result.to_dataset(dim=var_dim, promote_attrs=True)
+
+        # Drop variable-level attrs
+        ds.attrs.pop("_FillValue", None)
 
         for var in ds.data_vars:
-            if not np.isnan(nodata_output):
-                ds[var].attrs["_FillValue"] = nodata_output
+            ds[var].attrs = self._get_attrs(
+                ds[var].attrs,
+                fill_value=nodata_output,
+                new_attrs={"long_name": var},
+                keep_attrs=keep_attrs,
+            )
 
         return ds
