@@ -341,6 +341,10 @@ class DatasetFeatures(DataArrayFeatures):
         )
         var_dim = result.dims[self.feature_dim]
         ds = result.to_dataset(dim=var_dim, promote_attrs=True)
+
+        # Drop variable-level attrs
+        ds.attrs.pop("_FillValue", None)
+
         for var in ds.data_vars:
             ds[var].attrs = self._get_attrs(
                 ds[var].attrs,
