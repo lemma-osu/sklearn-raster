@@ -190,7 +190,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             If True and the input is an Xarray object, the output will keep all
             attributes of the input features, unless they're set by the estimator (e.g.
             `_FillValue` or `long_name`). Note that some attributes (e.g.
-            `scale_factor`) may become inaccurate, which is why they are  dropped by
+            `scale_factor`) may become inaccurate, which is why they are dropped by
             default. The `history` attribute will always be kept. No effect if the
             input is a Numpy array.
         **predict_kwargs
@@ -285,7 +285,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             If True and the input is an Xarray object, the output will keep all
             attributes of the input features, unless they're set by the estimator (e.g.
             `_FillValue` or `long_name`). Note that some attributes (e.g.
-            `scale_factor`) may become inaccurate, which is why they are  dropped by
+            `scale_factor`) may become inaccurate, which is why they are dropped by
             default. The `history` attribute will always be kept. No effect if the
             input is a Numpy array.
         **predict_proba_kwargs
@@ -432,7 +432,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             If True and the input is an Xarray object, the output will keep all
             attributes of the input features, unless they're set by the estimator (e.g.
             `_FillValue` or `long_name`). Note that some attributes (e.g.
-            `scale_factor`) may become inaccurate, which is why they are  dropped by
+            `scale_factor`) may become inaccurate, which is why they are dropped by
             default. The `history` attribute will always be kept. No effect if the
             input is a Numpy array.
         **kneighbors_kwargs
@@ -542,7 +542,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             If True and the input is an Xarray object, the output will keep all
             attributes of the input features, unless they're set by the estimator (e.g.
             `_FillValue` or `long_name`). Note that some attributes (e.g.
-            `scale_factor`) may become inaccurate, which is why they are  dropped by
+            `scale_factor`) may become inaccurate, which is why they are dropped by
             default. The `history` attribute will always be kept. No effect if the
             input is a Numpy array.
         **transform_kwargs
@@ -634,7 +634,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             If True and the input is an Xarray object, the output will keep all
             attributes of the input features, unless they're set by the estimator (e.g.
             `_FillValue` or `long_name`). Note that some attributes (e.g.
-            `scale_factor`) may become inaccurate, which is why they are  dropped by
+            `scale_factor`) may become inaccurate, which is why they are dropped by
             default. The `history` attribute will always be kept. No effect if the
             input is a Numpy array.
         **inverse_transform_kwargs
