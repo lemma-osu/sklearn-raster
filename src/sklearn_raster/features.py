@@ -294,7 +294,7 @@ class DataArrayFeatures(FeatureArray):
             set_attrs.update(new_attrs)
 
         if keep_attrs:
-            return set_attrs | attrs
+            return attrs | set_attrs
 
         return set_attrs
 

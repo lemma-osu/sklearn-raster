@@ -496,47 +496,110 @@ def test_predict_raises_mismatched_feature_names(model_data: ModelData):
         estimator.predict(X_image)
 
 
+# TODO: Replace with a regression test
+@pytest.mark.parametrize(
+    ("estimator", "method"),
+    [
+        (StandardScaler, "transform"),
+        (StandardScaler, "inverse_transform"),
+        (KNeighborsRegressor, "predict"),
+        (KNeighborsRegressor, "kneighbors"),
+        (RandomForestClassifier, "predict_proba"),
+    ],
+)
 @pytest.mark.parametrize("keep_attrs", [True, False], ids=["keep_attrs", "drop_attrs"])
-@parametrize_model_data(feature_array_types=(xr.DataArray, xr.Dataset))
-def test_transform_drops_old_attrs(keep_attrs: bool, model_data: ModelData):
-    """Test that transform drops attributes of the input image, unless specified."""
+@parametrize_model_data(
+    feature_array_types=(xr.DataArray, xr.Dataset), mode="classification", n_targets=1
+)
+def test_old_attrs_dropped(
+    estimator: BaseEstimator, method: str, keep_attrs: bool, model_data: ModelData
+):
+    """Test that old attributes are dropped when applying methods, if requested."""
     X_image, X, y = model_data
     X_image = X_image.assign_attrs(foo="bar")
 
-    scaler = wrap(StandardScaler()).fit(X, y)
-    transformed = scaler.transform(X_image, keep_attrs=keep_attrs)
+    wrapped_estimator = wrap(estimator()).fit(X, y)
+    output = getattr(wrapped_estimator, method)(
+        X_image, keep_attrs=keep_attrs, return_distance=False
+    )
+
     if keep_attrs:
-        assert transformed.attrs["foo"] == "bar", "Global attributes should persist"
+        assert output.attrs["foo"] == "bar", "Global attributes should persist"
     else:
-        assert "foo" not in transformed.attrs, "Global attributes should not persist"
+        assert "foo" not in output.attrs, "Global attributes should not persist"
 
 
-@parametrize_model_data(feature_array_types=(xr.Dataset,))
-def test_transform_sets_dataset_attrs(model_data: ModelData):
-    """Test that transform sets new metadata attrs."""
+# TODO: Replace with a regression test
+@pytest.mark.parametrize(
+    ("estimator", "method"),
+    [
+        (StandardScaler, "transform"),
+        (StandardScaler, "inverse_transform"),
+        (KNeighborsRegressor, "predict"),
+        (KNeighborsRegressor, "kneighbors"),
+        (RandomForestClassifier, "predict_proba"),
+    ],
+)
+@pytest.mark.parametrize("keep_attrs", [True, False], ids=["keep_attrs", "drop_attrs"])
+@parametrize_model_data(
+    feature_array_types=(xr.Dataset,), mode="classification", n_targets=1
+)
+def test_dataset_attrs_set(
+    estimator: BaseEstimator, method: str, keep_attrs: bool, model_data: ModelData
+):
+    """Test that old attributes are dropped when transforming."""
     X_image, X, y = model_data
 
-    scaler = wrap(StandardScaler()).fit(X, y)
-    transformed = scaler.transform(X_image, nodata_output=-999)
-    assert transformed["b0"].attrs["long_name"] == "b0"
-    assert transformed["b0"].attrs["_FillValue"] == -999
+    wrapped_estimator = wrap(estimator()).fit(X, y)
+    output = getattr(wrapped_estimator, method)(
+        X_image,
+        keep_attrs=keep_attrs,
+        nodata_output=-999,
+        # Only affects kneighbors
+        return_distance=False,
+    )
+
+    first_var_name = list(output.data_vars)[0]
+    assert output[first_var_name].attrs["long_name"] == first_var_name
+    assert output[first_var_name].attrs["_FillValue"] == -999
 
 
-@parametrize_model_data(feature_array_types=(xr.DataArray, xr.Dataset))
-def test_transform_appends_history(model_data: ModelData):
-    """Test that transform appends to the history attribute."""
+# TODO: Replace with a regression test
+@pytest.mark.parametrize(
+    ("estimator", "method"),
+    [
+        (StandardScaler, "transform"),
+        (StandardScaler, "inverse_transform"),
+        (KNeighborsRegressor, "predict"),
+        (KNeighborsRegressor, "kneighbors"),
+        (RandomForestClassifier, "predict_proba"),
+    ],
+)
+@pytest.mark.parametrize("keep_attrs", [True, False], ids=["keep_attrs", "drop_attrs"])
+@parametrize_model_data(
+    feature_array_types=(xr.Dataset,), mode="classification", n_targets=1
+)
+def test_history_is_appended(
+    estimator: BaseEstimator, method: str, keep_attrs: bool, model_data: ModelData
+):
+    """Test that old attributes are dropped when transforming."""
     X_image, X, y = model_data
-
-    scaler = wrap(StandardScaler()).fit(X, y)
     X_image = X_image.assign_attrs(history="initial history")
-    transformed = scaler.transform(X_image)
-    inverse = scaler.inverse_transform(transformed)
 
-    full_history = inverse.attrs["history"].split("\n")
-    assert len(full_history) == 3
+    wrapped_estimator = wrap(estimator()).fit(X, y)
+    output = getattr(wrapped_estimator, method)(
+        X_image,
+        keep_attrs=keep_attrs,
+        nodata_output=-999,
+        # Only affects kneighbors
+        return_distance=False,
+    )
+
+    wrapped_method = getattr(wrapped_estimator._wrapped, method)
+    full_history = output.attrs["history"].split("\n")
+    assert len(full_history) == 2
     assert "initial history" in full_history[0]
-    assert "StandardScaler.transform" in full_history[1]
-    assert "StandardScaler.inverse_transform" in full_history[2]
+    assert f"{wrapped_method.__qualname__}" in full_history[1]
 
 
 @pytest.mark.parametrize(

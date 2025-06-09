@@ -160,13 +160,20 @@ def parametrize_model_data(
     y=None,
     feature_array_types=(np.ndarray, xr.DataArray, xr.Dataset),
     mode: Literal["regression", "classification"] = "regression",
+    n_features: int = 5,
+    n_targets: int = 3,
+    n_rows: int = 10,
 ):
     """Parametrize over multiple feature types with the same test data."""
     n_features = (
-        X_image.shape[0] if X_image is not None else X.shape[-1] if X is not None else 5
+        X_image.shape[0]
+        if X_image is not None
+        else X.shape[-1]
+        if X is not None
+        else n_features
     )
-    n_targets = y.shape[-1] if y is not None else 3
-    n_rows = X.shape[0] if X is not None else y.shape[0] if y is not None else 10
+    n_targets = y.shape[-1] if y is not None else n_targets
+    n_rows = X.shape[0] if X is not None else y.shape[0] if y is not None else n_rows
 
     # Default test data
     if X_image is None:
