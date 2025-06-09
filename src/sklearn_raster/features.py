@@ -108,8 +108,9 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
             exclude_dims=set((self.feature_dim_name,)),
             output_core_dims=output_dims,
             output_dtypes=output_dtypes,
-            # Always keep_attrs here to avoid dropping coordinate atttrs. Unwanted attrs
-            # will be dropped during postprocessing.
+            # Keep all attributes here to avoid dropping the spatial reference from the
+            # coordinate attributes. Unwanted attrs will be dropped during
+            # postprocessing.
             keep_attrs=True,
             dask_gufunc_kwargs=dict(
                 output_sizes=output_sizes,
