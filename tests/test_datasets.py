@@ -61,6 +61,15 @@ def test_load_dataset(configuration: DatasetConfiguration, as_dataset: bool):
     assert y.shape == (configuration.n_samples, configuration.n_targets)
 
     if as_dataset:
+        # All datasets should contain global and variable attrs
+        assert "title" in X_image.attrs
+        assert "comment" in X_image.attrs
+        assert "_FillValue" not in X_image.attrs, "_FillValue should not be global"
+        for var in X_image.data_vars.values():
+            assert "_FillValue" in var.attrs
+            assert "long_name" in var.attrs
+            assert "source" in var.attrs
+
         # Some Dask schedulers require pickling, so ensure that the loaded dataset is
         # pickleable during compute. We could try computing directly, but that is much
         # slower.
