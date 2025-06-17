@@ -68,6 +68,7 @@ def test_load_dataset(configuration: DatasetConfiguration, as_dataset: bool):
         for var in X_image.data_vars.values():
             assert "_FillValue" in var.attrs
             assert "long_name" in var.attrs
+            assert "source" in var.attrs
 
         # Some Dask schedulers require pickling, so ensure that the loaded dataset is
         # pickleable during compute. We could try computing directly, but that is much

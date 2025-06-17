@@ -50,6 +50,7 @@ class _VariableMeta:
     fill_value: float | None = None
     scale_factor: float | None = None
     add_offset: float | None = None
+    source: str | None = None
 
     @property
     def attrs(self) -> dict[str, Any]:
@@ -60,6 +61,7 @@ class _VariableMeta:
             "_FillValue": self.fill_value,
             "scale_factor": self.scale_factor,
             "add_offset": self.add_offset,
+            "source": self.source,
         }
         return {k: v for k, v in attrs.items() if v is not None}
 
@@ -193,40 +195,114 @@ def load_swo_ecoplot(
     """
     X, y = sknnr.datasets.load_swo_ecoplot(return_X_y=True, as_frame=True)
     variables = [
-        _VariableMeta("ANNPRE", "Annual precipitation", "ln millimeter"),
-        _VariableMeta("ANNTMP", "Mean annual temperature", "degC"),
-        _VariableMeta("AUGMAXT", "Mean August maximum temperature", "degC"),
+        _VariableMeta(
+            "ANNPRE",
+            "Annual precipitation",
+            unit="ln millimeter",
+            scale_factor=0.01,
+            source="PRISM Climate Group, Oregon State University",
+        ),
+        _VariableMeta(
+            "ANNTMP",
+            "Mean annual temperature",
+            unit="degC",
+            scale_factor=0.01,
+            source="PRISM Climate Group, Oregon State University",
+        ),
+        _VariableMeta(
+            "AUGMAXT",
+            "Mean August maximum temperature",
+            unit="degC",
+            scale_factor=0.01,
+            source="PRISM Climate Group, Oregon State University",
+        ),
         _VariableMeta(
             "CONTPRE",
             "Percentage of annual precipitation falling in June-August",
             "percent",
+            scale_factor=0.01,
+            source="PRISM Climate Group, Oregon State University",
         ),
         _VariableMeta(
             "CVPRE",
             "Coefficient of variation of mean monthly precipitation of December and "
             "July",
+            scale_factor=0.01,
+            source="PRISM Climate Group, Oregon State University",
         ),
-        _VariableMeta("DECMINT", "Mean December minimum temperature", "degC"),
+        _VariableMeta(
+            "DECMINT",
+            "Mean December minimum temperature",
+            unit="degC",
+            scale_factor=0.01,
+            source="PRISM Climate Group, Oregon State University",
+        ),
         _VariableMeta(
             "DIFTMP",
             "Difference between mean August maximum and December minimum temperatures",
-            "degC",
+            unit="degC",
+            scale_factor=0.01,
+            source="PRISM Climate Group, Oregon State University",
         ),
-        _VariableMeta("SMRTMP", "Mean temperature from May-September", "degC"),
         _VariableMeta(
-            "SMRTP", "Growing season moisture stress", "degC / ln millimeter"
+            "SMRTMP",
+            "Mean temperature from May-September",
+            unit="degC",
+            scale_factor=0.01,
+            source="PRISM Climate Group, Oregon State University",
         ),
-        _VariableMeta("ASPTR", "Cosine transformation of aspect"),
-        _VariableMeta("DEM", "Elevation", "meter"),
-        _VariableMeta("PRR", "Potential relative radiation"),
-        _VariableMeta("SLPPCT", "Slope", "percent"),
         _VariableMeta(
-            "TPI450", "Topographic position index within a 300m to 450m annulus window"
+            "SMRTP",
+            "Growing season moisture stress",
+            unit="degC / ln millimeter",
+            scale_factor=0.01,
+            source="PRISM Climate Group, Oregon State University",
         ),
-        _VariableMeta("TC1", "Tasseled cap component 1 (brightness)"),
-        _VariableMeta("TC2", "Tasseled cap component 2 (greenness)"),
-        _VariableMeta("TC3", "Tasseled cap component 3 (wetness)"),
-        _VariableMeta("NBR", "Normalized burn ratio"),
+        _VariableMeta(
+            "ASPTR",
+            "Cosine transformation of aspect",
+            scale_factor=0.01,
+            source="Derived by LEMMA from data from USGS Seamless Data Warehouse",
+        ),
+        _VariableMeta(
+            "DEM", "Elevation", unit="meter", source="USGS Seamless Data Warehouse"
+        ),
+        _VariableMeta(
+            "PRR",
+            "Potential relative radiation",
+            source="Derived by LEMMA from data from USGS Seamless Data Warehouse",
+        ),
+        _VariableMeta(
+            "SLPPCT",
+            "Slope",
+            unit="percent",
+            source="Derived by LEMMA from data from USGS Seamless Data Warehouse",
+        ),
+        _VariableMeta(
+            "TPI450",
+            "Topographic position index within a 300m to 450m annulus window",
+            source="Derived by LEMMA from data from USGS Seamless Data Warehouse",
+        ),
+        _VariableMeta(
+            "TC1",
+            "Tasseled cap component 1 (brightness)",
+            source="Landsat imagery temporally fit using the CCDC algorithm",
+        ),
+        _VariableMeta(
+            "TC2",
+            "Tasseled cap component 2 (greenness)",
+            source="Landsat imagery temporally fit using the CCDC algorithm",
+        ),
+        _VariableMeta(
+            "TC3",
+            "Tasseled cap component 3 (wetness)",
+            source="Landsat imagery temporally fit using the CCDC algorithm",
+        ),
+        _VariableMeta(
+            "NBR",
+            "Normalized burn ratio",
+            source="Landsat imagery temporally fit using the CCDC algorithm",
+        ),
     ]
 
     if large_rasters:
