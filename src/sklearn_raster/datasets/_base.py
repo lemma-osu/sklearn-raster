@@ -193,29 +193,33 @@ def load_swo_ecoplot(
     """
     X, y = sknnr.datasets.load_swo_ecoplot(return_X_y=True, as_frame=True)
     variables = [
-        _VariableMeta("ANNPRE", "Annual precipitation", "ln mm"),
-        _VariableMeta("ANNTMP", "Mean annual temperature", "C"),
-        _VariableMeta("AUGMAXT", "Mean August maximum temperature", "C"),
+        _VariableMeta("ANNPRE", "Annual precipitation", "ln millimeter"),
+        _VariableMeta("ANNTMP", "Mean annual temperature", "degC"),
+        _VariableMeta("AUGMAXT", "Mean August maximum temperature", "degC"),
         _VariableMeta(
-            "CONTPRE", "Percentage of annual precipitation falling in June-August", "%"
+            "CONTPRE",
+            "Percentage of annual precipitation falling in June-August",
+            "percent",
         ),
         _VariableMeta(
             "CVPRE",
             "Coefficient of variation of mean monthly precipitation of December and "
             "July",
         ),
-        _VariableMeta("DECMINT", "Mean December minimum temperature", "C"),
+        _VariableMeta("DECMINT", "Mean December minimum temperature", "degC"),
         _VariableMeta(
             "DIFTMP",
             "Difference between mean August maximum and December minimum temperatures",
-            "C",
+            "degC",
         ),
-        _VariableMeta("SMRTMP", "Mean temperature from May-September", "C"),
-        _VariableMeta("SMRTP", "Growing season moisture stress", "C / ln mm"),
+        _VariableMeta("SMRTMP", "Mean temperature from May-September", "degC"),
+        _VariableMeta(
+            "SMRTP", "Growing season moisture stress", "degC / ln millimeter"
+        ),
         _VariableMeta("ASPTR", "Cosine transformation of aspect"),
-        _VariableMeta("DEM", "Elevation", "m"),
-        _VariableMeta("PRR", "Potential relative radiation", "%"),
-        _VariableMeta("SLPPCT", "Slope", "%"),
+        _VariableMeta("DEM", "Elevation", "meter"),
+        _VariableMeta("PRR", "Potential relative radiation"),
+        _VariableMeta("SLPPCT", "Slope", "percent"),
         _VariableMeta(
             "TPI450", "Topographic position index within a 300m to 450m annulus window"
         ),
