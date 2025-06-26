@@ -10,6 +10,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
 from sklearn_raster import wrap
+from sklearn_raster.utils.estimator import generate_sequential_names
 
 if TYPE_CHECKING:
     import xarray as xr
@@ -67,9 +68,10 @@ def _generate_fractal_noise(
     as_dataset : bool, default False
         If True, return an xarray Dataset with features as variables instead of a
         Numpy array.
-    feature_names : list[str], optional
-        A list of feature names to use for the xarray Dataset. If None, the features
-        will be assigned sequential numeric names. Ignored if `as_dataset` is False.
+    percentile_mask : int, default 0
+        If non-zero, values below this percentile in the first noise component will be
+        replaced with `np.nan` to simulate missing values. Must be between 0 (inclusive)
+        and 100 (inclusive).
     random_state : int, optional
         Random seed for reproducibility.
     """
@@ -109,7 +111,7 @@ def _generate_fractal_noise(
             )
             raise ImportError(msg) from None
 
-        feature_coords = np.arange(shape[0])
+        feature_coords = generate_sequential_names(shape[0], "component")
         coords = {"variable": feature_coords}
         coords.update({f"d{i}": np.arange(s) for i, s in enumerate(shape[1:])})
         noise = xr.DataArray(
@@ -129,6 +131,7 @@ def synthesize_feature_array(
     n_components: int = 3,
     roughness: float = 1.0,
     percentile_mask: int = 0,
+    nodata: float = np.nan,
     as_dataset: Literal[False] = False,
     random_state: int | np.random.RandomState | None = None,
 ) -> NDArray: ...
@@ -140,6 +143,7 @@ def synthesize_feature_array(
     n_components: int = 3,
     roughness: float = 1.0,
     percentile_mask: int = 0,
+    nodata: float = np.nan,
     as_dataset: Literal[True] = True,
     random_state: int | np.random.RandomState | None = None,
 ) -> xr.Dataset: ...
@@ -150,6 +154,7 @@ def synthesize_feature_array(
     n_components: int = 3,
     roughness: float = 1.0,
     percentile_mask: int = 0,
+    nodata: float = np.nan,
     as_dataset: bool = False,
     random_state: int | np.random.RandomState | None = None,
 ) -> NDArray | xr.Dataset:
@@ -183,8 +188,12 @@ def synthesize_feature_array(
         The amount of high-frequency detail in the generated spatial noise. Lower
         values produce smoother spatial patterns. Must be >0 and <=1.
     percentile_mask : int, default 0
-        If non-zero, values below this percentile in the first noise feature will be
-        replaced with `np.nan` to simulate NoData. Must be >=0 and <=100.
+        If non-zero, values below this percentile in the first noise component will be
+        replaced with `nodata` to simulate missing values. Must be between 0 and 100
+        (inclusive).
+    nodata : float, default np.nan
+        The value used to represent NoData in the output array. Only used if
+        `percentile_mask` is non-zero.
     as_dataset : bool, default False
         If True, the feature array is returned as an `xr.Dataset` with features as
         variables. Variable names are assigned from columns if X is a dataframe, or
@@ -222,7 +231,7 @@ def synthesize_feature_array(
     >>> X, y = make_regression(n_features=3)
     >>> X_img = synthesize_feature_array(X, shape=(4, 256, 256), as_dataset=True)
     >>> X_img = X_img.rename_dims({"d0": "time", "d1": "y", "d2": "x"})
-    >>> X_img[0].sel(time=1).shape
+    >>> X_img["feature0"].sel(time=1).shape
     (256, 256)
     """
     noise = _generate_fractal_noise(
@@ -250,4 +259,8 @@ def synthesize_feature_array(
         )
     ).fit(X)
 
-    return sample_to_component.inverse_transform(noise, keep_attrs=True)
+    return sample_to_component.inverse_transform(
+        noise, 
+        nodata_output=nodata,
+        keep_attrs=True,
+    )
