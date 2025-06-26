@@ -60,9 +60,9 @@ def _generate_fractal_noise(
     ----------
     shape : tuple[int, ...]
         The desired array shape, with features as the first dimension.
-    roughness : float, default=1.0
-        Roughness of the fractal noise. Higher values retain more high-frequency detail.
-        Must be between 0 (exclusive) and 1 (inclusive).
+    roughness : float, default 1.0
+        The amount of high-frequency detail in the generated spatial noise. Lower
+        values produce smoother spatial patterns. Must be >0.
     standardize : bool
         If True, the output is standardized to have mean 0 and standard deviation 1.
     as_dataset : bool, default False
@@ -189,7 +189,7 @@ def synthesize_feature_array(
 
     Parameters
     ----------
-    samples : NDArray | pd.DataFrame
+    X : NDArray | pd.DataFrame
         An array of predictive samples in the shape (n_samples, n_features).
     shape : tuple[int, ...]
         The desired feature array shape, excluding the feature dimension.
@@ -197,7 +197,7 @@ def synthesize_feature_array(
         The number of components used to transform between feature and PCA space.
     roughness : float, default 1.0
         The amount of high-frequency detail in the generated spatial noise. Lower
-        values produce smoother spatial patterns. Must be >0 and <=1.
+        values produce smoother spatial patterns. Must be >0.
     percentile_mask : int, default 0
         If non-zero, values below this percentile in the first noise component will be
         replaced with `nodata` to simulate missing values. Must be between 0 and 100
