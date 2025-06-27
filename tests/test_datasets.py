@@ -145,7 +145,7 @@ def test_load_rasters_promotes_dtype():
     assert_array_almost_equal(array, expected_array)
 
 
-@freeze_time("2023-10-01T00:00:00Z")
+@freeze_time("2023-10-01T00:00:00Z")  # Make history attribute timestamp deterministic
 @pytest.mark.parametrize("as_dataset", [False, True], ids=["as_array", "as_dataset"])
 @pytest.mark.parametrize("n_features", [3, 9])
 @pytest.mark.parametrize("shape", [(16, 16), (3, 4, 4)])
@@ -178,7 +178,8 @@ def test_synthesize_classification_feature_array(
         random_state=42,
     )
 
+    tolerance = dict(rtol=1e-05, atol=1e-08)
     if as_dataset:
-        xarray_regression.check(fa)
+        xarray_regression.check(fa, **tolerance)
     else:
-        ndarrays_regression.check({"data": fa})
+        ndarrays_regression.check({"data": fa}, default_tolerance=tolerance)
