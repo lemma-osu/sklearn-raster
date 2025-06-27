@@ -60,6 +60,8 @@ dependencies = [
     "pytest",
     "pytest-cov",
     "pytest-xdist",
+    "freezegun",
+    "xarray-regressions",
     "sklearn-raster[datasets]",
 ]
 
