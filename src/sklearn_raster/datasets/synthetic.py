@@ -158,6 +158,18 @@ def synthesize_feature_array(
     as_dataset: Literal[True] = True,
     random_state: int | np.random.RandomState | None = None,
 ) -> xr.Dataset: ...
+@overload
+def synthesize_feature_array(
+    X: np.ndarray | pd.DataFrame,
+    *,
+    shape: tuple[int, ...],
+    n_components: int = 3,
+    roughness: float = 1.0,
+    percentile_mask: int = 0,
+    nodata: float = np.nan,
+    as_dataset: bool = False,
+    random_state: int | np.random.RandomState | None = None,
+) -> xr.Dataset: ...
 def synthesize_feature_array(
     X: np.ndarray | pd.DataFrame,
     *,
