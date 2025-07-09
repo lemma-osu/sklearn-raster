@@ -15,7 +15,7 @@ nav:
     - Wrapping Estimators: api/wrap.md
     - Datasets:
       - SWO Ecoplot: api/datasets/swo_ecoplot.md
-      - Synthetic data: api/datasets/synthesize_feature_array.md
+      - Synthetic Data: api/datasets/synthesize_feature_array.md
   - Contributing: contributing.md
 
 theme: 
