@@ -46,7 +46,7 @@ or with an `xr.Dataset`:
 
 ```python
 NODATA = -32768
-img = xr.where(img == NODATA)
+img = img.where(img != NODATA)
 ```
 
 The downside of this approach is that NaN can only be stored in a floating point array. To preserve NoData in integer data types, NoData values can be manually specified or stored in Xarray metadata.

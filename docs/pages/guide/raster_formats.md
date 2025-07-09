@@ -46,8 +46,8 @@ Calling `predict` on a wrapped estimator will return an `xr.DataArray` with the 
 ```python
 pred = wrapped_estimator.predict(da)
 print(pred.shape) # (1, 128, 128)
-print(pred.dims) # ('target', 'x', 'y')
-print(pred["target"]).values # ['land_cover']
+print(pred.dims) # ('target', 'y', 'x')
+print(pred["target"].values) # ['land_cover']
 ```
 
 ### Xarray Dataset
