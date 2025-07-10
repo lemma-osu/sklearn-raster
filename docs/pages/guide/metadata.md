@@ -84,7 +84,7 @@ Most methods accept a `nodata_output` parameter where you can specify the value 
 
 If a method returns the selected `nodata_output` value, e.g. an estimator predicts a value that was chosen to represent NoData, like `-32768`, `sklearn-raster` will raise a warning about potentially masking a valid pixel. If this is an expected output, you can disable the warning with `check_output_for_nodata=False`.
 
-For Xarray raster types, `sklearn-raster` will set a `_FillValue` attribute to the selected non-NaN `nodata_output` value, if given.
+For Xarray raster types, `sklearn-raster` will set a `_FillValue` attribute on each variable to the selected non-NaN `nodata_output` value, if given.
 
 ## CF Attributes
 
@@ -94,4 +94,4 @@ For Xarray raster types, `sklearn-raster` will set a `_FillValue` attribute to t
 1. Setting target names in variable `long_name` attributes.
 1. Appending time-stamped operations to the `history` attribute to help track provenance. 
 
-By default, estimator methods discard all other attributes to avoid preserving inaccurate metadata, e.g. a `scale_factor` that no longer applies to a predicted target. To preserve all attributes, estimator methods accept a `keep_attrs` parameter.
+By default, wrapped estimator methods discard all other attributes to avoid preserving inaccurate metadata, e.g. a `scale_factor` that no longer applies to a predicted target. To preserve all attributes, pass `keep_attrs=True` to the wrapped estimator.

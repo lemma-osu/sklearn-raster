@@ -1,8 +1,4 @@
-`sklearn-raster` extends `scikit-learn` and other compatible estimators to work directly with raster data. This allows you to train models with tabular data and predict raster outputs directly while preserving metadata like spatial references, band names, and NoData masks.
-
-## Raster Estimators
-
-To get started, instantiate a regressor, classifier, or clusterer as normal, wrap it into a raster estimator with `wrap`, then fit[^fit-after-wrap] it with tabular data. The `X` dataset should include predictor features that correspond with your raster bands. For supervised classification, the `y` dataset should include one or more targets that will be predicted as output bands.
+To generate predictions from a raster dataset, instantiate a [`scikit-learn`](https://scikit-learn.org/stable/) estimator, [`wrap`](../api/wrap.md) it into a [`FeatureArrayEstimator`](../api/wrap.md/#sklearn_raster.estimator.FeatureArrayEstimator), then fit[^fit-after-wrap] it with tabular data. The `X` dataset should include predictor features that correspond with your raster[^rasters] bands. For supervised classification, the `y` dataset should include one or more targets that will be predicted as output bands.
 
 ```python
 from sklearn.ensemble import RandomForestRegressor
@@ -12,7 +8,7 @@ est = wrap(RandomForestRegressor(n_estimators=500))
 est.fit(X, y)
 ```
 
-Once fit, methods like `predict`, `predict_proba`, and `kneighbors` can be applied to input rasters.
+Once fit, methods like [`predict`](../api/wrap.md/#sklearn_raster.estimator.FeatureArrayEstimator.predict) can be used to generate georeferenced, gridded outputs from raster inputs.
 
 ```python
 import rioxarray
@@ -34,6 +30,8 @@ The user guide contains more information about specific topics like:
 ### Tutorials
 
 Coming soon.
+
+[^rasters]: `sklearn-raster` works with any gridded data of arbitrary dimensionality, including geospatial rasters, climate data, and biomedical imagery. The user guide generally focuses on geospatial workflows and uses associated terminology. Gridded input datasets are sometimes generically referred to as **feature arrays**.
 
 [^fit-after-wrap]: Estimators *must* be wrapped before fitting to allow `sklearn-raster` to access necessary metadata like the names and number of targets. Wrapping a pre-fit estimator will reset the estimator and raise a warning.
 
