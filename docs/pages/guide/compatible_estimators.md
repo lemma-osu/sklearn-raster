@@ -16,3 +16,4 @@ There are a few unlikely caveats that would make an estimator incompatible. `skl
 
 - Estimators that return an unpredictable number of output targets, such as a `predict` method that returns fewer targets than the estimator was `fit` with. To enable lazy computation, `sklearn-raster` must be able to predict output shape from the input data.
 - Estimators that modify the output shape, i.e. that does not return exactly one output sample for every input sample. In this case, `sklearn-raster` isn't able to infer which input coordinate corresponds to which output coordinate, and methods will fail unpredictably.
+- `predict_proba` methods on multi-output classifiers (see [#56](https://github.com/lemma-osu/sklearn-raster/pull/56)).

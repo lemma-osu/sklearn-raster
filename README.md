@@ -4,9 +4,10 @@
 
 > ⚠️ **WARNING: sklearn-raster is in active development!** ⚠️
 
+[`sklearn-raster`](https://github.com/lemma-osu/sklearn-raster) extends [`scikit-learn`](https://scikit-learn.org/stable/) and other compatible estimators to work directly with raster data. This allows you to train models with tabular data and predict raster outputs directly while preserving metadata like spatial references, band names, and NoData masks.
+
 ## Features
 
-- 🗺️ Raster predictions from [scikit-learn](https://scikit-learn.org/stable/) estimators 
 - ⚡ Parallelized functions + larger-than-memory data using [Dask](https://www.dask.org/)
 - 🌐 Automatic handling of spatial references, band names, and masks
 - 🔢 Support for n-dimensional feature arrays, e.g. time series rasters

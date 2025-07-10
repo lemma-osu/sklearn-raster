@@ -59,8 +59,6 @@ plugins:
             show_category_heading: true
             merge_init_into_class: true
             signature_crossrefs: true
-            extra:
-              undoc_members: true
 
 markdown_extensions:
   - abbr
@@ -83,5 +81,4 @@ markdown_extensions:
 watch:
   - ../src/
   - ../README.md
-  - ../CONTRIBUTING.md
   - ./abbreviations.md
