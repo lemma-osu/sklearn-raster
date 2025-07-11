@@ -439,18 +439,27 @@ def test_nodata_dataarray_fillvalue(nodata_input):
     "nodata_input", [None, -32768], ids=["without_nodata", "with_nodata"]
 )
 @pytest.mark.parametrize(
-    "fill_vals", [[1, 2, 3], [None, 1, None]], ids=["no_nones", "some_nones"]
+    "fill_vals",
+    [[1, 2, 3], [None, 1, None], [None, None, None]],
+    ids=["no_none", "some_none", "all_none"],
 )
-def test_nodata_dataset_some_fillvalues(nodata_input, fill_vals):
-    """Test that feature-wise _FillValues are applied if some exist"""
-    n_features = 3
-    das = [xr.DataArray(np.ones((n_features, 2, 2))) for i in range(n_features)]
+def test_nodata_dataset_infers_fillvalues(nodata_input, fill_vals):
+    """Test that feature-wise _FillValues are correctly inferred."""
+    n_features = len(fill_vals)
+    das = [
+        xr.DataArray(np.ones((n_features, 2, 2)), name=f"da{i}")
+        for i in range(n_features)
+    ]
 
     # Assign per-feature fill values
     for i, fill_val in enumerate(fill_vals):
-        das[i] = das[i].assign_attrs({"_FillValue": fill_val}).rename(i)
+        # A missing _FillValue should be inferred as None
+        if fill_val is None:
+            continue
+        das[i] = das[i].assign_attrs({"_FillValue": fill_val})
 
-    ds = xr.merge(das)
+    # A global _FillValue should be ignored in every case
+    ds = xr.merge(das).assign_attrs({"_FillValue": -999})
     features = FeatureArray.from_feature_array(ds, nodata_input=nodata_input)
 
     # _FillValue should be ignored if nodata_input is provided
