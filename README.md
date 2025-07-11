@@ -16,7 +16,7 @@
 1. Install optional dependencies for loading data and plotting results:
 
     ```bash
-    pip install "sklearn-raster[tutorials] @ git+https://github.com/lemma-osu/sklearn-raster.git"
+    pip install "sklearn-raster[tutorials]"
     ```
 
 1. Wrap a `scikit-learn` estimator to enable raster-based predictions:
