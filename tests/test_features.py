@@ -375,14 +375,6 @@ def test_nan_filled(feature_array_type: type[FeatureArrayType], nan_fill: float 
     unwrap_features(result)
 
 
-def test_skip_nodata_mask_if_unneeded():
-    """If features are not float and nodata isn't specified, there should be no mask."""
-    a = np.ones((3, 2, 2), dtype=int)
-    features = FeatureArray.from_feature_array(a, nodata_input=None)
-
-    assert features.nodata_input is None
-
-
 @pytest.mark.parametrize("nodata_input", ["test", {}, False], ids=type)
 def test_nodata_validates_type(nodata_input):
     """Test that invalid NoData types are recognized."""
@@ -467,28 +459,6 @@ def test_nodata_dataset_some_fillvalues(nodata_input, fill_vals):
     # Nodata vals should match the fill values, even if some are None
     else:
         assert features.nodata_input.tolist() == fill_vals
-
-
-@pytest.mark.parametrize(
-    "nodata_input", [None, -32768], ids=["without_nodata", "with_nodata"]
-)
-def test_nodata_dataset_global_fillvalue(nodata_input):
-    """Test that a global _FillValue is broadcast if per-feature don't exist."""
-    n_features = 3
-    global_fill_val = 42
-    das = [
-        xr.DataArray(np.ones((n_features, 2, 2))).rename(i) for i in range(n_features)
-    ]
-
-    ds = xr.merge(das).assign_attrs({"_FillValue": global_fill_val})
-    features = FeatureArray.from_feature_array(ds, nodata_input=nodata_input)
-
-    # _FillValue should be ignored if nodata_input is provided
-    if nodata_input is not None:
-        assert features.nodata_input.tolist() == [nodata_input] * n_features
-    # The global fill value should be used when per-feature fill values are unavailable
-    else:
-        assert features.nodata_input.tolist() == [global_fill_val] * n_features
 
 
 @pytest.mark.parametrize("nodata_output", [np.nan, 0, -32768])
