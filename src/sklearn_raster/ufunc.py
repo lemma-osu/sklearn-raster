@@ -24,7 +24,7 @@ class UfuncSampleProcessor:
 
     feature_dim = -1
 
-    def __init__(self, samples: NDArray, *, nodata_input: list[float] | None = None):
+    def __init__(self, samples: NDArray, *, nodata_input: NDArray):
         self.samples = samples
         self.nodata_input = nodata_input
 
@@ -38,7 +38,8 @@ class UfuncSampleProcessor:
 
     def _get_nodata_mask(self) -> NDArray | None:
         # Skip allocating a mask if the array is not float and NoData wasn't given
-        if not self._input_supports_nan and self.nodata_input is None:
+        nodata_specified = np.any([n is not None for n in self.nodata_input])
+        if not self._input_supports_nan and not nodata_specified:
             return None
 
         mask = np.zeros(self.samples.shape, dtype=bool)
@@ -48,7 +49,7 @@ class UfuncSampleProcessor:
             mask |= np.isnan(self.samples)
 
         # If NoData was specified, mask those values
-        if self.nodata_input is not None:
+        if nodata_specified:
             mask |= self.samples == self.nodata_input
 
         # Return a mask where any feature contains NoData

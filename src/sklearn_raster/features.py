@@ -27,9 +27,9 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
     ):
         self.feature_array = feature_array
         self.n_features = self.feature_array.shape[self.feature_dim]
-        self.nodata_input = self._validate_nodata_input(nodata_input)
+        self.nodata_input: NDArray = self._validate_nodata_input(nodata_input)
 
-    def _validate_nodata_input(self, nodata_input: NoDataType) -> NDArray | None:
+    def _validate_nodata_input(self, nodata_input: NoDataType) -> NDArray:
         """
         Get an array of NoData values in the shape (n_features,) based on user input.
 
@@ -37,12 +37,10 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
         number of features and cast to ndarrays. There is no need to specify np.nan as a
         NoData value because it will be masked automatically for floating point arrays.
         """
-        if nodata_input is None:
-            return None
-
-        # If it's a numeric scalar, broadcast it to all features
-        if isinstance(nodata_input, (float, int)) and not isinstance(
-            nodata_input, bool
+        # If it's None or a numeric scalar, broadcast it to all features
+        if nodata_input is None or (
+            isinstance(nodata_input, (float, int))
+            and not isinstance(nodata_input, bool)
         ):
             return np.full((self.n_features,), nodata_input)
 
@@ -206,7 +204,7 @@ class DataArrayFeatures(FeatureArray):
     def feature_names(self) -> NDArray:
         return self.feature_array[self.feature_dim_name].values
 
-    def _validate_nodata_input(self, nodata_input: NoDataType) -> NDArray | None:
+    def _validate_nodata_input(self, nodata_input: NoDataType) -> NDArray:
         """
         Get an array of NoData values in the shape (features,) based on user input and
         DataArray metadata.
@@ -215,12 +213,8 @@ class DataArrayFeatures(FeatureArray):
         if nodata_input is not None:
             return super()._validate_nodata_input(nodata_input)
 
-        # If present, broadcast the _FillValue attribute to all features
-        fill_val = self.feature_array.attrs.get("_FillValue")
-        if fill_val is not None:
-            return np.full((self.n_features,), fill_val)
-
-        return None
+        # Otherwise, use _FillValue if present (or None) for all features
+        return np.full((self.n_features,), self.feature_array.attrs.get("_FillValue"))
 
     @map_over_arguments("result", "nodata_output")
     def _postprocess_ufunc_output(
@@ -313,23 +307,22 @@ class DatasetFeatures(DataArrayFeatures):
     def feature_names(self) -> NDArray:
         return np.array(list(self.dataset.data_vars))
 
-    def _validate_nodata_input(self, nodata_input: NoDataType) -> NDArray | None:
+    def _validate_nodata_input(self, nodata_input: NoDataType) -> NDArray:
         """
         Get an array of NoData values in the shape (features,) based on user input and
         Dataset metadata.
         """
-        fill_vals = [
-            self.dataset[var].attrs.get("_FillValue") for var in self.dataset.data_vars
-        ]
+        # Defer to user-provided NoData values over stored attributes
+        if nodata_input is not None:
+            return super()._validate_nodata_input(nodata_input)
 
-        # Defer to provided NoData vals first. Next, try using per-variable fill values.
-        # If at least one variable specifies a NoData value, use them all. Variables
-        # that didn't specify a fill value will be assigned None.
-        if nodata_input is None and not all(v is None for v in fill_vals):
-            return np.array(fill_vals)
-
-        # Fall back to the DataArray logic for handling NoData
-        return super()._validate_nodata_input(nodata_input)
+        # Otherwise, use _FillValue if present (or None) for each feature
+        return np.asarray(
+            [
+                self.dataset[var].attrs.get("_FillValue")
+                for var in self.dataset.data_vars
+            ]
+        )
 
     @map_over_arguments("result", "nodata_output")
     def _postprocess_ufunc_output(
