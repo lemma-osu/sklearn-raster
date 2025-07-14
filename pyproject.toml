@@ -90,8 +90,8 @@ dependencies = [
 ]
 
 [tool.hatch.envs.docs.scripts]
-serve = "mkdocs serve --config-file docs/mkdocs.yml"
-build = "mkdocs build --config-file docs/mkdocs.yml"
+serve = "mkdocs serve --config-file docs/mkdocs.yml {args}" 
+build = "mkdocs build --config-file docs/mkdocs.yml {args}" 
 
 [tool.ruff]
 fix = true

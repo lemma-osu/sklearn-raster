@@ -76,7 +76,7 @@ print(pred.land_cover.shape) # (128, 128)
 
 ### Format Summary
 
-| Raster format | Arbitrary dimensionality | Parallel operations | Lazy evaluation | Larger-than-memory | Metadata attributes | Mixed variable types |
+| <div style="width: 100px;">Raster format</div> | Arbitrary dimensionality | Parallel operations | Lazy evaluation | Larger-than-memory | Metadata attributes | Mixed variable types |
 |:-------------:|--------------------------|---------------------|-----------------|--------------------|---------------------|----------------------|
 | `np.ndarray` | ✅ |❌ | ❌ | ❌ | ❌ | ❌ |
 | `xr.DataArray` | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |

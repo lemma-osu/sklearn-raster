@@ -2,7 +2,7 @@ An estimator wrapped by `sklearn-raster` will attempt to utilize metadata like s
 
 ## Spatial References
 
-When the input raster to a wrapped estimator defines a spatial reference and/or spatial coordinates, those will be applied unchanged to output rasters. This is only possible for Xarray [raster formats](raster_formats.md), as Numpy arrays do not store spatial data.
+When the input raster to a wrapped estimator defines a spatial reference and/or spatial coordinates, those will be applied unchanged to output rasters. This is only possible for Xarray [raster formats](raster_formats.md), as Numpy arrays do not store spatial metadata.
 
 !!! tip
     See the [rioxarray CRS guide](https://corteva.github.io/rioxarray/stable/getting_started/crs_management.html) for more details on how coordinate systems are represented in `xarray` objects.
@@ -11,7 +11,7 @@ When the input raster to a wrapped estimator defines a spatial reference and/or 
 
 When possible, `sklearn-raster` will extract column names from the `X` features and `y` targets during fitting and use these to validate and set raster band names for compatible [raster formats](raster_formats.md).
 
-For example, if an estimator is fit with targets stored in a Pandas dataframe and used to predict an Xarray dataset, the column names will be used as the variable names in the output raster. Other wrapped methods will attempt to set reasonable variable names, like sequential neighbor indexes for `kneighbors`. 
+For example, if an estimator is fit with targets stored in a Pandas dataframe and used to predict an Xarray dataset, the column names will be used as the variable names in the output raster. Other wrapped methods will attempt to set reasonable variable names, like sequential neighbor indexes for `kneighbors` (`neighbor0`, `neighbor1`, etc.). 
 
 Available column names are also used to validate input band names. For example, attempting to predict from an Xarray dataset with variable names that are mismatched from the input dataframe seen during fitting will raise an error. Fitting with unnamed data (i.e. a Numpy array) and predicting with named data (i.e. Xarray objects), or vice versa, will raise a warning as names cannot be validated.
 

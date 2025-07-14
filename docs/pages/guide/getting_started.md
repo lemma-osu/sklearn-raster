@@ -31,7 +31,6 @@ The user guide contains more information about specific topics like:
 
 Coming soon.
 
-[^rasters]: `sklearn-raster` works with any gridded data of arbitrary dimensionality, including geospatial rasters, climate data, and biomedical imagery. The user guide generally focuses on geospatial workflows and uses associated terminology. Gridded input datasets are sometimes generically referred to as **feature arrays**.
-
 [^fit-after-wrap]: Estimators *must* be wrapped before fitting to allow `sklearn-raster` to access necessary metadata like the names and number of targets. Wrapping a pre-fit estimator will reset the estimator and raise a warning.
 
+[^rasters]: `sklearn-raster` works with any gridded data of arbitrary dimensionality, including geospatial rasters, climate data, and biomedical imagery. The user guide generally focuses on geospatial workflows and uses associated terminology. Gridded input datasets are sometimes generically referred to as **feature arrays**.
