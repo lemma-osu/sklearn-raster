@@ -31,7 +31,7 @@ Pixels that contain NoData in the input raster will be skipped when processing w
 
 - By preprocessing to replace encoded values with NaN
 - By manually specifying encoded NoData values with the `nodata_input` parameter
-- By storing one or more `_FillValue` attributes in an Xarray raster
+- By storing `_FillValue` attributes in an Xarray raster
 
 #### Replacing with NaN
 
@@ -59,14 +59,15 @@ Most methods take a `nodata_input` parameter where you can specify encoded value
 
 #### Storing NoData Values in Raster Metadata
 
-Following the [CF conventions used by Xarray](https://docs.xarray.dev/en/stable/user-guide/io.html#scaling-and-type-conversions), `sklearn-raster` will attempt to read NoData values from the `_FillValue` attribute(s) of rasters stored in `xr.DataArray` or `xr.Dataset`, if values were not supplied via `nodata_input`. 
+If `nodata_input` is not provided, `sklearn-raster` will attempt to infer NoData values from the `_FillValue` attribute using the following rules:
+
+- In an `xr.Dataset`, the `_FillValue` set on each variable will be assigned to that feature.
+- In an `xr.DataArray`, the `_FillValue` set on the array will be assigned to all features.
+
+If no `_FillValue` attribute is present and no `nodata_input` is provided, all non-NaN values will be treated as valid data.
 
 !!! tip
     `_FillValue` is automatically set when loading GeoTiffs using `rioxarray`, but can also be set manually using [`assign_attrs`](https://docs.xarray.dev/en/latest/generated/xarray.DataArray.assign_attrs.html).
-
-A raster stored as an `xr.DataArray` can only contain one `_FillValue` attribute, so it will be broadcast to all bands, if present.
-
-A raster stored in an `xr.Dataset` can store a single dataset-level `_FillValue` as well as a `_FillValue` for each variable. If *any* band contains a `_FillValue`, NoData values for each band will be based on that attribute, even if some bands do not have that attribute (those bands will be treated as if they do not have a NoData value). If *no* band contains a `_FillValue`, the dataset's `_FillValue` will be used for all bands, if present. If none are present, no NoData values will be assigned.
 
 ### Skipping NoData
 
