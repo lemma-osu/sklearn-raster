@@ -1,5 +1,6 @@
 # sklearn-raster
 
+[![PyPI version](https://badge.fury.io/py/sklearn-raster.svg)](https://pypi.org/project/sklearn-raster/)
 [![Build status](https://github.com/lemma-osu/sklearn-raster/actions/workflows/ci.yaml/badge.svg)](https://github.com/lemma-osu/sklearn-raster/actions/workflows/ci.yaml) [![Documentation status](https://readthedocs.org/projects/sklearn-raster/badge/?version=latest)](https://sklearn-raster.readthedocs.io/)
 
 > ⚠️ **WARNING: sklearn-raster is in active development!** ⚠️

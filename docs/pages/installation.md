@@ -1,12 +1,15 @@
 # Installation
 
-## From Source
-
-!!! info
-    `sklearn-raster` will be released on PyPI soon. Until then, you can install the package from source.
+From PyPI:
 
 ```bash
-pip install git+https://github.com/lemma-osu/sklearn-raster
+pip install sklearn-raster
+```
+
+Optional extras can be installed with:
+
+```bash
+pip install sklearn-raster[tutorials]
 ```
 
 ## Dependencies
