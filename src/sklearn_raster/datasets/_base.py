@@ -31,7 +31,7 @@ DATA_URL = "https://github.com/lemma-osu/sklearn-raster/raw/{version}/src/sklear
 
 _data_fetcher = pooch.create(
     base_url=DATA_URL,
-    version=__version__,
+    version=f"v{__version__}",
     version_dev="main",
     path=pooch.os_cache("sklearn-raster"),
     env="SKLEARNRASTER_DATA_DIR",
