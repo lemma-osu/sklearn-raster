@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Removed
+
+- Dask `diagnostics` and `dataframe` extras are no longer required dependencies
+
 ## [0.1.0.dev0] - 2025-07-11
 
 ### Added
