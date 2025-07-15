@@ -83,14 +83,15 @@ python = ["3.9", "3.10", "3.11", "3.12"]
 
 [tool.hatch.envs.docs]
 dependencies = [
+    "sklearn-raster[tutorials]",
     "mkdocs",
     "mkdocs-material",
-    "mkdocstrings[python]"
+    "mkdocstrings[python]",
 ]
 
 [tool.hatch.envs.docs.scripts]
-serve = "mkdocs serve --config-file docs/mkdocs.yml"
-build = "mkdocs build --config-file docs/mkdocs.yml"
+serve = "mkdocs serve --config-file docs/mkdocs.yml {args}" 
+build = "mkdocs build --config-file docs/mkdocs.yml {args}" 
 
 [tool.ruff]
 fix = true

@@ -6,9 +6,16 @@ repo_name: lemma-osu/sklearn-raster
 nav:
   - Home: index.md
   - Installation: installation.md
+  - User Guide: 
+    - Getting Started: guide/getting_started.md
+    - Compatible Estimators: guide/compatible_estimators.md
+    - Raster Formats: guide/raster_formats.md
+    - Metadata: guide/metadata.md
   - API Reference:
+    - Wrapping Estimators: api/wrap.md
     - Datasets:
       - SWO Ecoplot: api/datasets/swo_ecoplot.md
+      - Synthetic Data: api/datasets/synthesize_feature_array.md
   - Contributing: contributing.md
 
 theme: 
@@ -40,12 +47,14 @@ plugins:
         python:
           paths: [../src]
           options:
-            show_source: false
+            # Hide private and dunder members
+            filters: ["!^_"]
+            show_source: true
             inherited_members: true
-            undoc_members: true
             docstring_style: numpy
             show_if_no_docstring: true
             show_signature_annotations: true
+            separate_signature: true
             show_root_heading: true
             show_category_heading: true
             merge_init_into_class: true
@@ -72,5 +81,4 @@ markdown_extensions:
 watch:
   - ../src/
   - ../README.md
-  - ../CONTRIBUTING.md
   - ./abbreviations.md
