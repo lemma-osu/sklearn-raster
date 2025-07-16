@@ -15,7 +15,7 @@ authors = [
 keywords = []
 dependencies = [
     "numpy",
-    "dask[diagnostics,dataframe]",
+    "dask",
     "scikit-learn",
     "typing-extensions",
 ]
@@ -69,6 +69,7 @@ dependencies = [
 [tool.hatch.envs.tutorials]
 dependencies = [
     "sklearn-raster[tutorials]",
+    "dask[diagnostics,distributed]",
 ]
 
 [tool.hatch.envs.test.scripts]
