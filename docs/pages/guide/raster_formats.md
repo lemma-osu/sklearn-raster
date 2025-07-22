@@ -1,4 +1,6 @@
-`sklearn-raster` supports applying estimator methods to rasters stored in a variety of formats, referred to collectively as **feature arrays**. Numpy arrays can be used for small rasters that fit easily in memory, while Xarray `Dataset` and `DataArray` are ideal for large datasets that benefit from deferred, parallel computation. Estimator methods will return data in the same format that it is provided, e.g. predictions generated from an Xarray `xr.Dataset` will be stored in an `xr.Dataset`. All feature arrays support [arbitrary dimensionality](#dimensionality).
+`sklearn-raster` supports applying estimator methods to rasters stored in a variety of formats, referred to collectively as **feature arrays**. Numpy arrays can be used for small rasters that fit easily in memory, while Xarray `Dataset` and `DataArray` are ideal for large datasets that benefit from deferred, parallel computation. Pandas dataframes can be used for extracted tabular data. 
+
+Estimator methods will return data in the same format that it is provided, e.g. predictions generated from an Xarray `xr.Dataset` will be stored in an `xr.Dataset`. Most feature arrays support [arbitrary dimensionality](#dimensionality).
 
 ## Raster Formats
 
@@ -74,6 +76,13 @@ print(pred.data_vars) # ['land_cover']
 print(pred.land_cover.shape) # (128, 128)
 ```
 
+### Pandas DataFrame
+
+While dataframes are not a conventional raster format, they can be used for applications like storing extracted pixel values in a tabular format of shape `(samples, band)`. In that context, a `FeatureArrayEstimator` provides some convenient features over an unmodified `sklearn` estimator when predicting or transforming dataframes:
+
+1. Methods return dataframe outputs that preserve the index and target names as columns.
+2. Samples with masked values in the input data can be skipped and encoded in the output dataframe.
+
 ### Format Summary
 
 | <div style="width: 100px;">Raster format</div> | Arbitrary dimensionality | Parallel operations | Lazy evaluation | Larger-than-memory | Metadata attributes | Mixed variable types |
@@ -81,6 +90,7 @@ print(pred.land_cover.shape) # (128, 128)
 | `np.ndarray` | ✅ |❌ | ❌ | ❌ | ❌ | ❌ |
 | `xr.DataArray` | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
 | `xr.Dataset` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `pd.DataFrame` | ❌ |❌ | ❌ | ❌ | ❌ | ✅ |
 
 ## Dimensionality
 

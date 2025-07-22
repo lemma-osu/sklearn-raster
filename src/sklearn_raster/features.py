@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from typing import Any, Callable, Generic
 
 import numpy as np
+import pandas as pd
 import xarray as xr
 from numpy.typing import NDArray
 
@@ -168,6 +169,9 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
 
         if isinstance(feature_array, xr.Dataset):
             return DatasetFeatures(feature_array, nodata_input=nodata_input)
+
+        if isinstance(feature_array, pd.DataFrame):
+            return DataFrameFeatures(feature_array, nodata_input=nodata_input)
 
         msg = f"Unsupported feature array type `{type(feature_array).__name__}`."
         raise TypeError(msg)
@@ -378,3 +382,47 @@ class DatasetFeatures(DataArrayFeatures):
             )
 
         return ds
+
+
+class DataFrameFeatures(DataArrayFeatures):
+    """Features stored in a Pandas DataFrame of shape (samples, features)."""
+
+    def __init__(
+        self,
+        features: pd.DataFrame,
+        nodata_input: NoDataType | MissingType = MissingType.MISSING,
+    ):
+        # The data will be stored as a DataArray, but keep the DataFrame for metadata
+        # like the index name.
+        self.dataframe = features
+        data_array = xr.Dataset.from_dataframe(features).to_dataarray()
+        super().__init__(data_array, nodata_input=nodata_input)
+
+    @map_over_arguments("result", "nodata_output")
+    def _postprocess_ufunc_output(
+        self,
+        result: xr.DataArray,
+        *,
+        nodata_output: float | int,
+        func: Callable,
+        output_coords: dict[str, list[str | int]] | None = None,
+        keep_attrs: bool = False,
+    ) -> pd.DataFrame:
+        """Process the ufunc output converting from DataArray to DataFrame."""
+        result = super()._postprocess_ufunc_output(
+            result=result,
+            output_coords=output_coords,
+            nodata_output=nodata_output,
+            func=func,
+            keep_attrs=False,
+        )
+
+        df = (
+            result
+            # Transpose from (target, samples) back to (samples, target)
+            .T.to_pandas()
+            # Preserve the input index name(s)
+            .rename_axis(self.dataframe.index.names, axis=0)
+        )
+        df.columns.name = self.dataframe.columns.name
+        return df

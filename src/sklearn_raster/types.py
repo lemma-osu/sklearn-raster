@@ -4,13 +4,16 @@ import enum
 from collections.abc import Sequence
 from typing import Callable, Union
 
+import pandas as pd
 import xarray as xr
 from numpy.typing import NDArray
 from sklearn.base import BaseEstimator
 from typing_extensions import Any, Concatenate, ParamSpec, TypeVar
 
 DaskBackedType = TypeVar("DaskBackedType", xr.DataArray, xr.Dataset)
-FeatureArrayType = TypeVar("FeatureArrayType", NDArray, xr.DataArray, xr.Dataset)
+FeatureArrayType = TypeVar(
+    "FeatureArrayType", NDArray, xr.DataArray, xr.Dataset, pd.DataFrame
+)
 EstimatorType = TypeVar("EstimatorType", bound=BaseEstimator)
 AnyType = TypeVar("AnyType", bound=Any)
 NoDataType = Union[float, Sequence[float], None]

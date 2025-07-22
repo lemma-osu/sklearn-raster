@@ -318,6 +318,44 @@ def test_with_non_1d_data(model_data: ModelData):
     assert_array_equal(ref_nn, check_nn.T)
 
 
+@parametrize_model_data(feature_array_types=(xr.Dataset,))
+def test_with_pd_dataframe(model_data: ModelData):
+    """Test that a Pandas Dataframe can be used as a feature array."""
+    X_img, X, y = model_data
+
+    # Convert the Dataset image to a dataframe to simulate sampled raster pixels
+    X_df = (
+        X_img.to_dataframe()
+        # The resulting dataframe will be indexed by the Dataset dimensions x and y,
+        # but we just want a single sample index
+        .reset_index()
+        .loc[:, X.columns]
+        # Grab a random sample so that the sample index is non-consecutive and we can
+        # confirm that the predicted index matches.
+        .sample(100, random_state=0)
+    )
+
+    wrapped = wrap(KNeighborsRegressor()).fit(X, y)
+
+    # Set a NoData value in one feature of the first row
+    X_df.iloc[0, 0] = -32768
+    check_pred = wrapped.predict(X_df, nodata_input=-32768, nodata_output=np.nan)
+
+    # One prediction per row
+    assert len(check_pred) == len(X_df)
+    # One row should be predicted as NoData
+    assert len(check_pred.dropna()) == len(X_df) - 1
+    # All targets for that row should be NaN
+    assert check_pred.iloc[0].isna().all()
+    # Predicted columns should match the target names
+    assert list(check_pred.columns) == list(y.columns)
+    # The predictions should maintain the input index
+    assert_array_equal(check_pred.index, X_df.index)
+    # Make sure the prediction index and column names match
+    assert check_pred.index.names == X_df.index.names
+    assert check_pred.columns.name == X_df.columns.name
+
+
 @parametrize_model_data(feature_array_types=(xr.DataArray, xr.Dataset))
 @pytest.mark.parametrize(
     "fit_with", [np.ndarray, pd.DataFrame, pd.Series], ids=lambda x: x.__name__
