@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import enum
 from collections.abc import Sequence
 from typing import Callable, Union
 
@@ -13,6 +14,9 @@ FeatureArrayType = TypeVar("FeatureArrayType", NDArray, xr.DataArray, xr.Dataset
 EstimatorType = TypeVar("EstimatorType", bound=BaseEstimator)
 AnyType = TypeVar("AnyType", bound=Any)
 NoDataType = Union[float, Sequence[float], None]
+
+# A sentinel value to distinguish missing parameters from None
+MissingType = enum.Enum("MissingType", "MISSING")
 
 Self = TypeVar("Self")
 T = TypeVar("T")
