@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- Calling `predict`, `predict_proba`, `transform`, and `kneighbors` with `nodata_input=None` now overrides `_FillValue` attributes like any other `nodata_input` value. The default behavior when `nodata_input` is not provided is unchanged, and will infer from `_FillValue` if present.
+
 ### Removed
 
 - Dask `diagnostics` and `dataframe` extras are no longer required dependencies
