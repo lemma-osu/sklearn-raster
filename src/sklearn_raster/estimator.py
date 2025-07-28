@@ -10,7 +10,7 @@ from sklearn.utils.validation import _get_feature_names
 from typing_extensions import Literal, overload
 
 from .features import FeatureArray
-from .types import EstimatorType
+from .types import EstimatorType, MissingType
 from .utils.estimator import (
     generate_sequential_names,
     is_fitted,
@@ -142,7 +142,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
         X: FeatureArrayType,
         *,
         skip_nodata: bool = True,
-        nodata_input: NoDataType = None,
+        nodata_input: NoDataType | MissingType = MissingType.MISSING,
         nodata_output: float | int = np.nan,
         ensure_min_samples: int = 1,
         allow_cast: bool = False,
@@ -163,10 +163,10 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             If True, NoData and NaN values will be skipped during prediction. This
             speeds up processing of partially masked arrays, but may be incompatible if
             estimators expect a consistent number of input samples.
-        nodata_input : float or sequence of floats, optional
+        nodata_input : float, sequence of floats, or None, optional
             NoData values other than NaN to mask in the output array. A single value
             will be broadcast to all features while sequences of values will be assigned
-            feature-wise. If None, values will be inferred if possible based on
+            feature-wise. By default, values will be inferred if possible based on
             available metadata.
         nodata_output : float or int, default np.nan
             NoData samples in the input features will be replaced with this value in the
@@ -237,7 +237,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
         X: FeatureArrayType,
         *,
         skip_nodata: bool = True,
-        nodata_input: NoDataType = None,
+        nodata_input: NoDataType | MissingType = MissingType.MISSING,
         nodata_output: float | int = np.nan,
         ensure_min_samples: int = 1,
         allow_cast: bool = False,
@@ -258,10 +258,10 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             If True, NoData and NaN values will be skipped during prediction. This
             speeds up processing of partially masked arrays, but may be incompatible if
             estimators expect a consistent number of input samples.
-        nodata_input : float or sequence of floats, optional
+        nodata_input : float, sequence of floats, or None, optional
             NoData values other than NaN to mask in the output array. A single value
             will be broadcast to all features while sequences of values will be assigned
-            feature-wise. If None, values will be inferred if possible based on
+            feature-wise. By default, values will be inferred if possible based on
             available metadata.
         nodata_output : float or int, default np.nan
             NoData samples in the input features will be replaced with this value in the
@@ -336,7 +336,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
         n_neighbors: int | None = None,
         return_distance: Literal[True] = True,
         skip_nodata: bool = True,
-        nodata_input: NoDataType = None,
+        nodata_input: NoDataType | MissingType = MissingType.MISSING,
         nodata_output: MaybeTuple[float | int] | None = None,
         ensure_min_samples: int = 1,
         allow_cast: bool = False,
@@ -355,7 +355,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
         n_neighbors: int | None = None,
         return_distance: Literal[False] = False,
         skip_nodata: bool = True,
-        nodata_input: NoDataType = None,
+        nodata_input: NoDataType | MissingType = MissingType.MISSING,
         nodata_output: float | int | None = None,
         ensure_min_samples: int = 1,
         allow_cast: bool = False,
@@ -373,7 +373,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
         n_neighbors: int | None = None,
         return_distance: bool = True,
         skip_nodata: bool = True,
-        nodata_input: NoDataType = None,
+        nodata_input: NoDataType | MissingType = MissingType.MISSING,
         nodata_output: MaybeTuple[float | int] | None = None,
         ensure_min_samples: int = 1,
         allow_cast: bool = False,
@@ -402,10 +402,10 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             If True, NoData and NaN values will be skipped during prediction. This
             speeds up processing of partially masked features, but may be incompatible
             if estimators expect a consistent number of input samples.
-        nodata_input : float or sequence of floats, optional
-            NoData values other than NaN to mask in the output features. A single value
+        nodata_input : float, sequence of floats, or None, optional
+            NoData values other than NaN to mask in the output array. A single value
             will be broadcast to all features while sequences of values will be assigned
-            feature-wise. If None, values will be inferred if possible based on
+            feature-wise. By default, values will be inferred if possible based on
             available metadata.
         nodata_output : float or int or tuple, optional
             NoData samples in the input features will be replaced with this value in the
@@ -493,7 +493,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
         X: FeatureArrayType,
         *,
         skip_nodata: bool = True,
-        nodata_input: NoDataType = None,
+        nodata_input: NoDataType | MissingType = MissingType.MISSING,
         nodata_output: float | int = np.nan,
         ensure_min_samples: int = 1,
         allow_cast: bool = False,
@@ -514,10 +514,10 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             If True, NoData and NaN values will be skipped during prediction. This
             speeds up processing of partially masked features, but may be incompatible
             if estimators expect a consistent number of input samples.
-        nodata_input : float or sequence of floats, optional
-            NoData values other than NaN to mask in the output features. A single value
+        nodata_input : float, sequence of floats, or None, optional
+            NoData values other than NaN to mask in the output array. A single value
             will be broadcast to all features while sequences of values will be assigned
-            feature-wise. If None, values will be inferred if possible based on
+            feature-wise. By default, values will be inferred if possible based on
             available metadata.
         nodata_output : float or int or tuple, optional
             NoData samples in the input features will be replaced with this value in the
@@ -585,7 +585,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
         X: FeatureArrayType,
         *,
         skip_nodata: bool = True,
-        nodata_input: NoDataType = None,
+        nodata_input: NoDataType | MissingType = MissingType.MISSING,
         nodata_output: float | int = np.nan,
         ensure_min_samples: int = 1,
         allow_cast: bool = False,
@@ -606,10 +606,10 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
             If True, NoData and NaN values will be skipped during prediction. This
             speeds up processing of partially masked features, but may be incompatible
             if estimators expect a consistent number of input samples.
-        nodata_input : float or sequence of floats, optional
-            NoData values other than NaN to mask in the output features. A single value
+        nodata_input : float, sequence of floats, or None, optional
+            NoData values other than NaN to mask in the output array. A single value
             will be broadcast to all features while sequences of values will be assigned
-            feature-wise. If None, values will be inferred if possible based on
+            feature-wise. By default, values will be inferred if possible based on
             available metadata.
         nodata_output : float or int or tuple, optional
             NoData samples in the input features will be replaced with this value in the

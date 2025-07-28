@@ -9,7 +9,7 @@ import numpy as np
 import xarray as xr
 from numpy.typing import NDArray
 
-from .types import ArrayUfunc, FeatureArrayType, MaybeTuple, NoDataType
+from .types import ArrayUfunc, FeatureArrayType, MaybeTuple, MissingType, NoDataType
 from .ufunc import UfuncSampleProcessor
 from .utils.features import reshape_to_samples
 from .utils.wrapper import map_over_arguments
@@ -23,13 +23,15 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
     feature_names: NDArray
 
     def __init__(
-        self, feature_array: FeatureArrayType, nodata_input: NoDataType = None
+        self,
+        feature_array: FeatureArrayType,
+        nodata_input: NoDataType | MissingType = MissingType.MISSING,
     ):
         self.feature_array = feature_array
         self.n_features = self.feature_array.shape[self.feature_dim]
         self.nodata_input: NDArray = self._validate_nodata_input(nodata_input)
 
-    def _validate_nodata_input(self, nodata_input: NoDataType) -> NDArray:
+    def _validate_nodata_input(self, nodata_input: NoDataType | MissingType) -> NDArray:
         """
         Get an array of NoData values in the shape (n_features,) based on user input.
 
@@ -37,6 +39,11 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
         number of features and cast to ndarrays. There is no need to specify np.nan as a
         NoData value because it will be masked automatically for floating point arrays.
         """
+        # Subclasses may infer NoData values when the input is missing, but the base
+        # implementation just falls back to None
+        if nodata_input is MissingType.MISSING:
+            nodata_input = None
+
         # If it's None or a numeric scalar, broadcast it to all features
         if nodata_input is None or (
             isinstance(nodata_input, (float, int))
@@ -150,7 +157,7 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
 
     @staticmethod
     def from_feature_array(
-        feature_array: Any, nodata_input: NoDataType = None
+        feature_array: Any, nodata_input: NoDataType | MissingType = MissingType.MISSING
     ) -> FeatureArray:
         """Create a FeatureArray from a supported feature type."""
         if isinstance(feature_array, np.ndarray):
@@ -171,7 +178,11 @@ class NDArrayFeatures(FeatureArray):
 
     feature_names = np.array([])
 
-    def __init__(self, features: NDArray, nodata_input: NoDataType = None):
+    def __init__(
+        self,
+        features: NDArray,
+        nodata_input: NoDataType | MissingType = MissingType.MISSING,
+    ):
         super().__init__(features, nodata_input=nodata_input)
 
     def _preprocess_ufunc_input(self, features: NDArray) -> NDArray:
@@ -196,7 +207,11 @@ class NDArrayFeatures(FeatureArray):
 class DataArrayFeatures(FeatureArray):
     """Features stored in an xarray DataArray of shape (features, ...)."""
 
-    def __init__(self, features: xr.DataArray, nodata_input: NoDataType = None):
+    def __init__(
+        self,
+        features: xr.DataArray,
+        nodata_input: NoDataType | MissingType = MissingType.MISSING,
+    ):
         super().__init__(features, nodata_input=nodata_input)
         self.feature_dim_name = features.dims[self.feature_dim]
 
@@ -204,17 +219,19 @@ class DataArrayFeatures(FeatureArray):
     def feature_names(self) -> NDArray:
         return self.feature_array[self.feature_dim_name].values
 
-    def _validate_nodata_input(self, nodata_input: NoDataType) -> NDArray:
+    def _validate_nodata_input(self, nodata_input: NoDataType | MissingType) -> NDArray:
         """
         Get an array of NoData values in the shape (features,) based on user input and
         DataArray metadata.
         """
-        # Defer to user-provided NoData values over stored attributes
-        if nodata_input is not None:
-            return super()._validate_nodata_input(nodata_input)
+        # Infer NoData from _FillValue if present (or None) for all features
+        if nodata_input is MissingType.MISSING:
+            return np.full(
+                (self.n_features,), self.feature_array.attrs.get("_FillValue")
+            )
 
-        # Otherwise, use _FillValue if present (or None) for all features
-        return np.full((self.n_features,), self.feature_array.attrs.get("_FillValue"))
+        # Defer to user-provided NoData values over stored attributes
+        return super()._validate_nodata_input(nodata_input)
 
     @map_over_arguments("result", "nodata_output")
     def _postprocess_ufunc_output(
@@ -297,7 +314,11 @@ class DataArrayFeatures(FeatureArray):
 class DatasetFeatures(DataArrayFeatures):
     """Features stored in an xarray Dataset with features as variables."""
 
-    def __init__(self, features: xr.Dataset, nodata_input: NoDataType = None):
+    def __init__(
+        self,
+        features: xr.Dataset,
+        nodata_input: NoDataType | MissingType = MissingType.MISSING,
+    ):
         # The data will be stored as a DataArray, but keep the Dataset for metadata
         # like _FillValues.
         self.dataset = features
@@ -307,22 +328,22 @@ class DatasetFeatures(DataArrayFeatures):
     def feature_names(self) -> NDArray:
         return np.array(list(self.dataset.data_vars))
 
-    def _validate_nodata_input(self, nodata_input: NoDataType) -> NDArray:
+    def _validate_nodata_input(self, nodata_input: NoDataType | MissingType) -> NDArray:
         """
         Get an array of NoData values in the shape (features,) based on user input and
         Dataset metadata.
         """
-        # Defer to user-provided NoData values over stored attributes
-        if nodata_input is not None:
-            return super()._validate_nodata_input(nodata_input)
+        # Infer NoData from _FillValue if present (or None) for each feature
+        if nodata_input is MissingType.MISSING:
+            return np.asarray(
+                [
+                    self.dataset[var].attrs.get("_FillValue")
+                    for var in self.dataset.data_vars
+                ]
+            )
 
-        # Otherwise, use _FillValue if present (or None) for each feature
-        return np.asarray(
-            [
-                self.dataset[var].attrs.get("_FillValue")
-                for var in self.dataset.data_vars
-            ]
-        )
+        # Defer to user-provided NoData values
+        return super()._validate_nodata_input(nodata_input)
 
     @map_over_arguments("result", "nodata_output")
     def _postprocess_ufunc_output(

@@ -10,7 +10,7 @@ import xarray as xr
 from numpy.testing import assert_array_equal
 
 from sklearn_raster.features import FeatureArray
-from sklearn_raster.types import FeatureArrayType
+from sklearn_raster.types import FeatureArrayType, MissingType
 from sklearn_raster.utils.features import get_minimum_precise_numeric_dtype
 
 from .feature_utils import (
@@ -417,7 +417,7 @@ def test_nodata_multiple_values():
     assert features.nodata_input.tolist() == nodata_input
 
 
-@pytest.mark.parametrize("nodata_input", [None, -32768])
+@pytest.mark.parametrize("nodata_input", [MissingType.MISSING, None, -32768])
 def test_nodata_dataarray_fillvalue(nodata_input):
     """Test that a _FillValue in a DataArray is broadcast if NoData is not provided."""
     n_features = 3
@@ -428,16 +428,14 @@ def test_nodata_dataarray_fillvalue(nodata_input):
     )
     features = FeatureArray.from_feature_array(da, nodata_input=nodata_input)
 
-    # _FillValue should be ignored if nodata_input is provided
-    if nodata_input is not None:
-        assert features.nodata_input.tolist() == [nodata_input] * n_features
-    else:
+    # _FillValue should only be used if nodata_input is not provided (including None)
+    if nodata_input == MissingType.MISSING:
         assert features.nodata_input.tolist() == [fill_val] * n_features
+    else:
+        assert features.nodata_input.tolist() == [nodata_input] * n_features
 
 
-@pytest.mark.parametrize(
-    "nodata_input", [None, -32768], ids=["without_nodata", "with_nodata"]
-)
+@pytest.mark.parametrize("nodata_input", [MissingType.MISSING, None, -32768])
 @pytest.mark.parametrize(
     "fill_vals",
     [[1, 2, 3], [None, 1, None], [None, None, None]],
@@ -462,12 +460,12 @@ def test_nodata_dataset_infers_fillvalues(nodata_input, fill_vals):
     ds = xr.merge(das).assign_attrs({"_FillValue": -999})
     features = FeatureArray.from_feature_array(ds, nodata_input=nodata_input)
 
-    # _FillValue should be ignored if nodata_input is provided
-    if nodata_input is not None:
-        assert features.nodata_input.tolist() == [nodata_input] * n_features
-    # Nodata vals should match the fill values, even if some are None
-    else:
+    # NoData vals should match the fill values, even if some are None
+    if nodata_input is MissingType.MISSING:
         assert features.nodata_input.tolist() == fill_vals
+    # _FillValue should be ignored if nodata_input is provided
+    else:
+        assert features.nodata_input.tolist() == [nodata_input] * n_features
 
 
 @pytest.mark.parametrize("nodata_output", [np.nan, 0, -32768])
