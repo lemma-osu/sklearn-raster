@@ -44,6 +44,8 @@ theme:
         icon: material/weather-sunny
         name: Light mode
 
+extra_css:
+  - css/extra.css
 
 plugins:
   - search

@@ -1,0 +1,4 @@
+.jupyter-wrapper .jp-OutputArea-output pre {
+    /* Don't add line breaks to Jupyter output cells */
+    white-space: pre !important;
+}
