@@ -88,6 +88,8 @@ dependencies = [
     "mkdocs",
     "mkdocs-material",
     "mkdocstrings[python]",
+    "mkdocs-jupyter",
+    "ruff",
 ]
 
 [tool.hatch.envs.docs.scripts]

@@ -12,6 +12,10 @@ nav:
     - Raster Formats: guide/raster_formats.md
     - Metadata: guide/metadata.md
     - Related Packages: guide/related_packages.md
+  - Tutorials:
+    - Supervised Classification and Regression: tutorials/supervised_classification_and_regression.ipynb
+    - Unsupervised Clustering: tutorials/unsupervised_clustering.ipynb
+    - Dimensionality Reduction with Pipelines: tutorials/dimensionality_reduction.ipynb
   - API Reference:
     - Wrapping Estimators: api/wrap.md
     - Datasets:
@@ -40,6 +44,8 @@ theme:
         icon: material/weather-sunny
         name: Light mode
 
+extra_css:
+  - css/extra.css
 
 plugins:
   - search
@@ -60,6 +66,10 @@ plugins:
             show_category_heading: true
             merge_init_into_class: true
             signature_crossrefs: true
+  - mkdocs-jupyter:
+      include_source: true
+      ignore:
+        - "**/*.md"
 
 markdown_extensions:
   - abbr

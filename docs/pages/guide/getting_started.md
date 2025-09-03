@@ -30,7 +30,11 @@ The user guide contains more information about specific topics like:
 
 ### Tutorials
 
-Coming soon.
+Run interactive tutorial notebooks to demo features like:
+
+- [Supervised classification and regression](../tutorials/supervised_classification_and_regression.ipynb)
+- [Unsupervised clustering](../tutorials/unsupervised_clustering.ipynb)
+- [Dimensionality reduction with pipelines](../tutorials/dimensionality_reduction.ipynb)
 
 [^fit-after-wrap]: Estimators *must* be wrapped before fitting to allow `sklearn-raster` to access necessary metadata like the names and number of targets. Wrapping a pre-fit estimator will reset the estimator and raise a warning.
 
