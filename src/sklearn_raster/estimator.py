@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, cast
 from warnings import warn
 
 import numpy as np
-from sklearn.base import clone
+from sklearn.base import BaseEstimator, clone
 from sklearn.utils.validation import _get_feature_names
 from typing_extensions import Literal, overload
 
@@ -42,7 +42,7 @@ class FittedMetadata:
     feature_names: list[str]
 
 
-class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
+class FeatureArrayEstimator(AttrWrapper[EstimatorType], BaseEstimator):
     """
     An estimator wrapper with overriden methods for n-dimensional feature arrays.
 
@@ -59,6 +59,30 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType]):
 
     def __init__(self, wrapped: EstimatorType):
         super().__init__(self._reset_estimator(wrapped))
+
+    def get_params(self, deep: bool = False):
+        # Delegate to the wrapped estimator for params to avoid errors when sklearn
+        # doesn't see the __init__ params as public attributes.
+        return self._wrapped.get_params(deep=deep)
+
+    def _sk_visual_block_(self):
+        # This is called by sklearn when building HTML reprs and mimics the Pipeline
+        # repr style where the wrapped estimator is in series with the wrapping class.
+        try:
+            from sklearn.utils._repr_html.estimator import _VisualBlock
+        except ImportError:
+            # Deprecated in scikit-learn==1.7.1
+            from sklearn.utils._estimator_html_repr import _VisualBlock
+
+        names = [self._wrapped.__class__.__name__]
+        name_details = [str(self._wrapped)]
+        return _VisualBlock(
+            "serial",
+            [self._wrapped],
+            names=names,
+            name_details=name_details,
+            dash_wrapped=False,
+        )
 
     @staticmethod
     def _reset_estimator(estimator: EstimatorType) -> EstimatorType:

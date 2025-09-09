@@ -666,3 +666,12 @@ def test_wrapper_is_fitted(dummy_model_data):
     estimator = estimator.fit(X, y)
     assert is_fitted(estimator._wrapped)
     assert is_fitted(estimator)
+
+
+def test_feature_array_estimator_repr_html():
+    """A FeatureArrayEstimator's HTML repr should list itself and the wrapped class."""
+    estimator = wrap(KNeighborsRegressor())
+    rep = estimator._repr_mimebundle_()
+    assert "FeatureArrayEstimator" in rep["text/html"]
+    assert "KNeighborsRegressor" in rep["text/html"]
+    assert "serial" in rep["text/html"]
