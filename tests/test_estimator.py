@@ -595,7 +595,7 @@ def test_history_is_appended(
         return_distance=False,
     )
 
-    wrapped_method = getattr(wrapped_estimator._wrapped, method)
+    wrapped_method = getattr(wrapped_estimator.wrapped_estimator, method)
     full_history = output.attrs["history"].split("\n")
     assert len(full_history) == 2
     assert "initial history" in full_history[0]
@@ -653,7 +653,7 @@ def test_wrapping_fitted_estimators_warns(dummy_model_data):
     with pytest.warns(match="has already been fit"):
         estimator = wrap(KNeighborsRegressor().fit(X, y))
 
-    assert not is_fitted(estimator._wrapped)
+    assert not is_fitted(estimator.wrapped_estimator)
 
 
 def test_wrapper_is_fitted(dummy_model_data):
@@ -661,18 +661,17 @@ def test_wrapper_is_fitted(dummy_model_data):
     _, X, y = dummy_model_data
 
     estimator = wrap(KNeighborsRegressor())
-    assert not is_fitted(estimator._wrapped)
+    assert not is_fitted(estimator.wrapped_estimator)
 
     estimator = estimator.fit(X, y)
-    assert is_fitted(estimator._wrapped)
+    assert is_fitted(estimator.wrapped_estimator)
     assert is_fitted(estimator)
 
 
 def test_feature_array_estimator_repr_html():
     """A FeatureArrayEstimator's HTML repr should list itself and the wrapped class."""
     estimator = wrap(KNeighborsRegressor())
-    rep = estimator._repr_mimebundle_()
-    assert "FeatureArrayEstimator" in rep["text/html"]
-    assert "KNeighborsRegressor" in rep["text/html"]
-    assert "serial" in rep["text/html"]
-    assert "https://sklearn-raster.readthedocs.io" in rep["text/html"]
+    html = estimator._repr_mimebundle_()["text/html"]
+    assert "FeatureArrayEstimator(wrapped_estimator=KNeighborsRegressor())" in html
+    assert "serial" in html
+    assert "https://sklearn-raster.readthedocs.io" in html

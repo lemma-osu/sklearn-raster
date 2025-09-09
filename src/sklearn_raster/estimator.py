@@ -48,17 +48,18 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType], BaseEstimator):
 
     Parameters
     ----------
-    wrapped : BaseEstimator
+    wrapped_estimator : BaseEstimator
         An sklearn-compatible estimator. Supported methods will be overriden to work
         with n-dimensional feature arrays. If the estimator is already fit, it will be
         reset and a warning will be raised.
     """
 
-    _wrapped: EstimatorType
     _wrapped_meta: FittedMetadata
 
-    def __init__(self, wrapped: EstimatorType):
-        super().__init__(self._reset_estimator(wrapped))
+    def __init__(self, wrapped_estimator: EstimatorType):
+        self.wrapped_estimator = self._reset_estimator(wrapped_estimator)
+        # Wrap the estimator's attributes with AttrWrapper
+        super().__init__(self.wrapped_estimator)
 
     @requires_implementation
     def fit(self, X, y=None, **kwargs) -> FeatureArrayEstimator[EstimatorType]:
@@ -87,7 +88,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType], BaseEstimator):
             # which causes inconsistent output shapes with different sklearn estimators,
             # to (n_samples,), which has a consistent output shape.
             y = y.squeeze()
-        self._wrapped = self._wrapped.fit(X, y, **kwargs)
+        self.wrapped_estimator = self.wrapped_estimator.fit(X, y, **kwargs)
         fitted_feature_names = _get_feature_names(X)
 
         self._wrapped_meta = FittedMetadata(
@@ -168,7 +169,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType], BaseEstimator):
             The predicted values. Array types will be in the shape (targets, ...) while
             xr.Dataset will store targets as variables.
         """
-        wrapped_func = self._wrapped.predict
+        wrapped_func = self.wrapped_estimator.predict
         output_dim_name = "target"
         features = FeatureArray.from_feature_array(X, nodata_input=nodata_input)
 
@@ -176,7 +177,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType], BaseEstimator):
 
         # Any estimator with an undefined type should fall back to floating
         # point for safety.
-        estimator_type = getattr(self._wrapped, "_estimator_type", "")
+        estimator_type = getattr(self.wrapped_estimator, "_estimator_type", "")
         output_dtype = ESTIMATOR_OUTPUT_DTYPES.get(estimator_type, np.float64)
 
         return features.apply_ufunc_across_features(
@@ -263,7 +264,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType], BaseEstimator):
             The predicted class probabilities. Array types will be in the shape
             (classes, ...) while xr.Dataset will store classes as variables.
         """
-        wrapped_func = self._wrapped.predict_proba
+        wrapped_func = self.wrapped_estimator.predict_proba
         output_dim_name = "class"
         features = FeatureArray.from_feature_array(X, nodata_input=nodata_input)
 
@@ -280,8 +281,8 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType], BaseEstimator):
             suppress_feature_name_warnings(wrapped_func),
             output_dims=[[output_dim_name]],
             output_dtypes=[np.float64],
-            output_sizes={output_dim_name: len(self._wrapped.classes_)},
-            output_coords={output_dim_name: list(self._wrapped.classes_)},
+            output_sizes={output_dim_name: len(self.wrapped_estimator.classes_)},
+            output_coords={output_dim_name: list(self.wrapped_estimator.classes_)},
             skip_nodata=skip_nodata,
             nodata_output=nodata_output,
             ensure_min_samples=ensure_min_samples,
@@ -415,7 +416,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType], BaseEstimator):
             Array types will be in the shape (neighbor, ...) while xr.Dataset will store
             neighbors as variables.
         """
-        wrapped_func = self._wrapped.kneighbors
+        wrapped_func = self.wrapped_estimator.kneighbors
         output_dim_name = "neighbor"
 
         if nodata_output is None:
@@ -425,7 +426,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType], BaseEstimator):
             raise ValueError(msg)
 
         features = FeatureArray.from_feature_array(X, nodata_input=nodata_input)
-        k = n_neighbors or cast(int, getattr(self._wrapped, "n_neighbors", 5))
+        k = n_neighbors or cast(int, getattr(self.wrapped_estimator, "n_neighbors", 5))
 
         self._check_feature_names(features.feature_names)
 
@@ -521,10 +522,10 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType], BaseEstimator):
             while xr.Dataset will store features as variables, with the feature names
             based on the estimator's `get_feature_names_out` method.
         """
-        wrapped_func = self._wrapped.transform
+        wrapped_func = self.wrapped_estimator.transform
         output_dim_name = "feature"
         features = FeatureArray.from_feature_array(X, nodata_input=nodata_input)
-        feature_names = self._wrapped.get_feature_names_out()
+        feature_names = self.wrapped_estimator.get_feature_names_out()
 
         self._check_feature_names(features.feature_names)
 
@@ -612,7 +613,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType], BaseEstimator):
             The inverse-transformed features. Array types will be in the shape
             (features, ...) while xr.Dataset will store features as variables.
         """
-        wrapped_func = self._wrapped.inverse_transform
+        wrapped_func = self.wrapped_estimator.inverse_transform
         output_dim_name = "feature"
         features = FeatureArray.from_feature_array(X, nodata_input=nodata_input)
         feature_names = self._wrapped_meta.feature_names
@@ -639,11 +640,6 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType], BaseEstimator):
             **inverse_transform_kwargs,
         )
 
-    def get_params(self, deep: bool = False):
-        # Delegate to the wrapped estimator for params to avoid errors when sklearn
-        # doesn't see the __init__ params as public attributes.
-        return self._wrapped.get_params(deep=deep)
-
     def _sk_visual_block_(self):
         # This is called by sklearn when building HTML reprs and mimics the Pipeline
         # repr style where the wrapped estimator is in series with the wrapping class.
@@ -653,11 +649,11 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType], BaseEstimator):
             # Deprecated in scikit-learn==1.7.1
             from sklearn.utils._estimator_html_repr import _VisualBlock
 
-        names = [self._wrapped.__class__.__name__]
-        name_details = [str(self._wrapped)]
+        names = [self.wrapped_estimator.__class__.__name__]
+        name_details = [str(self.wrapped_estimator)]
         return _VisualBlock(
             "serial",
-            [self._wrapped],
+            [self.wrapped_estimator],
             names=names,
             name_details=name_details,
             dash_wrapped=False,
@@ -714,8 +710,8 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType], BaseEstimator):
 
         if no_fitted_names:
             warn(
-                f"X has feature names, but {self._wrapped.__class__.__name__} was"
-                " fitted without feature names",
+                f"X has feature names, but {self.wrapped_estimator.__class__.__name__} "
+                "was fitted without feature names",
                 stacklevel=2,
             )
             return
@@ -723,7 +719,8 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType], BaseEstimator):
         if no_feature_names:
             warn(
                 "X does not have feature names, but"
-                f" {self._wrapped.__class__.__name__} was fitted with feature names",
+                f" {self.wrapped_estimator.__class__.__name__} was fitted with feature "
+                "names.",
                 stacklevel=2,
             )
             return

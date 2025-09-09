@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file.
 ### Added
 
 - HTML reprs for `FeatureArrayEstimator` in a Jupyter notebook.
+- The estimator wrapped by `FeatureArrayEstimator` is exposed with the `wrapped_estimator` attribute.
 
 ### Changed
 
