@@ -675,3 +675,4 @@ def test_feature_array_estimator_repr_html():
     assert "FeatureArrayEstimator" in rep["text/html"]
     assert "KNeighborsRegressor" in rep["text/html"]
     assert "serial" in rep["text/html"]
+    assert "https://sklearn-raster.readthedocs.io" in rep["text/html"]
