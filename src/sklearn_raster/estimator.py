@@ -60,64 +60,6 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType], BaseEstimator):
     def __init__(self, wrapped: EstimatorType):
         super().__init__(self._reset_estimator(wrapped))
 
-    def get_params(self, deep: bool = False):
-        # Delegate to the wrapped estimator for params to avoid errors when sklearn
-        # doesn't see the __init__ params as public attributes.
-        return self._wrapped.get_params(deep=deep)
-
-    def _sk_visual_block_(self):
-        # This is called by sklearn when building HTML reprs and mimics the Pipeline
-        # repr style where the wrapped estimator is in series with the wrapping class.
-        try:
-            from sklearn.utils._repr_html.estimator import _VisualBlock
-        except ImportError:
-            # Deprecated in scikit-learn==1.7.1
-            from sklearn.utils._estimator_html_repr import _VisualBlock
-
-        names = [self._wrapped.__class__.__name__]
-        name_details = [str(self._wrapped)]
-        return _VisualBlock(
-            "serial",
-            [self._wrapped],
-            names=names,
-            name_details=name_details,
-            dash_wrapped=False,
-        )
-
-    @staticmethod
-    def _reset_estimator(estimator: EstimatorType) -> EstimatorType:
-        """Take an estimator and reset and warn if it was previously fitted."""
-        if is_fitted(estimator):
-            warn(
-                "Wrapping estimator that has already been fit. The estimator must be "
-                "fit again after wrapping.",
-                stacklevel=2,
-            )
-            return clone(estimator)
-
-        return estimator
-
-    def _get_n_targets(self, y: NDArray | pd.DataFrame | pd.Series | None) -> int:
-        """Get the number of targets used to fit the estimator."""
-        # Unsupervised and single-output estimators should both return a single target
-        if y is None or y.ndim == 1:
-            return 1
-
-        return y.shape[-1]
-
-    def _get_target_names(self, y: NDArray | pd.DataFrame | pd.Series) -> list[str]:
-        """Get the target names used to fit the estimator, if available."""
-        # Dataframe
-        if hasattr(y, "columns"):
-            return list(y.columns)
-
-        # Series
-        if hasattr(y, "name"):
-            return [y.name]
-
-        # Default to sequential identifiers
-        return generate_sequential_names(self._get_n_targets(y), "target")
-
     @requires_implementation
     def fit(self, X, y=None, **kwargs) -> FeatureArrayEstimator[EstimatorType]:
         """
@@ -696,6 +638,64 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType], BaseEstimator):
             keep_attrs=keep_attrs,
             **inverse_transform_kwargs,
         )
+
+    def get_params(self, deep: bool = False):
+        # Delegate to the wrapped estimator for params to avoid errors when sklearn
+        # doesn't see the __init__ params as public attributes.
+        return self._wrapped.get_params(deep=deep)
+
+    def _sk_visual_block_(self):
+        # This is called by sklearn when building HTML reprs and mimics the Pipeline
+        # repr style where the wrapped estimator is in series with the wrapping class.
+        try:
+            from sklearn.utils._repr_html.estimator import _VisualBlock
+        except ImportError:
+            # Deprecated in scikit-learn==1.7.1
+            from sklearn.utils._estimator_html_repr import _VisualBlock
+
+        names = [self._wrapped.__class__.__name__]
+        name_details = [str(self._wrapped)]
+        return _VisualBlock(
+            "serial",
+            [self._wrapped],
+            names=names,
+            name_details=name_details,
+            dash_wrapped=False,
+        )
+
+    @staticmethod
+    def _reset_estimator(estimator: EstimatorType) -> EstimatorType:
+        """Take an estimator and reset and warn if it was previously fitted."""
+        if is_fitted(estimator):
+            warn(
+                "Wrapping estimator that has already been fit. The estimator must be "
+                "fit again after wrapping.",
+                stacklevel=2,
+            )
+            return clone(estimator)
+
+        return estimator
+
+    def _get_n_targets(self, y: NDArray | pd.DataFrame | pd.Series | None) -> int:
+        """Get the number of targets used to fit the estimator."""
+        # Unsupervised and single-output estimators should both return a single target
+        if y is None or y.ndim == 1:
+            return 1
+
+        return y.shape[-1]
+
+    def _get_target_names(self, y: NDArray | pd.DataFrame | pd.Series) -> list[str]:
+        """Get the target names used to fit the estimator, if available."""
+        # Dataframe
+        if hasattr(y, "columns"):
+            return list(y.columns)
+
+        # Series
+        if hasattr(y, "name"):
+            return [y.name]
+
+        # Default to sequential identifiers
+        return generate_sequential_names(self._get_n_targets(y), "target")
 
     def _check_feature_names(self, feature_array_names: NDArray) -> None:
         """Check that feature array names match feature names seen during fitting."""
