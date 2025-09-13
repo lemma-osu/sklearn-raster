@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Generic, cast
 from warnings import warn
 
 import numpy as np
@@ -11,13 +11,16 @@ from typing_extensions import Literal, overload
 
 from .features import FeatureArray
 from .types import EstimatorType, MissingType
+from .utils.decorators import (
+    requires_attributes,
+    requires_fitted,
+    requires_implementation,
+)
 from .utils.estimator import (
     generate_sequential_names,
     is_fitted,
-    requires_fitted,
     suppress_feature_name_warnings,
 )
-from .utils.wrapper import AttrWrapper, requires_attributes, requires_implementation
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -42,7 +45,7 @@ class FittedMetadata:
     feature_names: list[str]
 
 
-class FeatureArrayEstimator(AttrWrapper[EstimatorType], BaseEstimator):
+class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
     """
     An estimator wrapper with overriden methods for n-dimensional feature arrays.
 
@@ -75,8 +78,6 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType], BaseEstimator):
 
     def __init__(self, wrapped_estimator: EstimatorType):
         self.wrapped_estimator = self._reset_estimator(wrapped_estimator)
-        # Wrap the estimator's attributes with AttrWrapper
-        super().__init__(self.wrapped_estimator)
 
     @requires_implementation
     def fit(self, X, y=None, **kwargs) -> FeatureArrayEstimator[EstimatorType]:
@@ -116,6 +117,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType], BaseEstimator):
             if fitted_feature_names is not None
             else [],
         )
+        self.fit_metadata_ = self._wrapped_meta
 
         return self
 

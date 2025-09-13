@@ -12,8 +12,8 @@ from numpy.typing import NDArray
 
 from .types import ArrayUfunc, FeatureArrayType, MaybeTuple, MissingType, NoDataType
 from .ufunc import UfuncSampleProcessor
+from .utils.decorators import map_over_arguments
 from .utils.features import reshape_to_samples
-from .utils.wrapper import map_over_arguments
 
 
 class FeatureArray(Generic[FeatureArrayType], ABC):
