@@ -1,12 +1,10 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import TYPE_CHECKING, Generic, cast
 from warnings import warn
 
 import numpy as np
 from sklearn.base import BaseEstimator, clone
-from sklearn.utils.validation import _get_feature_names
 from typing_extensions import Literal, overload
 
 from .features import FeatureArray
@@ -35,16 +33,6 @@ ESTIMATOR_OUTPUT_DTYPES: dict[str, np.dtype] = {
 }
 
 
-@dataclass
-class FittedMetadata:
-    """Metadata from a fitted estimator."""
-
-    n_targets: int
-    n_features: int
-    target_names: list[str]
-    feature_names: list[str]
-
-
 class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
     """
     An estimator wrapper with overriden methods for n-dimensional feature arrays.
@@ -55,6 +43,20 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
         An sklearn-compatible estimator. Supported methods will be overriden to work
         with n-dimensional feature arrays. If the estimator is already fit, it will be
         reset and a warning will be raised.
+
+    Attributes
+    ----------
+    n_features_in_ : int
+        The number of features used to fit the estimator.
+    n_targets_in_ : int
+        The number of targets used to fit the estimator.
+    feature_names_in_ : list of str
+        The names of features used to fit the estimator. If the estimator is fit without
+        feature names, e.g. using a Numpy array, this is an empty list.
+    target_names_in_ : list of str
+        The names of targets used to fit the estimator. If the estimator is fit without
+        target names, e.g. using a Numpy array, this will be a sequential list starting
+        with "target0".
 
     Examples
     --------
@@ -73,8 +75,6 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
     >>> pred.PSME_COV.shape
     (128, 128)
     """
-
-    _wrapped_meta: FittedMetadata
 
     def __init__(self, wrapped_estimator: EstimatorType):
         self.wrapped_estimator = self._reset_estimator(wrapped_estimator)
@@ -107,17 +107,15 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
             # to (n_samples,), which has a consistent output shape.
             y = y.squeeze()
         self.wrapped_estimator = self.wrapped_estimator.fit(X, y, **kwargs)
-        fitted_feature_names = _get_feature_names(X)
 
-        self._wrapped_meta = FittedMetadata(
-            n_targets=self._get_n_targets(y),
-            n_features=X.shape[-1],
-            target_names=self._get_target_names(y),
-            feature_names=list(fitted_feature_names)
-            if fitted_feature_names is not None
-            else [],
+        self.n_features_in_: int = np.asarray(X).shape[-1]
+        # Per SLEP007, all estimators should set feature_names_in_ to an array given a
+        # dataframe, and otherwise leave it unset. We want a (possibly empty) list.
+        self.feature_names_in_: list[str] = list(
+            getattr(self.wrapped_estimator, "feature_names_in_", [])
         )
-        self.fit_metadata_ = self._wrapped_meta
+        self.n_targets_in_ = self._get_n_targets(y)
+        self.target_names_in_ = self._get_target_names(y)
 
         return self
 
@@ -203,8 +201,8 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
             suppress_feature_name_warnings(wrapped_func),
             output_dims=[[output_dim_name]],
             output_dtypes=[output_dtype],
-            output_sizes={output_dim_name: self._wrapped_meta.n_targets},
-            output_coords={output_dim_name: list(self._wrapped_meta.target_names)},
+            output_sizes={output_dim_name: self.n_targets_in_},
+            output_coords={output_dim_name: self.target_names_in_},
             skip_nodata=skip_nodata,
             nodata_output=nodata_output,
             ensure_min_samples=ensure_min_samples,
@@ -289,7 +287,7 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
 
         self._check_feature_names(features.feature_names)
 
-        if self._wrapped_meta.n_targets > 1:
+        if self.n_targets_in_ > 1:
             msg = (
                 "`predict_proba` does not currently support multi-output "
                 "classification."
@@ -635,19 +633,19 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
         wrapped_func = self.wrapped_estimator.inverse_transform
         output_dim_name = "feature"
         features = FeatureArray.from_feature_array(X, nodata_input=nodata_input)
-        feature_names = self._wrapped_meta.feature_names
+        feature_names = self.feature_names_in_
 
         # If the estimator was fitted without feature names, use sequential identifiers
         if not feature_names:
             feature_names = generate_sequential_names(
-                self._wrapped_meta.n_features, output_dim_name
+                self.n_features_in_, output_dim_name
             )
 
         return features.apply_ufunc_across_features(
             suppress_feature_name_warnings(wrapped_func),
             output_dims=[[output_dim_name]],
             output_dtypes=[np.float64],
-            output_sizes={output_dim_name: self._wrapped_meta.n_features},
+            output_sizes={output_dim_name: self.n_features_in_},
             output_coords={output_dim_name: feature_names},
             skip_nodata=skip_nodata,
             nodata_output=nodata_output,
@@ -719,9 +717,7 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
 
     def _check_feature_names(self, feature_array_names: NDArray) -> None:
         """Check that feature array names match feature names seen during fitting."""
-        fitted_feature_names = self._wrapped_meta.feature_names
-
-        no_fitted_names = len(fitted_feature_names) == 0
+        no_fitted_names = len(self.feature_names_in_) == 0
         no_feature_names = len(feature_array_names) == 0
 
         if no_fitted_names and no_feature_names:
@@ -744,11 +740,11 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
             )
             return
 
-        if len(fitted_feature_names) != len(feature_array_names) or np.any(
-            fitted_feature_names != feature_array_names
+        if len(self.feature_names_in_) != len(feature_array_names) or np.any(
+            self.feature_names_in_ != feature_array_names
         ):
             msg = "Feature array names should match those passed during fit.\n"
-            fitted_feature_names_set = set(fitted_feature_names)
+            fitted_feature_names_set = set(self.feature_names_in_)
             feature_array_names_set = set(feature_array_names)
 
             unexpected_names = sorted(
