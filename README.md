@@ -21,7 +21,7 @@
     pip install "sklearn-raster[tutorials]"
     ```
 
-1. Wrap a `scikit-learn` estimator with a `FeatureArrayEstimator` to enable raster-based predictions:
+1. Wrap a `scikit-learn` estimator with a [`FeatureArrayEstimator`](https://sklearn-raster.readthedocs.io/en/latest/api/feature_array_estimator) to enable raster-based predictions:
 
     ```python
     from sklearn.ensemble import RandomForestRegressor

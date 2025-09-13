@@ -17,7 +17,7 @@ nav:
     - Unsupervised Clustering: tutorials/unsupervised_clustering.ipynb
     - Dimensionality Reduction with Pipelines: tutorials/dimensionality_reduction.ipynb
   - API Reference:
-    - Wrapping Estimators: api/wrap.md
+    - FeatureArrayEstimator: api/feature_array_estimator.md
     - Datasets:
       - SWO Ecoplot: api/datasets/swo_ecoplot.md
       - Synthetic Data: api/datasets/synthesize_feature_array.md

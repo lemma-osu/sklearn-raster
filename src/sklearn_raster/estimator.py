@@ -46,7 +46,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType], BaseEstimator):
     """
     An estimator wrapper with overriden methods for n-dimensional feature arrays.
 
-    Attributes
+    Parameters
     ----------
     wrapped_estimator : BaseEstimator
         An sklearn-compatible estimator. Supported methods will be overriden to work
@@ -55,14 +55,16 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType], BaseEstimator):
 
     Examples
     --------
-    Instantiate an estimator, wrap it, then fit as usual:
+    Instantiate an `sklearn` estimator, wrap it with a `FeatureArrayEstimator`, then
+    fit as usual:
 
     >>> from sklearn.neighbors import KNeighborsRegressor
     >>> from sklearn_raster.datasets import load_swo_ecoplot
     >>> X_img, X, y = load_swo_ecoplot(as_dataset=True)
     >>> est = FeatureArrayEstimator(KNeighborsRegressor(n_neighbors=3)).fit(X, y)
 
-    Use a wrapped estimator to predict from raster data stored in Numpy or Xarray types:
+    Use the fitted `FeatureArrayEstimator` to generate predictions from raster data
+    stored in Numpy or Xarray types:
 
     >>> pred = est.predict(X_img)
     >>> pred.PSME_COV.shape
@@ -677,7 +679,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType], BaseEstimator):
     def _get_doc_link(self) -> str:
         # This is called when building the HTML repr to set the documentation link
         # button.
-        return "https://sklearn-raster.readthedocs.io/en/latest/api/wrap/#sklearn_raster.FeatureArrayEstimator"
+        return "https://sklearn-raster.readthedocs.io/en/latest/api/feature_array_estimator/#sklearn_raster.FeatureArrayEstimator"
 
     @staticmethod
     def _reset_estimator(estimator: EstimatorType) -> EstimatorType:
