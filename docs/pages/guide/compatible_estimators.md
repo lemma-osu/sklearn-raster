@@ -1,4 +1,4 @@
-`sklearn-raster` can wrap estimators from `scikit-learn` and compatible third-party packages to enable raster-based predictions. To be compatible, estimators should implement a `fit` method and one or more output methods like `predict`, `predict_proba`, `transform`, or `kneighbors` which accept an array of features and an optional array of targets (for supervised learning), and return one or more corresponding arrays. The wrapper extends these methods to accept and return rasters, i.e. arrays of pixels with spatial and/or temporal dimensions.
+`sklearn-raster` can wrap estimators from `scikit-learn` and compatible third-party packages to create a `FeatureArrayEstimator` that supports raster-based predictions. To be compatible, estimators should implement a `fit` method and one or more output methods like `predict`, `predict_proba`, `transform`, or `kneighbors` which accept an array of features and an optional array of targets (for supervised learning), and return one or more corresponding arrays. The wrapper extends these methods to accept and return rasters, i.e. arrays of pixels with spatial and/or temporal dimensions.
 
 ## Supported Features
 

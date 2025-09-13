@@ -46,12 +46,27 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType], BaseEstimator):
     """
     An estimator wrapper with overriden methods for n-dimensional feature arrays.
 
-    Parameters
+    Attributes
     ----------
     wrapped_estimator : BaseEstimator
         An sklearn-compatible estimator. Supported methods will be overriden to work
         with n-dimensional feature arrays. If the estimator is already fit, it will be
         reset and a warning will be raised.
+
+    Examples
+    --------
+    Instantiate an estimator, wrap it, then fit as usual:
+
+    >>> from sklearn.neighbors import KNeighborsRegressor
+    >>> from sklearn_raster.datasets import load_swo_ecoplot
+    >>> X_img, X, y = load_swo_ecoplot(as_dataset=True)
+    >>> est = FeatureArrayEstimator(KNeighborsRegressor(n_neighbors=3)).fit(X, y)
+
+    Use a wrapped estimator to predict from raster data stored in Numpy or Xarray types:
+
+    >>> pred = est.predict(X_img)
+    >>> pred.PSME_COV.shape
+    (128, 128)
     """
 
     _wrapped_meta: FittedMetadata
@@ -758,9 +773,13 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType], BaseEstimator):
             raise ValueError(msg)
 
 
+# TODO: Remove in a future release.
 def wrap(estimator: EstimatorType) -> FeatureArrayEstimator[EstimatorType]:
     """
     Wrap an estimator with overriden methods for n-dimensional feature arrays.
+
+    This function is deprecated and should be replaced by instantiating the
+    FeatureArrayEstimator directly.
 
     Parameters
     ----------
@@ -774,20 +793,13 @@ def wrap(estimator: EstimatorType) -> FeatureArrayEstimator[EstimatorType]:
     FeatureArrayEstimator
         An estimator with relevant methods overriden to work with n-dimensional feature
         arrays.
-
-    Examples
-    --------
-    Instantiate an estimator, wrap it, then fit as usual:
-
-    >>> from sklearn.neighbors import KNeighborsRegressor
-    >>> from sklearn_raster.datasets import load_swo_ecoplot
-    >>> X_img, X, y = load_swo_ecoplot(as_dataset=True)
-    >>> est = wrap(KNeighborsRegressor(n_neighbors=3)).fit(X, y)
-
-    Use a wrapped estimator to predict from raster data stored in Numpy or Xarray types:
-
-    >>> pred = est.predict(X_img)
-    >>> pred.PSME_COV.shape
-    (128, 128)
     """
+    msg = (
+        "Using `wrap` to instantiate a `FeatureArrayEstimator` is deprecated and will "
+        "be removed in a future release. Instead of calling `wrap(estimator)`, use "
+        "`from sklearn_raster import FeatureArrayEstimator` and instantiate "
+        "directly with `FeatureArrayEstimator(estimator)`."
+    )
+    warn(msg, category=FutureWarning, stacklevel=2)
+
     return FeatureArrayEstimator(estimator)
