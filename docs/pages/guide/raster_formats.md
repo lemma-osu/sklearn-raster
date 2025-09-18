@@ -1,4 +1,6 @@
-`sklearn-raster` supports applying estimator methods to rasters stored in a variety of formats, referred to collectively as **feature arrays**. Numpy arrays can be used for small rasters that fit easily in memory, while Xarray `Dataset` and `DataArray` are ideal for large datasets that benefit from deferred, parallel computation. Estimator methods will return data in the same format that it is provided, e.g. predictions generated from an Xarray `xr.Dataset` will be stored in an `xr.Dataset`. All feature arrays support [arbitrary dimensionality](#dimensionality).
+`sklearn-raster` supports applying estimator methods to rasters stored in a variety of formats, referred to collectively as **feature arrays**. Numpy arrays can be used for small rasters that fit easily in memory, while Xarray `Dataset` and `DataArray` are ideal for large datasets that benefit from deferred, parallel computation. Pandas dataframes can be used for extracted tabular data. 
+
+Estimator methods will return data in the same format that it is provided, e.g. predictions generated from an Xarray `xr.Dataset` will be stored in an `xr.Dataset`. Most feature arrays support [arbitrary dimensionality](#dimensionality).
 
 ## Raster Formats
 
@@ -53,7 +55,7 @@ print(pred["target"].values) # ['land_cover']
 
 ### Xarray Dataset
 
-An `xr.Dataset` in the shape `(y, x)` with bands stored as variables can also be used with `sklearn-raster` estimators. It offers similar benefits to `xr.DataArray`, with the added ability to mix data types and NoData values across bands. 
+An `xr.Dataset` in the shape `(y, x)` with bands stored as variables can also be used with `sklearn-raster` estimators. It offers similar benefits to `xr.DataArray`, with the added ability to mix data types[^mixed-types] and NoData values across bands. 
 
 Load a `Dataset` from a GeoTIFF file using `rioxarray`:
 
@@ -74,16 +76,26 @@ print(pred.data_vars) # ['land_cover']
 print(pred.land_cover.shape) # (128, 128)
 ```
 
+### Pandas DataFrame
+
+While dataframes are not a conventional raster format, they can be used for applications like storing extracted pixel values in a tabular format of shape `(samples, band)`. In that context, a `FeatureArrayEstimator` provides some convenient features over an unmodified `sklearn` estimator when predicting or transforming dataframes:
+
+1. Methods return dataframe outputs that preserve the index and target names as columns.
+2. Samples with masked values in the input data can be skipped and encoded in the output dataframe.
+
 ### Format Summary
 
-| <div style="width: 100px;">Raster format</div> | Arbitrary dimensionality | Parallel operations | Lazy evaluation | Larger-than-memory | Metadata attributes | Mixed variable types |
-|:-------------:|--------------------------|---------------------|-----------------|--------------------|---------------------|----------------------|
-| `np.ndarray` | ✅ |❌ | ❌ | ❌ | ❌ | ❌ |
-| `xr.DataArray` | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
-| `xr.Dataset` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| <div style="width: 100px;">Raster format</div> | Arbitrary dimensionality | Parallel operations | Lazy evaluation | Larger-than-memory | Metadata attributes |
+|:-------------:|--------------------------|---------------------|-----------------|--------------------|---------------------|
+| `np.ndarray` | ✅ |❌ | ❌ | ❌ | ❌ |
+| `xr.DataArray` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `xr.Dataset` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `pd.DataFrame` | ❌ |❌ | ❌ | ❌ | ❌ |
 
 ## Dimensionality
 
 While the examples above focus on simple spatial rasters with `x` and `y` dimensions, `sklearn-raster` supports arbitrary input and output dimensionality. For example, generating predictions from a time series of climate data at various pressure levels of shape `(variable, time, z, y, x)` would return an output of shape `(target, time, z, y, x)`. Operations are broadcast by implicitly flattening all non-feature dimensions.
 
 [^bands]: `(band, y, x)` is the common shape for 2D geospatial raster data, but any shape is supported as long as the first dimension corresponds with the feature columns of the training dataset.
+
+[^mixed-types]: Data are implicitly converted to `xr.DataArray` when applying estimator methods, which causes mixed data types to be promoted to the maximum data type.
