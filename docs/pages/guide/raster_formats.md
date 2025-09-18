@@ -55,7 +55,7 @@ print(pred["target"].values) # ['land_cover']
 
 ### Xarray Dataset
 
-An `xr.Dataset` in the shape `(y, x)` with bands stored as variables can also be used with `sklearn-raster` estimators. It offers similar benefits to `xr.DataArray`, with the added ability to mix data types and NoData values across bands. 
+An `xr.Dataset` in the shape `(y, x)` with bands stored as variables can also be used with `sklearn-raster` estimators. It offers similar benefits to `xr.DataArray`, with the added ability to mix data types[^mixed-types] and NoData values across bands. 
 
 Load a `Dataset` from a GeoTIFF file using `rioxarray`:
 
@@ -89,11 +89,13 @@ While dataframes are not a conventional raster format, they can be used for appl
 |:-------------:|--------------------------|---------------------|-----------------|--------------------|---------------------|----------------------|
 | `np.ndarray` | ✅ |❌ | ❌ | ❌ | ❌ | ❌ |
 | `xr.DataArray` | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
-| `xr.Dataset` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `pd.DataFrame` | ❌ |❌ | ❌ | ❌ | ❌ | ✅ |
+| `xr.Dataset` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅[^mixed-types] |
+| `pd.DataFrame` | ❌ |❌ | ❌ | ❌ | ❌ | ✅[^mixed-types] |
 
 ## Dimensionality
 
 While the examples above focus on simple spatial rasters with `x` and `y` dimensions, `sklearn-raster` supports arbitrary input and output dimensionality. For example, generating predictions from a time series of climate data at various pressure levels of shape `(variable, time, z, y, x)` would return an output of shape `(target, time, z, y, x)`. Operations are broadcast by implicitly flattening all non-feature dimensions.
 
 [^bands]: `(band, y, x)` is the common shape for 2D geospatial raster data, but any shape is supported as long as the first dimension corresponds with the feature columns of the training dataset.
+
+[^mixed-types]: Data are implicitly converted to `xr.DataArray` when applying estimator methods, which causes mixed data types to be promoted to the maximum data type.
