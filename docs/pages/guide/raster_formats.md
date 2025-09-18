@@ -85,12 +85,12 @@ While dataframes are not a conventional raster format, they can be used for appl
 
 ### Format Summary
 
-| <div style="width: 100px;">Raster format</div> | Arbitrary dimensionality | Parallel operations | Lazy evaluation | Larger-than-memory | Metadata attributes | Mixed variable types |
-|:-------------:|--------------------------|---------------------|-----------------|--------------------|---------------------|----------------------|
-| `np.ndarray` | ✅ |❌ | ❌ | ❌ | ❌ | ❌ |
-| `xr.DataArray` | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
-| `xr.Dataset` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅[^mixed-types] |
-| `pd.DataFrame` | ❌ |❌ | ❌ | ❌ | ❌ | ✅[^mixed-types] |
+| <div style="width: 100px;">Raster format</div> | Arbitrary dimensionality | Parallel operations | Lazy evaluation | Larger-than-memory | Metadata attributes |
+|:-------------:|--------------------------|---------------------|-----------------|--------------------|---------------------|
+| `np.ndarray` | ✅ |❌ | ❌ | ❌ | ❌ |
+| `xr.DataArray` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `xr.Dataset` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `pd.DataFrame` | ❌ |❌ | ❌ | ❌ | ❌ |
 
 ## Dimensionality
 
