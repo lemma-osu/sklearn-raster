@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix deprecation warning for `xarray>=2025.08.0` by explicitly setting `compat` mode
+
 ### Added
 
 - HTML reprs for `FeatureArrayEstimator` in a Jupyter notebook.
