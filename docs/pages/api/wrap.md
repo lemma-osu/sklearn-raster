@@ -1,3 +1,3 @@
 ::: sklearn_raster.wrap
 
-::: sklearn_raster.estimator.FeatureArrayEstimator
+::: sklearn_raster.FeatureArrayEstimator
