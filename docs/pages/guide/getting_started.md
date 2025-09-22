@@ -1,4 +1,4 @@
-To generate predictions from a raster dataset, instantiate a [`scikit-learn`](https://scikit-learn.org/stable/) estimator, [`wrap`](../api/wrap.md) it into a [`FeatureArrayEstimator`](../api/wrap.md/#sklearn_raster.estimator.FeatureArrayEstimator), then fit[^fit-after-wrap] it with tabular data. The `X` dataset should include predictor features that correspond with your raster[^rasters] bands. For supervised classification, the `y` dataset should include one or more targets that will be predicted as output bands.
+To generate predictions from a raster dataset, instantiate a [`scikit-learn`](https://scikit-learn.org/stable/) estimator, [`wrap`](../api/wrap.md) it into a [`FeatureArrayEstimator`](../api/wrap.md/#sklearn_raster.FeatureArrayEstimator), then fit[^fit-after-wrap] it with tabular data. The `X` dataset should include predictor features that correspond with your raster[^rasters] bands. For supervised classification, the `y` dataset should include one or more targets that will be predicted as output bands.
 
 ```python
 from sklearn.ensemble import RandomForestRegressor
@@ -8,7 +8,7 @@ est = wrap(RandomForestRegressor(n_estimators=500))
 est.fit(X, y)
 ```
 
-Once fit, methods like [`predict`](../api/wrap.md/#sklearn_raster.estimator.FeatureArrayEstimator.predict) can be used to generate georeferenced, gridded outputs from raster inputs.
+Once fit, methods like [`predict`](../api/wrap.md/#sklearn_raster.FeatureArrayEstimator.predict) can be used to generate georeferenced, gridded outputs from raster inputs.
 
 ```python
 import rioxarray

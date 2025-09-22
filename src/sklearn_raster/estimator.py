@@ -662,7 +662,7 @@ class FeatureArrayEstimator(AttrWrapper[EstimatorType], BaseEstimator):
     def _get_doc_link(self) -> str:
         # This is called when building the HTML repr to set the documentation link
         # button.
-        return "https://sklearn-raster.readthedocs.io/en/latest/api/wrap/#sklearn_raster.estimator.FeatureArrayEstimator"
+        return "https://sklearn-raster.readthedocs.io/en/latest/api/wrap/#sklearn_raster.FeatureArrayEstimator"
 
     @staticmethod
     def _reset_estimator(estimator: EstimatorType) -> EstimatorType:
