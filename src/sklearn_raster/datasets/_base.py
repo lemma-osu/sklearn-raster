@@ -83,7 +83,7 @@ def _load_rasters_to_dataset(
             .assign_attrs(var_meta.attrs)
         )
         das.append(da)
-    ds = xr.merge(das, combine_attrs="drop_conflicts")
+    ds = xr.merge(das, compat="no_conflicts", combine_attrs="drop_conflicts")
     ds.attrs = global_attrs if global_attrs is not None else {}
     return ds
 
