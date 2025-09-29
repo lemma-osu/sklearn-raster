@@ -13,6 +13,7 @@ All notable changes to this project will be documented in this file.
 - HTML reprs for `FeatureArrayEstimator` in a Jupyter notebook.
 - The estimator wrapped by `FeatureArrayEstimator` is exposed with the `wrapped_estimator` attribute.
 - Added support for applying wrapped estimator methods to `pd.DataFrame` feature arrays.
+- Expose `sklearn_raster.FeatureArrayEstimator` as a top-level import.
 
 ### Changed
 
