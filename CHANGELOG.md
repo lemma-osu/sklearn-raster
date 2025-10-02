@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- Fix `xarray` being incorrectly listed as an optional dependency
 - Fix deprecation warning for `xarray>=2025.08.0` by explicitly setting `compat` mode
 
 ### Added
