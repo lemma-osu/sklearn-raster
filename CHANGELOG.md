@@ -18,6 +18,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- The `wrap` function is deprecated in favor of instantiating `FeatureArrayEstimator` directly.
 - Calling `predict`, `predict_proba`, `transform`, and `kneighbors` with `nodata_input=None` now overrides `_FillValue` attributes like any other `nodata_input` value. The default behavior when `nodata_input` is not provided is unchanged, and will infer from `_FillValue` if present.
 
 ### Removed

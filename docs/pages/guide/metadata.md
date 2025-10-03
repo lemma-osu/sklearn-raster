@@ -1,4 +1,4 @@
-An estimator wrapped by `sklearn-raster` will attempt to utilize metadata like spatial references, band names, and NoData values from input rasters when generating output rasters. The details of how different properties are used and set are given below.
+An `FeatureArrayEstimator` will attempt to utilize metadata like spatial references, band names, and NoData values from input rasters when generating output rasters. The details of how different properties are used and set are given below.
 
 ## Spatial References
 

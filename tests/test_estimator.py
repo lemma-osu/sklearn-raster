@@ -17,7 +17,7 @@ from sklearn.neighbors import (
 from sklearn.preprocessing import StandardScaler
 from sklearn.utils.validation import NotFittedError
 
-from sklearn_raster import wrap
+from sklearn_raster import FeatureArrayEstimator
 from sklearn_raster.estimator import is_fitted
 
 from .feature_utils import ModelData, parametrize_model_data, unwrap_features
@@ -31,7 +31,7 @@ def test_predict(model_data: ModelData, estimator, single_output, squeeze):
     """Test that predict works with all feature types and a few estimators."""
     X_image, X, y = model_data.set(single_output=single_output, squeeze=squeeze)
 
-    estimator = wrap(estimator()).fit(X, y)
+    estimator = FeatureArrayEstimator(estimator()).fit(X, y)
 
     y_pred = unwrap_features(estimator.predict(X_image))
 
@@ -50,7 +50,7 @@ def test_predict_unsupervised(model_data: ModelData, estimator):
     """Test that predict works with all feature types with unsupervised estimators."""
     X_image, X, _ = model_data
 
-    estimator = wrap(estimator()).fit(X)
+    estimator = FeatureArrayEstimator(estimator()).fit(X)
 
     y_pred = unwrap_features(estimator.predict(X_image))
 
@@ -72,7 +72,7 @@ def test_predict_proba(model_data: ModelData, estimator, squeeze):
         squeeze=squeeze,
     )
 
-    estimator = wrap(estimator()).fit(X, y)
+    estimator = FeatureArrayEstimator(estimator()).fit(X, y)
     y_prob = unwrap_features(estimator.predict_proba(X_image))
 
     assert y_prob.ndim == 3
@@ -99,7 +99,7 @@ def test_predict_with_ndimensions(model_data: ModelData, ndim: int):
     model_data.set(X_image=X_image)
     X_image, X, y = model_data
 
-    estimator = wrap(KNeighborsRegressor()).fit(X, y)
+    estimator = FeatureArrayEstimator(KNeighborsRegressor()).fit(X, y)
     y_pred = unwrap_features(estimator.predict(X_image, nodata_input=0))
     assert y_pred.ndim == ndim
 
@@ -110,7 +110,7 @@ def test_kneighbors_with_distance(model_data: ModelData, k):
     """Test kneighbors works with all feature types when returning distance."""
     X_image, X, y = model_data
 
-    estimator = wrap(KNeighborsRegressor(n_neighbors=k)).fit(X, y)
+    estimator = FeatureArrayEstimator(KNeighborsRegressor(n_neighbors=k)).fit(X, y)
 
     dist, nn = estimator.kneighbors(X_image, return_distance=True)
     dist = unwrap_features(dist)
@@ -128,7 +128,7 @@ def test_kneighbors_with_distance(model_data: ModelData, k):
 def test_kneighbors_without_distance(model_data: ModelData, k):
     """Test kneighbors works with all feature types when NOT returning distance."""
     X_image, X, y = model_data
-    estimator = wrap(KNeighborsRegressor(n_neighbors=k)).fit(X, y)
+    estimator = FeatureArrayEstimator(KNeighborsRegressor(n_neighbors=k)).fit(X, y)
 
     nn = estimator.kneighbors(X_image, return_distance=False)
     nn = unwrap_features(nn)
@@ -144,7 +144,7 @@ def test_kneighbors_with_n_neighbors(model_data: ModelData, n_neighbors):
     """Test kneighbors returns n_neighbors when specified."""
     X_image, X, y = model_data
 
-    estimator = wrap(KNeighborsRegressor(n_neighbors=3)).fit(X, y)
+    estimator = FeatureArrayEstimator(KNeighborsRegressor(n_neighbors=3)).fit(X, y)
 
     nn = estimator.kneighbors(X_image, n_neighbors=n_neighbors, return_distance=False)
     nn = unwrap_features(nn)
@@ -160,7 +160,7 @@ def test_kneighbors_unsupervised(model_data: ModelData, k):
     """Test kneighbors works with all feature types when unsupervised."""
     X_image, X, y = model_data
 
-    estimator = wrap(NearestNeighbors(n_neighbors=k)).fit(X)
+    estimator = FeatureArrayEstimator(NearestNeighbors(n_neighbors=k)).fit(X)
 
     dist, nn = estimator.kneighbors(X_image, return_distance=True)
     dist = unwrap_features(dist)
@@ -183,7 +183,7 @@ def test_kneighbors_with_custom_kwarg(model_data: ModelData):
             return super().kneighbors(X, **kwargs)
 
     X_image, X, y = model_data
-    estimator = wrap(CustomEstimator()).fit(X, y)
+    estimator = FeatureArrayEstimator(CustomEstimator()).fit(X, y)
     unwrap_features(
         estimator.kneighbors(X_image, return_distance=False, custom_kwarg=1)
     )
@@ -198,7 +198,7 @@ def test_kneighbors_nodata_outputs(model_data: ModelData):
     model_data.set(X_image=np.full(shape, np.nan))
 
     X_image, X, y = model_data
-    estimator = wrap(KNeighborsRegressor()).fit(X, y)
+    estimator = FeatureArrayEstimator(KNeighborsRegressor()).fit(X, y)
 
     # A scalar nodata_output should be assigned to distances and neighbors
     dist, nn = estimator.kneighbors(X_image, return_distance=True, nodata_output=-32768)
@@ -226,7 +226,7 @@ def test_predict_dataarray_with_custom_dim_name(model_data: ModelData):
     """Test that predict works if the feature dimension is not named "variable"."""
     X_image, X, y = model_data
 
-    estimator = wrap(KNeighborsRegressor()).fit(X, y)
+    estimator = FeatureArrayEstimator(KNeighborsRegressor()).fit(X, y)
     X_image = X_image.rename({"variable": "features"})
 
     y_pred = unwrap_features(estimator.predict(X_image))
@@ -241,7 +241,7 @@ def test_roundtrip_transform_preserves_shape(model_data: ModelData):
     """Test forward and inverse PCA transformation produce correct shapes."""
     X_image, X, _ = model_data
     n_components = 2
-    transformer = wrap(PCA(n_components=n_components)).fit(X)
+    transformer = FeatureArrayEstimator(PCA(n_components=n_components)).fit(X)
     components = transformer.transform(X_image)
 
     expected_components_shape = (
@@ -266,7 +266,7 @@ def test_roundtrip_transform_values(model_data: ModelData):
     model_data.set(X=np.full_like(model_data.X, constant))
     X_image, X, _ = model_data
 
-    transformer = wrap(StandardScaler(with_std=False)).fit(X)
+    transformer = FeatureArrayEstimator(StandardScaler(with_std=False)).fit(X)
     scaled = transformer.transform(X_image)
 
     assert unwrap_features(scaled).mean() == 0
@@ -284,7 +284,7 @@ def test_crs_preserved(model_data: ModelData, crs):
 
     X_image, X, y = model_data
 
-    estimator = wrap(KNeighborsRegressor()).fit(X, y)
+    estimator = FeatureArrayEstimator(KNeighborsRegressor()).fit(X, y)
 
     if crs:
         X_image = X_image.rio.write_crs(crs)
@@ -306,7 +306,7 @@ def test_with_non_1d_data(model_data: ModelData):
     reference_pred = estimator.predict(X)
     ref_dist, ref_nn = estimator.kneighbors(X)
 
-    wrapped = wrap(clone(estimator)).fit(X, y)
+    wrapped = FeatureArrayEstimator(clone(estimator)).fit(X, y)
     # Dataframes and derived 1D arrays are in (samples, features) by default, but
     # wrapped estimators require features as the first dimension, hence the need to
     # transpose the input and output.
@@ -335,7 +335,7 @@ def test_with_pd_dataframe(model_data: ModelData):
         .sample(100, random_state=0)
     )
 
-    wrapped = wrap(KNeighborsRegressor()).fit(X, y)
+    wrapped = FeatureArrayEstimator(KNeighborsRegressor()).fit(X, y)
 
     # Set a NoData value in one feature of the first row
     X_df.iloc[0, 0] = -32768
@@ -376,7 +376,7 @@ def test_predicted_var_names(model_data: ModelData, fit_with):
         expected_var_names = ["t0"]
         y = y["t0"]
 
-    estimator = wrap(KNeighborsRegressor()).fit(X, y)
+    estimator = FeatureArrayEstimator(KNeighborsRegressor()).fit(X, y)
     y_pred = estimator.predict(X_image)
 
     if isinstance(X_image, xr.DataArray):
@@ -390,7 +390,7 @@ def test_predicted_var_names(model_data: ModelData, fit_with):
 @parametrize_model_data(feature_array_types=(xr.DataArray, xr.Dataset))
 def test_kneighbors_var_names(model_data: ModelData):
     X_image, X, _ = model_data
-    estimator = wrap(NearestNeighbors()).fit(X)
+    estimator = FeatureArrayEstimator(NearestNeighbors()).fit(X)
     nn = estimator.kneighbors(X_image, return_distance=False)
 
     if isinstance(X_image, xr.DataArray):
@@ -421,7 +421,7 @@ def test_transformed_var_names(model_data: ModelData, fit_with):
     elif fit_with is pd.DataFrame:
         expected_inverted_names = list(X.columns)
 
-    estimator = wrap(PCA(n_components=3)).fit(X)
+    estimator = FeatureArrayEstimator(PCA(n_components=3)).fit(X)
     components = estimator.transform(X_image)
     inverted = estimator.inverse_transform(components)
 
@@ -447,7 +447,7 @@ def test_predict_proba_class_names(model_data: ModelData):
     y += 99
     expected_class_names = np.unique(y)
 
-    estimator = wrap(KNeighborsClassifier()).fit(X, y)
+    estimator = FeatureArrayEstimator(KNeighborsClassifier()).fit(X, y)
     y_prob = estimator.predict_proba(X_image)
 
     if isinstance(X_image, xr.DataArray):
@@ -464,7 +464,7 @@ def test_predict_proba_class_names(model_data: ModelData):
 def test_predict_proba_raises_for_multioutput(model_data: ModelData):
     """Test that an error is raised for multi-output classifiers."""
     X_image, X, y = model_data.set(single_output=False)
-    estimator = wrap(KNeighborsClassifier()).fit(X, y)
+    estimator = FeatureArrayEstimator(KNeighborsClassifier()).fit(X, y)
 
     expected_msg = "does not currently support multi-output classification"
     with pytest.raises(NotImplementedError, match=expected_msg):
@@ -489,7 +489,7 @@ def test_raises_if_not_fitted(
     X_image, _, _ = model_data
 
     with pytest.raises(NotFittedError):
-        getattr(wrap(estimator()), method)(X_image)
+        getattr(FeatureArrayEstimator(estimator()), method)(X_image)
 
 
 @parametrize_model_data(feature_array_types=(np.ndarray,))
@@ -499,8 +499,12 @@ def test_predict_warns_missing_feature_names(model_data: ModelData):
     X_image_unnamed, X_unnamed, y = model_data
     X_image_named, X_named, _ = model_data.set(feature_array_type=xr.DataArray)
 
-    estimator_fit_with_names = wrap(RandomForestRegressor()).fit(X_named, y)
-    estimator_fit_without_names = wrap(RandomForestRegressor()).fit(X_unnamed, y)
+    estimator_fit_with_names = FeatureArrayEstimator(RandomForestRegressor()).fit(
+        X_named, y
+    )
+    estimator_fit_without_names = FeatureArrayEstimator(RandomForestRegressor()).fit(
+        X_unnamed, y
+    )
 
     with pytest.warns(match="was fitted with feature names"):
         estimator_fit_with_names.predict(X_image_unnamed)
@@ -520,7 +524,7 @@ def test_predict_raises_mismatched_feature_names(model_data: ModelData):
     # Fit the estimator with different names than the features
     rename_map = {k: k + "_different" for k in X.columns}
     X_renamed = X.rename(columns=rename_map)
-    estimator = wrap(RandomForestRegressor()).fit(X_renamed, y)
+    estimator = FeatureArrayEstimator(RandomForestRegressor()).fit(X_renamed, y)
 
     with pytest.raises(ValueError, match="Feature names unseen at fit time"):
         estimator.predict(X_image)
@@ -528,7 +532,7 @@ def test_predict_raises_mismatched_feature_names(model_data: ModelData):
     # Fit the estimator with same names in a different order than the features
     rename_map = dict(zip(X.columns, X.columns[::-1]))
     X_flipped = X.rename(columns=rename_map)
-    estimator = wrap(RandomForestRegressor()).fit(X_flipped, y)
+    estimator = FeatureArrayEstimator(RandomForestRegressor()).fit(X_flipped, y)
 
     with pytest.raises(ValueError, match="must be in the same order"):
         estimator.predict(X_image)
@@ -556,7 +560,7 @@ def test_old_attrs_dropped(
     X_image, X, y = model_data
     X_image = X_image.assign_attrs(foo="bar")
 
-    wrapped_estimator = wrap(estimator()).fit(X, y)
+    wrapped_estimator = FeatureArrayEstimator(estimator()).fit(X, y)
     output = getattr(wrapped_estimator, method)(
         X_image, keep_attrs=keep_attrs, return_distance=False
     )
@@ -588,7 +592,7 @@ def test_dataset_attrs_set(
     """Test that old attributes are dropped when transforming."""
     X_image, X, y = model_data
 
-    wrapped_estimator = wrap(estimator()).fit(X, y)
+    wrapped_estimator = FeatureArrayEstimator(estimator()).fit(X, y)
     output = getattr(wrapped_estimator, method)(
         X_image,
         keep_attrs=keep_attrs,
@@ -624,7 +628,7 @@ def test_history_is_appended(
     X_image, X, y = model_data
     X_image = X_image.assign_attrs(history="initial history")
 
-    wrapped_estimator = wrap(estimator()).fit(X, y)
+    wrapped_estimator = FeatureArrayEstimator(estimator()).fit(X, y)
     output = getattr(wrapped_estimator, method)(
         X_image,
         keep_attrs=keep_attrs,
@@ -654,7 +658,7 @@ def test_unimplemented_methods_raise(estimator: BaseEstimator, method: str):
     """Wrapped estimators should raise for unimplemented methods."""
     expected = f"`{estimator.__name__}` does not implement `{method}`"
     with pytest.raises(NotImplementedError, match=expected):
-        getattr(wrap(estimator()), method)()
+        getattr(FeatureArrayEstimator(estimator()), method)()
 
 
 @pytest.mark.parametrize(
@@ -679,7 +683,7 @@ def test_missing_required_attrs_raise(method: str, required_attr: str):
         f"implement `{method}`"
     )
     # Fit the estimator to avoid an immediate NotFittedError
-    est = wrap(DummyEstimator()).fit(np.ones((1, 1)))
+    est = FeatureArrayEstimator(DummyEstimator()).fit(np.ones((1, 1)))
     with pytest.raises(NotImplementedError, match=expected):
         getattr(est, method)(None, None)
 
@@ -689,7 +693,7 @@ def test_wrapping_fitted_estimators_warns(dummy_model_data):
     _, X, y = dummy_model_data
 
     with pytest.warns(match="has already been fit"):
-        estimator = wrap(KNeighborsRegressor().fit(X, y))
+        estimator = FeatureArrayEstimator(KNeighborsRegressor().fit(X, y))
 
     assert not is_fitted(estimator.wrapped_estimator)
 
@@ -698,7 +702,7 @@ def test_wrapper_is_fitted(dummy_model_data):
     """A wrapper should appear fitted after fitting the wrapped estimator."""
     _, X, y = dummy_model_data
 
-    estimator = wrap(KNeighborsRegressor())
+    estimator = FeatureArrayEstimator(KNeighborsRegressor())
     assert not is_fitted(estimator.wrapped_estimator)
 
     estimator = estimator.fit(X, y)
@@ -708,8 +712,15 @@ def test_wrapper_is_fitted(dummy_model_data):
 
 def test_feature_array_estimator_repr_html():
     """A FeatureArrayEstimator's HTML repr should list itself and the wrapped class."""
-    estimator = wrap(KNeighborsRegressor())
+    estimator = FeatureArrayEstimator(KNeighborsRegressor())
     html = estimator._repr_mimebundle_()["text/html"]
     assert "FeatureArrayEstimator(wrapped_estimator=KNeighborsRegressor())" in html
     assert "serial" in html
     assert "https://sklearn-raster.readthedocs.io" in html
+
+
+def test_wrap_deprecation_warning():
+    from sklearn_raster import wrap
+
+    with pytest.warns(FutureWarning):
+        wrap(KNeighborsRegressor())

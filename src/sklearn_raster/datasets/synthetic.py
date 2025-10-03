@@ -9,7 +9,7 @@ from sklearn.decomposition import PCA
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
-from sklearn_raster import wrap
+from sklearn_raster import FeatureArrayEstimator
 from sklearn_raster.utils.estimator import generate_sequential_names
 
 if TYPE_CHECKING:
@@ -269,7 +269,7 @@ def synthesize_feature_array(
     # A transformer from unstandardized feature space to standardized PCA space. This
     # will be inverted to project standardized noise arrays representing synthetic PC
     # components into feature space.
-    sample_to_component = wrap(
+    sample_to_component = FeatureArrayEstimator(
         Pipeline(
             [
                 ("sample_scaler", StandardScaler()),
