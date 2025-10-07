@@ -18,7 +18,7 @@ with rasterio.open("./rgb_image.tif") as src:
 print(array.shape) # (3, 128, 128)
 ```
 
-Calling a method like `predict` with a Numpy array will return a Numpy array with the same shape `(band, y, x)`. The spatial dimensions will match the input raster, while the number of bands will match the target data used to fit the estimator. For example, given a wrapped single-output estimator:
+Calling a method like `predict` with a Numpy array will return a Numpy array with the same shape `(band, y, x)`. The spatial dimensions will match the input raster, while the number of bands will match the target data used to fit the estimator. For example, given a single-output `FeatureArrayEstimator`:
 
 ```python
 pred: np.ndarray = wrapped_estimator.predict(array)
@@ -27,7 +27,7 @@ print(pred.shape) # (1, 128, 128)
 
 ### Xarray DataArray
 
-An `xr.DataArray` in the shape `(band, y, x)` can also be used with `sklearn-raster` estimators, and offers a number of benefits over a Numpy array:
+An `xr.DataArray` in the shape `(band, y, x)` can also be used with a `FeatureArrayEstimator`, and offers a number of benefits over a Numpy array:
 
 1. Data can be loaded lazily.
 2. Data can be chunked, allowing parallel processing and larger-than-memory rasters.
@@ -55,7 +55,7 @@ print(pred["target"].values) # ['land_cover']
 
 ### Xarray Dataset
 
-An `xr.Dataset` in the shape `(y, x)` with bands stored as variables can also be used with `sklearn-raster` estimators. It offers similar benefits to `xr.DataArray`, with the added ability to mix data types[^mixed-types] and NoData values across bands. 
+An `xr.Dataset` in the shape `(y, x)` with bands stored as variables can also be used with a `FeatureArrayEstimator`. It offers similar benefits to `xr.DataArray`, with the added ability to mix data types[^mixed-types] and NoData values across bands. 
 
 Load a `Dataset` from a GeoTIFF file using `rioxarray`:
 
