@@ -15,6 +15,7 @@ All notable changes to this project will be documented in this file.
 - The estimator wrapped by `FeatureArrayEstimator` is exposed with the `wrapped_estimator` attribute.
 - Added support for applying wrapped estimator methods to `pd.DataFrame` feature arrays.
 - Expose `sklearn_raster.FeatureArrayEstimator` as a top-level import.
+- `FeatureArrayEstimator` exposes `n_features_in_`, `n_targets_in_`, `feature_names_in_`, and `target_names_in_` as public attributes after fitting.
 
 ### Changed
 
@@ -24,6 +25,7 @@ All notable changes to this project will be documented in this file.
 ### Removed
 
 - Dask `diagnostics` and `dataframe` extras are no longer required dependencies
+- `FeatureArrayEstimator` no longer supports direct access to the wrapped estimator attributes. These attributes should be accessed via the `wrapped_estimator` attribute instead.
 
 ## [0.1.0.dev0] - 2025-07-11
 
