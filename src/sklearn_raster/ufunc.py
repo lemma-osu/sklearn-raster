@@ -7,8 +7,8 @@ import numpy as np
 from numpy.typing import NDArray
 
 from .types import ArrayUfunc, MaybeTuple
+from .utils.decorators import map_over_arguments
 from .utils.features import get_minimum_precise_numeric_dtype
-from .utils.wrapper import map_over_arguments
 
 
 class UfuncSampleProcessor:

@@ -1,34 +1,34 @@
+from __future__ import annotations
+
 from functools import wraps
 from inspect import signature
-from typing import Callable, Generic
+from typing import TYPE_CHECKING, Callable
 
-from typing_extensions import Concatenate, TypeVar
+from sklearn.utils.validation import check_is_fitted
+from typing_extensions import Concatenate
 
-from ..types import RT, AnyType, MaybeTuple, P
+from ..types import RT, MaybeTuple, P
 
-
-class AttrWrapper(Generic[AnyType]):
-    """A transparent object wrapper that accesses a wrapped object's attributes."""
-
-    _wrapped: AnyType
-
-    def __init__(self, wrapped: AnyType):
-        self._wrapped = wrapped
-
-    def __getattr__(self, name: str):
-        return getattr(self._wrapped, name)
-
-    @property
-    def __dict__(self):
-        return self._wrapped.__dict__
+if TYPE_CHECKING:
+    from ..estimator import FeatureArrayEstimator
 
 
-GenericWrapper = TypeVar("GenericWrapper", bound=AttrWrapper)
+def requires_fitted(
+    func: Callable[Concatenate[FeatureArrayEstimator, P], RT],
+) -> Callable[Concatenate[FeatureArrayEstimator, P], RT]:
+    """Decorator to check if an estimator is fitted before calling a method."""
+
+    @wraps(func)
+    def wrapper(self: FeatureArrayEstimator, *args, **kwargs):
+        check_is_fitted(self)
+        return func(self, *args, **kwargs)
+
+    return wrapper
 
 
 def requires_implementation(
-    func: Callable[Concatenate[GenericWrapper, P], RT],
-) -> Callable[Concatenate[GenericWrapper, P], RT]:
+    func: Callable[Concatenate[FeatureArrayEstimator, P], RT],
+) -> Callable[Concatenate[FeatureArrayEstimator, P], RT]:
     """
     A decorator that raises if the wrapped instance doesn't implement the given method.
     """
@@ -38,22 +38,22 @@ def requires_implementation(
 def requires_attributes(
     *attrs: str,
 ) -> Callable[
-    [Callable[Concatenate[GenericWrapper, P], RT]],
-    Callable[Concatenate[GenericWrapper, P], RT],
+    [Callable[Concatenate[FeatureArrayEstimator, P], RT]],
+    Callable[Concatenate[FeatureArrayEstimator, P], RT],
 ]:
     """
     A decorator that raises if the wrapped instance is missing required attributes.
     """
 
     def decorator(
-        func: Callable[Concatenate[GenericWrapper, P], RT],
-    ) -> Callable[Concatenate[GenericWrapper, P], RT]:
+        func: Callable[Concatenate[FeatureArrayEstimator, P], RT],
+    ) -> Callable[Concatenate[FeatureArrayEstimator, P], RT]:
         @wraps(func)
-        def wrapper(self: GenericWrapper, *args, **kwargs):
+        def wrapper(self: FeatureArrayEstimator, *args, **kwargs):
             for attr in attrs:
-                if hasattr(self._wrapped, attr):
+                if hasattr(self.wrapped_estimator, attr):
                     continue
-                wrapped_class = self._wrapped.__class__.__name__
+                wrapped_class = self.wrapped_estimator.__class__.__name__
                 if attr == func.__name__:
                     msg = f"`{wrapped_class}` does not implement `{func.__name__}`."
                 else:

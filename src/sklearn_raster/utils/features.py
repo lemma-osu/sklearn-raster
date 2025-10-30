@@ -8,7 +8,7 @@ from numpy.typing import NDArray
 from typing_extensions import Concatenate
 
 from ..types import MaybeTuple, P
-from .wrapper import map_over_arguments
+from .decorators import map_over_arguments
 
 
 def reshape_to_samples(

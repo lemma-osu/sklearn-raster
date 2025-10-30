@@ -3,8 +3,8 @@ import re
 import numpy as np
 import pytest
 
+from sklearn_raster.utils.decorators import map_over_arguments
 from sklearn_raster.utils.features import get_minimum_precise_numeric_dtype
-from sklearn_raster.utils.wrapper import map_over_arguments
 
 
 def test_minimum_precise_numeric_dtype():
