@@ -55,8 +55,7 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
         feature names, e.g. using a Numpy array, this is an empty list.
     target_names_in_ : list of str
         The names of targets used to fit the estimator. If the estimator is fit without
-        target names, e.g. using a Numpy array, this will be a sequential list starting
-        with "target0".
+        target names, e.g. using a Numpy array, this is an empty list.
 
     Examples
     --------
@@ -109,13 +108,9 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
         self.wrapped_estimator = self.wrapped_estimator.fit(X, y, **kwargs)
 
         self.n_features_in_: int = np.asarray(X).shape[-1]
-        # Per SLEP007, all estimators should set feature_names_in_ to an array given a
-        # dataframe, and otherwise leave it unset. We want a (possibly empty) list.
-        self.feature_names_in_: list[str] = list(
-            getattr(self.wrapped_estimator, "feature_names_in_", [])
-        )
+        self.feature_names_in_ = self._get_names(X)
         self.n_targets_in_ = self._get_n_targets(y)
-        self.target_names_in_ = self._get_target_names(y)
+        self.target_names_in_ = self._get_names(y)
 
         return self
 
@@ -196,13 +191,16 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
         # point for safety.
         estimator_type = getattr(self.wrapped_estimator, "_estimator_type", "")
         output_dtype = ESTIMATOR_OUTPUT_DTYPES.get(estimator_type, np.float64)
+        output_names = self.target_names_in_ or generate_sequential_names(
+            self.n_targets_in_, output_dim_name
+        )
 
         return features.apply_ufunc_across_features(
             suppress_feature_name_warnings(wrapped_func),
             output_dims=[[output_dim_name]],
             output_dtypes=[output_dtype],
             output_sizes={output_dim_name: self.n_targets_in_},
-            output_coords={output_dim_name: self.target_names_in_},
+            output_coords={output_dim_name: output_names},
             skip_nodata=skip_nodata,
             nodata_output=nodata_output,
             ensure_min_samples=ensure_min_samples,
@@ -702,18 +700,17 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
 
         return y.shape[-1]
 
-    def _get_target_names(self, y: NDArray | pd.DataFrame | pd.Series) -> list[str]:
-        """Get the target names used to fit the estimator, if available."""
+    def _get_names(self, data: NDArray | pd.DataFrame | pd.Series) -> list[str]:
+        """Get names from features or targets, if available, else an empty list."""
         # Dataframe
-        if hasattr(y, "columns"):
-            return list(y.columns)
+        if hasattr(data, "columns"):
+            return list(data.columns)
 
         # Series
-        if hasattr(y, "name"):
-            return [y.name]
+        if hasattr(data, "name"):
+            return [data.name]
 
-        # Default to sequential identifiers
-        return generate_sequential_names(self._get_n_targets(y), "target")
+        return []
 
     def _check_feature_names(self, feature_array_names: NDArray) -> None:
         """Check that feature array names match feature names seen during fitting."""
