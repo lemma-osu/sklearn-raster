@@ -85,6 +85,7 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
         allow_cast: bool = False,
         check_output_for_nodata: bool = True,
         keep_attrs: bool = False,
+        inner_thread_limit: int | None = 1,
         **ufunc_kwargs,
     ) -> FeatureArrayType | tuple[FeatureArrayType]:
         """Apply a universal function to all features of the array."""
@@ -95,7 +96,7 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
             }
 
         @reshape_to_samples
-        @threadpool_limits.wrap(1)
+        @threadpool_limits.wrap(threadpool_limit)
         def ufunc(x):
             return UfuncSampleProcessor(x, nodata_input=self.nodata_input).apply(
                 func,
