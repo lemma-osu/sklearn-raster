@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 from numpy.typing import NDArray
+from threadpoolctl import threadpool_limits
 
 from .types import ArrayUfunc, FeatureArrayType, MaybeTuple, MissingType, NoDataType
 from .ufunc import UfuncSampleProcessor
@@ -94,6 +95,7 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
             }
 
         @reshape_to_samples
+        @threadpool_limits.wrap(1)
         def ufunc(x):
             return UfuncSampleProcessor(x, nodata_input=self.nodata_input).apply(
                 func,
