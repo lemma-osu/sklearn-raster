@@ -4,6 +4,7 @@ from functools import wraps
 from inspect import signature
 from typing import TYPE_CHECKING, Callable
 
+import threadpoolctl
 from sklearn.utils.validation import check_is_fitted
 from typing_extensions import Concatenate
 
@@ -11,6 +12,13 @@ from ..types import RT, MaybeTuple, P
 
 if TYPE_CHECKING:
     from ..estimator import FeatureArrayEstimator
+
+
+# Global threadpool controller instance for limiting threads in decorated ufuncs.
+# Access via _get_threadpool_controller() or indirectly via limit_threads decorator.
+# Note: This implementation is adopted from scikit-learn, but we maintain our own
+# controller for flexibility and to avoid accessing their private API.
+_threadpool_controller = None
 
 
 def requires_fitted(
@@ -171,3 +179,37 @@ def map_over_arguments(
         return wrapper
 
     return arg_mapper
+
+
+def _get_threadpool_controller():
+    """Return the global threadpool controller instance."""
+    global _threadpool_controller
+
+    if _threadpool_controller is None:
+        _threadpool_controller = threadpoolctl.ThreadpoolController()
+
+    return _threadpool_controller
+
+
+def limit_inner_threads(limits: int | None = 1, user_api: str | None = None):
+    """
+    A decorator that limits the number of threads used by the decorated function.
+
+    This is useful to avoid oversubscription when Dask workers that share threads
+    apply thread-parallelized libraries such as OpenBLAS via NumPy and SciPy. Unlike
+    `threadpoolctl.ThreadpoolController.wrap`, the decorated function remains
+    serializable for use with distributed Dask schedulers.
+    """
+
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            if limits is None:
+                return func(*args, **kwargs)
+            controller = _get_threadpool_controller()
+            with controller.limit(limits=limits, user_api=user_api):
+                return func(*args, **kwargs)
+
+        return wrapper
+
+    return decorator

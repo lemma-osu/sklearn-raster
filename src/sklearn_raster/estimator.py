@@ -127,6 +127,7 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
         allow_cast: bool = False,
         check_output_for_nodata: bool = True,
         keep_attrs: bool = False,
+        inner_thread_limit: int | None = 1,
         **predict_kwargs,
     ) -> FeatureArrayType:
         """
@@ -172,6 +173,11 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
             `scale_factor`) may become inaccurate, which is why they are dropped by
             default. The `history` attribute will always be kept. No effect if the
             input is a Numpy array.
+        inner_thread_limit : int or None, default=1
+            The maximum number of threads allowed per Dask worker. Higher values can
+            result in nested parallelism and oversubscription, which may cause
+            slowdowns, stalls, or system crashes. Use caution when increasing the limit
+            or disabling it by setting to `None`.
         **predict_kwargs
             Additional arguments passed to the estimator's `predict` method.
 
@@ -208,6 +214,7 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
             check_output_for_nodata=check_output_for_nodata,
             nan_fill=0.0,
             keep_attrs=keep_attrs,
+            inner_thread_limit=inner_thread_limit,
             **predict_kwargs,
         )
 
@@ -225,6 +232,7 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
         allow_cast: bool = False,
         check_output_for_nodata: bool = True,
         keep_attrs: bool = False,
+        inner_thread_limit: int | None = 1,
         **predict_proba_kwargs,
     ) -> FeatureArrayType:
         """
@@ -270,6 +278,11 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
             `scale_factor`) may become inaccurate, which is why they are dropped by
             default. The `history` attribute will always be kept. No effect if the
             input is a Numpy array.
+        inner_thread_limit : int or None, default=1
+            The maximum number of threads allowed per Dask worker. Higher values can
+            result in nested parallelism and oversubscription, which may cause
+            slowdowns, stalls, or system crashes. Use caution when increasing the limit
+            or disabling it by setting to `None`.
         **predict_proba_kwargs
             Additional arguments passed to the estimator's `predict_proba` method.
 
@@ -305,6 +318,7 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
             check_output_for_nodata=check_output_for_nodata,
             nan_fill=0.0,
             keep_attrs=keep_attrs,
+            inner_thread_limit=inner_thread_limit,
             **predict_proba_kwargs,
         )
 
@@ -324,6 +338,7 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
         allow_cast: bool = False,
         check_output_for_nodata: bool = True,
         keep_attrs: bool = False,
+        inner_thread_limit: int | None = 1,
         **kneighbors_kwargs,
     ) -> tuple[FeatureArrayType, FeatureArrayType]: ...
 
@@ -343,6 +358,7 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
         allow_cast: bool = False,
         check_output_for_nodata: bool = True,
         keep_attrs: bool = False,
+        inner_thread_limit: int | None = 1,
         **kneighbors_kwargs,
     ) -> FeatureArrayType: ...
 
@@ -361,6 +377,7 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
         allow_cast: bool = False,
         check_output_for_nodata: bool = True,
         keep_attrs: bool = False,
+        inner_thread_limit: int | None = 1,
         **kneighbors_kwargs,
     ) -> FeatureArrayType | tuple[FeatureArrayType, FeatureArrayType]:
         """
@@ -417,6 +434,11 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
             `scale_factor`) may become inaccurate, which is why they are dropped by
             default. The `history` attribute will always be kept. No effect if the
             input is a Numpy array.
+        inner_thread_limit : int or None, default=1
+            The maximum number of threads allowed per Dask worker. Higher values can
+            result in nested parallelism and oversubscription, which may cause
+            slowdowns, stalls, or system crashes. Use caution when increasing the limit
+            or disabling it by setting to `None`.
         **kneighbors_kwargs
             Additional arguments passed to the estimator's `kneighbors` method.
 
@@ -464,6 +486,7 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
             check_output_for_nodata=check_output_for_nodata,
             nan_fill=0.0,
             keep_attrs=keep_attrs,
+            inner_thread_limit=inner_thread_limit,
             **kneighbors_kwargs,
         )
 
@@ -481,6 +504,7 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
         allow_cast: bool = False,
         check_output_for_nodata: bool = True,
         keep_attrs: bool = False,
+        inner_thread_limit: int | None = 1,
         **transform_kwargs,
     ) -> FeatureArrayType:
         """
@@ -527,6 +551,11 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
             `scale_factor`) may become inaccurate, which is why they are dropped by
             default. The `history` attribute will always be kept. No effect if the
             input is a Numpy array.
+        inner_thread_limit : int or None, default=1
+            The maximum number of threads allowed per Dask worker. Higher values can
+            result in nested parallelism and oversubscription, which may cause
+            slowdowns, stalls, or system crashes. Use caution when increasing the limit
+            or disabling it by setting to `None`.
         **transform_kwargs
             Additional arguments passed to the estimator's `transform` method.
 
@@ -557,6 +586,7 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
             check_output_for_nodata=check_output_for_nodata,
             nan_fill=0.0,
             keep_attrs=keep_attrs,
+            inner_thread_limit=inner_thread_limit,
             **transform_kwargs,
         )
 
@@ -573,6 +603,7 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
         allow_cast: bool = False,
         check_output_for_nodata: bool = True,
         keep_attrs: bool = False,
+        inner_thread_limit: int | None = 1,
         **inverse_transform_kwargs,
     ) -> FeatureArrayType:
         """
@@ -619,6 +650,11 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
             `scale_factor`) may become inaccurate, which is why they are dropped by
             default. The `history` attribute will always be kept. No effect if the
             input is a Numpy array.
+        inner_thread_limit : int or None, default=1
+            The maximum number of threads allowed per Dask worker. Higher values can
+            result in nested parallelism and oversubscription, which may cause
+            slowdowns, stalls, or system crashes. Use caution when increasing the limit
+            or disabling it by setting to `None`.
         **inverse_transform_kwargs
             Additional arguments passed to the estimator's `inverse_transform` method.
 
@@ -652,6 +688,7 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
             check_output_for_nodata=check_output_for_nodata,
             nan_fill=0.0,
             keep_attrs=keep_attrs,
+            inner_thread_limit=inner_thread_limit,
             **inverse_transform_kwargs,
         )
 

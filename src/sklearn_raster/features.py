@@ -12,7 +12,7 @@ from numpy.typing import NDArray
 
 from .types import ArrayUfunc, FeatureArrayType, MaybeTuple, MissingType, NoDataType
 from .ufunc import UfuncSampleProcessor
-from .utils.decorators import map_over_arguments
+from .utils.decorators import limit_inner_threads, map_over_arguments
 from .utils.features import reshape_to_samples
 
 
@@ -84,6 +84,7 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
         allow_cast: bool = False,
         check_output_for_nodata: bool = True,
         keep_attrs: bool = False,
+        inner_thread_limit: int | None = 1,
         **ufunc_kwargs,
     ) -> FeatureArrayType | tuple[FeatureArrayType]:
         """Apply a universal function to all features of the array."""
@@ -94,6 +95,7 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
             }
 
         @reshape_to_samples
+        @limit_inner_threads(inner_thread_limit)
         def ufunc(x):
             return UfuncSampleProcessor(x, nodata_input=self.nodata_input).apply(
                 func,
