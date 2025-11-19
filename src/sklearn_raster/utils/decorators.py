@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 
 
 # Global threadpool controller instance for limiting threads in decorated ufuncs.
-# Access via _get_threadpool_controller() or indirectly via limit_innter_threads
+# Access via _get_threadpool_controller() or indirectly via limit_inner_threads
 # decorator. This implementation is adopted from scikit-learn, but we maintain our own
 # controller for flexibility and to avoid accessing their private API.
 _threadpool_controller = None
