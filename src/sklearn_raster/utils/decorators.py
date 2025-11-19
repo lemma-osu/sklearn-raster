@@ -15,8 +15,8 @@ if TYPE_CHECKING:
 
 
 # Global threadpool controller instance for limiting threads in decorated ufuncs.
-# Access via _get_threadpool_controller() or indirectly via limit_threads decorator.
-# Note: This implementation is adopted from scikit-learn, but we maintain our own
+# Access via _get_threadpool_controller() or indirectly via limit_innter_threads
+# decorator. This implementation is adopted from scikit-learn, but we maintain our own
 # controller for flexibility and to avoid accessing their private API.
 _threadpool_controller = None
 
@@ -181,7 +181,7 @@ def map_over_arguments(
     return arg_mapper
 
 
-def _get_threadpool_controller():
+def _get_threadpool_controller() -> threadpoolctl.ThreadpoolController:
     """Return the global threadpool controller instance."""
     global _threadpool_controller
 
@@ -191,7 +191,9 @@ def _get_threadpool_controller():
     return _threadpool_controller
 
 
-def limit_inner_threads(limits: int | None = 1, user_api: str | None = None):
+def limit_inner_threads(
+    limits: int | None = 1, user_api: str | None = None
+) -> Callable:
     """
     A decorator that limits the number of threads used by the decorated function.
 
@@ -199,6 +201,15 @@ def limit_inner_threads(limits: int | None = 1, user_api: str | None = None):
     apply thread-parallelized libraries such as OpenBLAS via NumPy and SciPy. Unlike
     `threadpoolctl.ThreadpoolController.wrap`, the decorated function remains
     serializable for use with distributed Dask schedulers.
+
+    Parameters
+    ----------
+    limits : int | None, default 1
+        The maximum number of threads to allow the decorated function to use. If None,
+        no limit is applied.
+    user_api : str | None, default None
+        The thread-parallelized library to limit. If None, all supported libraries
+        (OpenBLAS, MKL, etc.) will be limited.
     """
 
     def decorator(func):
