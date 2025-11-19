@@ -52,7 +52,7 @@ def test_predict_unsupervised(model_data: ModelData, estimator):
 
     estimator = FeatureArrayEstimator(estimator()).fit(X)
 
-    y_pred = unwrap_features(estimator.predict(X_image))
+    y_pred = unwrap_features(estimator.predict(X_image, nodata_output=-1))
 
     assert y_pred.ndim == 3
     expected_shape = (1, model_data.n_rows, model_data.n_cols)
