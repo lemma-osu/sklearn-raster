@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix potential performance and stability issues from OpenBLAS oversubscription by limiting nested parallelism in [#87](https://github.com/lemma-osu/sklearn-raster/pull/87)
+
+### Added
+
+- All estimator methods now accept an `inner_thread_limit` keyword argument which limits nested parallelism within Dask workers
+
 ## [0.1.0.dev1] - 2025-11-04
 
 ### Fixed

@@ -6,6 +6,7 @@ import re
 
 import numpy as np
 import pytest
+import threadpoolctl
 import xarray as xr
 from numpy.testing import assert_array_equal
 
@@ -513,6 +514,33 @@ def test_nodata_output_set_in_dataset_attrs(nodata_output: int | float):
             assert "_FillValue" not in result[var].attrs
         else:
             assert result[var].attrs.get("_FillValue") == nodata_output
+
+
+@pytest.mark.parametrize("thread_limit", [1, 2, 8])
+def test_inner_thread_limit(thread_limit: int):
+    """
+    Test that the inner thread limit is set within applied ufuncs.
+
+    Note that threadpool limits aren't constrained by hardware capabilities, so this
+    test should work regardless of the number of available CPU cores.
+    """
+    features = FeatureArray.from_feature_array(np.zeros((1, 1)))
+    original_thread_info = threadpoolctl.threadpool_info()
+
+    def check_inner_threads(x):
+        inner_thread_info = threadpoolctl.threadpool_info()
+        for lib in inner_thread_info:
+            assert lib["num_threads"] == thread_limit
+        return x
+
+    features.apply_ufunc_across_features(
+        check_inner_threads,
+        output_dims=[["variable"]],
+        inner_thread_limit=thread_limit,
+    )
+
+    # Ensure that the threadpool limits don't leak outside the ufunc
+    assert threadpoolctl.threadpool_info() == original_thread_info
 
 
 @parametrize_feature_array_types()

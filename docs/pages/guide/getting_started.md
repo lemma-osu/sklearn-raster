@@ -32,6 +32,7 @@ The user guide contains more information about specific topics like:
 - Which [estimators are compatible](compatible_estimators.md) with `sklearn-raster`
 - Supported [raster formats](raster_formats.md) and their pros and cons
 - How [metadata](metadata.md) like spatial references, band names, and NoData masks are handled
+- [Performance tips](performance_tips.md) for working with large datasets and Dask
 - How `sklearn-raster` compares to [related packages](related_packages.md) like `sklearn-xarray`, `dask-ml`, and `scikit-map`
 
 ### Tutorials
