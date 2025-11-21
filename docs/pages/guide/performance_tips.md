@@ -1,11 +1,11 @@
-`sklearn-raster` supports using [Dask](https://docs.dask.org/en/stable/) to apply machine learning in parallel. Choosing to [use Dask-backed data](raster_formats.md) instead of Numpy arrays can lead to significant speedups and allow working with large datasets that don't fit into memory, but requires some additional planning to ensure that operations are optimized for your datasets and hardware.
+`sklearn-raster` supports using [Dask](https://docs.dask.org/en/stable/) to apply machine learning in parallel. Choosing to [use Dask-backed data](raster_formats.md) instead of Numpy arrays can lead to significant speedups and allows working with large datasets that don't fit into memory, but requires some additional planning to ensure that operations are optimized for your datasets and hardware.
 
 !!! tip
     Optimizing Dask performance is a complicated topic -- the tips in this guide should be considered a supplement to the docs provided by Xarray and Dask, including [Xarray's guide to Dask](https://docs.xarray.dev/en/stable/user-guide/dask.html), [Dask best practices for arrays](https://docs.dask.org/en/stable/array-best-practices.html), and [Dask general best practices](https://docs.dask.org/en/stable/best-practices.html). We recommend familiarizing yourself with those materials before continuing.
 
 ## Chunks and GeoTIFFs
 
-One of the most important considerations in Dask performance is how to chunk your data. This topic is covered in detail by the Xarray guide to [chunking and performance](https://docs.xarray.dev/en/stable/user-guide/dask.html#chunking-and-performance) and the Dask guide to [selecting good chunk sizes](https://docs.dask.org/en/stable/array-best-practices.html#select-a-good-chunk-size), so the tips here will focus on performance considerations specific to raster data stored in GeoTIFFs.
+One of the most important considerations for Dask performance is how to chunk your data. This topic is covered in detail by the Xarray guide to [chunking and performance](https://docs.xarray.dev/en/stable/user-guide/dask.html#chunking-and-performance) and the Dask guide to [selecting good chunk sizes](https://docs.dask.org/en/stable/array-best-practices.html#select-a-good-chunk-size), so the tips here will focus on performance considerations specific to raster data stored in GeoTIFFs.
 
 ### Tiling vs. Striping
 
@@ -26,9 +26,9 @@ See the [NoData handling guide](metadata.md#handling-nodata) for details on how 
 
 ## DataArrays vs. Datasets
 
-`sklearn-raster` is compatible with two Xarray data structures: Data Arrays and Datasets. While Datasets offer some additional convenience by storing features as distinct variables with independent metadata, they also add additional performance overhead as they must be converted to Data Arrays prior to applying ufuncs.
+`sklearn-raster` is compatible with two Xarray data structures: DataArrays and Datasets. While Datasets offer some additional convenience by storing features as distinct variables with independent metadata, they also add additional performance overhead as they must be converted to DataArrays internally prior to applying universal functions (ufuncs).
 
-For performance-critical applications, Data Arrays are the recommended data structure.
+For performance-critical applications, DataArrays are the recommended data structure.
 
 ## Limiting Nested Parallelism
 

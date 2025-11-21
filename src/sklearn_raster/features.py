@@ -95,7 +95,7 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
         func : callable
             The universal function to apply across features. The function should accept
             an array of shape (samples, features) and return one or more arrays of shape
-            (samples, size), where sizes is defined by output_sizes.
+            (samples, size), where size is defined by `output_sizes`.
         output_dims : list[list[str]]
             List of output core dimension names for each output.
         output_dtypes : list[np.dtype], optional
@@ -106,39 +106,38 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
             Mapping from output dimension names to their coordinates. If not provided,
             defaults to sequential integer coordinates for each output dimension.
         skip_nodata : bool, default=True
-            If True, NoData and NaN values will be skipped during prediction. This
-            speeds up processing of partially masked features, but may be incompatible
-            if estimators expect a consistent number of input samples.
+            If True, NoData and NaN values will be not be passed to `func`. This speeds
+            up processing of partially masked features, but may be incompatible if
+            `func` expects a consistent number of input samples.
         nodata_output : float or int or tuple, optional
             NoData samples in the input features will be replaced with this value in the
-            output features. If the value does not fit the array dtype returned by the
-            estimator, an error will be raised unless `allow_cast` is True. Defaults to
-            np.nan.
+            output features. If the value does not fit the array dtype(s) returned by
+            `func`, an error will be raised unless `allow_cast` is True. When `func`
+            returns multiple arrays, you can provide either a single value for all
+            arrays or a tuple with one value per output array. Defaults to np.nan.
         nan_fill : float or int, optional
             If `skip_nodata=False`, any NaNs in the input array will be filled with this
             value prior to calling `func` to avoid errors from functions that do not
             support NaN inputs. If None, NaNs will not be filled.
         ensure_min_samples : int, default 1
-            The minimum number of samples that should be passed to `transform`. If the
+            The minimum number of samples that should be passed to `func`. If the
             array is fully masked and `skip_nodata=True`, dummy values (0) will be
-            inserted to ensure this number of samples. The minimum supported number of
-            samples depends on the estimator used. No effect if the array contains
+            inserted to ensure this number of samples. No effect if the array contains
             enough unmasked samples or if `skip_nodata=False`.
         allow_cast : bool, default=False
-            If True and the estimator output dtype is incompatible with the chosen
+            If True and the `func` output dtype is incompatible with the chosen
             `nodata_output` value, the output will be cast to the correct dtype instead
             of raising an error.
         check_output_for_nodata : bool, default True
             If True and `nodata_output` is not np.nan, a warning will be raised if the
-            selected `nodata_output` value is returned by the estimator, as this may
-            indicate a valid sample being masked.
+            selected `nodata_output` value is returned by `func`, as this may indicate a
+            valid sample being masked.
         keep_attrs : bool, default=False
             If True and the input is an Xarray object, the output will keep all
-            attributes of the input features, unless they're set by the estimator (e.g.
-            `_FillValue` or `long_name`). Note that some attributes (e.g.
-            `scale_factor`) may become inaccurate, which is why they are dropped by
-            default. The `history` attribute will always be kept. No effect if the
-            input is a Numpy array.
+            attributes of the input features, unless they're set by `func`. Note that
+            some attributes (e.g. `scale_factor`) may become inaccurate, which is why
+            they are dropped by default. The `history` attribute will always be kept. No
+            effect if the input is a Numpy array.
         inner_thread_limit : int or None, default=1
             The maximum number of threads allowed per Dask worker. Higher values can
             result in nested parallelism and oversubscription, which may cause
