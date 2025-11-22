@@ -12,8 +12,11 @@ from numpy.typing import NDArray
 
 from .types import ArrayUfunc, FeatureArrayType, MaybeTuple, MissingType, NoDataType
 from .ufunc import UfuncSampleProcessor
-from .utils.decorators import limit_inner_threads, map_over_arguments
-from .utils.features import reshape_to_samples
+from .utils.decorators import (
+    limit_inner_threads,
+    map_over_arguments,
+    with_input_dimensions,
+)
 
 
 class FeatureArray(Generic[FeatureArrayType], ABC):
@@ -157,7 +160,7 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
                 k: list(range(s)) for k, s in output_sizes.items()
             }
 
-        @reshape_to_samples
+        @with_input_dimensions(2)
         @limit_inner_threads(inner_thread_limit)
         def ufunc(x):
             return UfuncSampleProcessor(x, nodata_input=self.nodata_input).apply(

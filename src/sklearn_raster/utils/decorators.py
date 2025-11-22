@@ -5,6 +5,7 @@ from inspect import signature
 from typing import TYPE_CHECKING, Callable
 
 import threadpoolctl
+from numpy.typing import NDArray
 from sklearn.utils.validation import check_is_fitted
 from typing_extensions import Concatenate
 
@@ -224,3 +225,99 @@ def limit_inner_threads(
         return wrapper
 
     return decorator
+
+
+def with_input_dimensions(ndim: int | None):
+    """
+    A decorator that reshapes input arrays to a given dimensionality.
+
+    This allows functions designed for a specific dimensionality to generalize for
+    n-dimensional inputs by 1) flattening or padding the dimensions of input arrays, and
+    2) restoring the original dimensionality in output arrays. Dimensions are modified
+    from left to right.
+
+    Notes
+    -----
+    The decorated function must:
+    1. Accept one or more arrays as the only positional arguments. Keyword arguments are
+       passed through unmodified.
+    2. Return one or more arrays with the same dimensionality and shape as its inputs,
+       except for the last dimension which may change.
+
+    Parameters
+    ----------
+    ndim : int | None
+        The dimensionality expected by the decorated function. When `ndim` is less than
+        the array dimensionality, dimensions are flattened from the left. When `ndim` is
+        greater than the array dimensionality, new dimensions are added to the left. For
+        example, an array of shape `(10, 10, 1)` with `ndim=2` is flattened to
+        `(100, 1)`, while an array of shape `(10, 1)` with `ndim=3` is expanded to
+        `(1, 10, 1)`. When `ndim=None`, the function is returned unmodified.
+
+    Returns
+    -------
+    Callable
+        The decorated function which will receive reshaped arrays and return outputs
+        with restored dimensionality.
+    """
+    # Skip the decorator and return the unmodified function
+    if ndim is None:
+        return lambda func: func
+
+    def decorator(func):
+        @wraps(func)
+        def validate_and_reshape(*arrays: NDArray, **kwargs) -> MaybeTuple[NDArray]:
+            # No-op if called without inputs
+            if not arrays:
+                return func(*arrays, **kwargs)
+
+            # Input shapes must be consistent to determine the output shape
+            shapes = tuple(set([a.shape for a in arrays]))
+            if len(shapes) > 1:
+                raise ValueError("All arrays must have the same shape.")
+
+            shape_in = shapes[0]
+            ndim_in = len(shape_in)
+            # Input is already the correct dimensionality - no need for reshaping
+            if ndim_in == ndim:
+                return func(*arrays, **kwargs)
+
+            @map_over_arguments("out")
+            def restore_dimensions(out: NDArray) -> NDArray:
+                # For the output shape to be solvable, only one dimension can change.
+                # Since we flatten/expand from the left, we allow the rightmost final
+                # dimension to change.
+                shape_out = tuple([*shape_in[:-1], -1])
+                return out.reshape(shape_out)
+
+            reshaped = [_reshape_to_ndim(a, ndim) for a in arrays]
+            result = func(*reshaped, **kwargs)
+            return restore_dimensions(result)
+
+        return validate_and_reshape
+
+    return decorator
+
+
+def _reshape_to_ndim(array: NDArray, ndim: int) -> NDArray:
+    """
+    Reshape an array to ndim, flattening or expanding dimensions from left to right.
+    """
+    if ndim < 1:
+        raise ValueError("Cannot reshape to ndim < 1")
+
+    shape_in = array.shape
+    ndim_in = len(shape_in)
+
+    # Flatten extra dimensions
+    if ndim < ndim_in:
+        keep_dims = shape_in[ndim_in - ndim + 1 :]
+        new_dims: tuple[int, ...] = (-1,)
+
+    # Expand new dimensions
+    else:
+        keep_dims = shape_in
+        new_dims = tuple([1] * (ndim - ndim_in))
+
+    shape_out = (*new_dims, *keep_dims)
+    return array.reshape(shape_out)
