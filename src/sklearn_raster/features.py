@@ -15,7 +15,7 @@ from .ufunc import UfuncSampleProcessor
 from .utils.decorators import (
     limit_inner_threads,
     map_over_arguments,
-    with_input_dimensions,
+    with_inputs_reshaped_to_ndim,
 )
 
 
@@ -160,7 +160,7 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
                 k: list(range(s)) for k, s in output_sizes.items()
             }
 
-        @with_input_dimensions(2)
+        @with_inputs_reshaped_to_ndim(2)
         @limit_inner_threads(inner_thread_limit)
         def ufunc(x):
             return UfuncSampleProcessor(x, nodata_input=self.nodata_input).apply(

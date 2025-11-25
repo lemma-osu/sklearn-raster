@@ -227,7 +227,7 @@ def limit_inner_threads(
     return decorator
 
 
-def with_input_dimensions(ndim: int | None):
+def with_inputs_reshaped_to_ndim(ndim: int | None):
     """
     A decorator that reshapes input arrays to a given dimensionality.
 

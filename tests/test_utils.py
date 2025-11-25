@@ -5,7 +5,7 @@ import pytest
 
 from sklearn_raster.utils.decorators import (
     map_over_arguments,
-    with_input_dimensions,
+    with_inputs_reshaped_to_ndim,
 )
 from sklearn_raster.utils.features import get_minimum_precise_numeric_dtype
 
@@ -54,12 +54,12 @@ def test_map_over_arguments_validation():
         (4, (1, 2, 4, 1)),
     ],
 )
-def test_with_input_dimensions(ndim: int, expected_shape: tuple[int, ...]):
+def test_with_inputs_reshaped_to_ndim(ndim: int, expected_shape: tuple[int, ...]):
     """
-    Test that with_input_dimensions flattens, expands, and restores dimensions.
+    Test that with_inputs_reshaped_to_ndim flattens, expands, and restores dimensions.
     """
 
-    @with_input_dimensions(ndim)
+    @with_inputs_reshaped_to_ndim(ndim)
     def assert_shape(x):
         assert x.shape == expected_shape
         return x
