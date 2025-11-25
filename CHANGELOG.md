@@ -12,6 +12,10 @@ All notable changes to this project will be documented in this file.
 
 - All estimator methods now accept an `inner_thread_limit` keyword argument which limits nested parallelism within Dask workers
 
+### Changed
+
+- Replaced `utils.features.reshape_to_samples` with the more generalized `utils.decorators.with_inputs_reshaped_to_ndim` which supports reshaping multiple arrays to arbitrary dimensionality
+
 ## [0.1.0.dev1] - 2025-11-04
 
 ### Fixed
