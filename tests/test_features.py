@@ -420,6 +420,25 @@ def test_nodata_multiple_values():
     assert features.nodata_input.mask.tolist() == [False] * n_features
 
 
+def test_nodata_input_unsupported_dtype():
+    """
+    When input NoData values don't fit in the feature array, they should be skipped and
+    a warning should be raised.
+    """
+    nodata_input = [-1, 0, 0.99, 42, 32768]
+    a = np.zeros((len(nodata_input), 2, 2), dtype=np.uint8)
+
+    expected_msg = re.escape(
+        "NoData value(s) [-1, 0.99, 32768] cannot be safely cast to the feature array "
+        "dtype uint8, so they will be ignored."
+    )
+    with pytest.warns(UserWarning, match=expected_msg):
+        fa = FeatureArray.from_feature_array(a, nodata_input=nodata_input)
+
+    assert fa.nodata_input.data.tolist() == [0, 0, 0, 42, 0]
+    assert fa.nodata_input.mask.tolist() == [True, False, True, False, True]
+
+
 @pytest.mark.parametrize("array_dtype", [np.uint8, np.float32])
 def test_nodata_input_masks_missing_values(array_dtype: np.dtype):
     """Test that None and NaN are treated as missing values in the NoData."""

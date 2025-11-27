@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Sized
 from datetime import datetime, timezone
@@ -73,7 +74,7 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
             )
 
         # Assign values feature-wise, disabling masking for None or NaN entries
-        return self._build_masked_nodata_array(np.asarray(nodata_input))
+        return self._build_masked_nodata_array(nodata_input)
 
     def _build_masked_nodata_array(self, values: NDArray) -> ma.MaskedArray:
         """
@@ -82,9 +83,35 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
         NaN-like values are replaced with zeros and masked, and the array is cast to the
         feature array type to ensure compatibility and avoid object dtypes.
         """
-        mask = np.isnan(values.astype(np.float32))
-        values = np.where(mask, 0, values)
-        return ma.masked_array(values, mask=mask).astype(self.feature_array.dtype)
+        # Casting to float converts None to NaN so we can mask both as invalid NoData
+        nodata_mask = np.isnan(np.asarray(values, dtype=np.float32))
+        # Use 0 to replace missing NoData values since it fits in any dtype
+        nodata_fill_value = 0
+
+        # Keep a copy of the original values as an object array so that we can check
+        # their dtype against the target dtype before any implicit casting occurs
+        original_values = np.asarray(values, dtype=object)
+
+        values = np.where(nodata_mask, nodata_fill_value, values)
+        target_dtype = self.feature_array.dtype
+
+        # Identify, skip, and warn for any NoData values that can't fit in the feature
+        # array type, since we don't want to mask with a rounded or truncated value.
+        uncastable = []
+        for i, val in enumerate(original_values[~nodata_mask]):
+            if not np.can_cast(np.min_scalar_type(val), target_dtype):
+                uncastable.append(val)
+                nodata_mask[i] = True
+                values[i] = 0
+        if uncastable:
+            msg = (
+                f"The selected or inferred NoData value(s) {uncastable} cannot be "
+                f"safely cast to the feature array dtype {target_dtype}, so they will "
+                "be ignored."
+            )
+            warnings.warn(msg, UserWarning, stacklevel=2)
+
+        return ma.masked_array(values, mask=nodata_mask, dtype=target_dtype)
 
     def apply_ufunc_across_features(
         self,
