@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from typing import Any, Callable, Generic
 
 import numpy as np
+import numpy.ma as ma
 import pandas as pd
 import xarray as xr
 from numpy.typing import NDArray
@@ -33,9 +34,11 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
     ):
         self.feature_array = feature_array
         self.n_features = self.feature_array.shape[self.feature_dim]
-        self.nodata_input: NDArray = self._validate_nodata_input(nodata_input)
+        self.nodata_input = self._validate_nodata_input(nodata_input)
 
-    def _validate_nodata_input(self, nodata_input: NoDataType | MissingType) -> NDArray:
+    def _validate_nodata_input(
+        self, nodata_input: NoDataType | MissingType
+    ) -> ma.MaskedArray:
         """
         Get an array of NoData values in the shape (n_features,) based on user input.
 
@@ -43,17 +46,16 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
         number of features and cast to ndarrays. There is no need to specify np.nan as a
         NoData value because it will be masked automatically for floating point arrays.
         """
-        # Subclasses may infer NoData values when the input is missing, but the base
-        # implementation just falls back to None
-        if nodata_input is MissingType.MISSING:
-            nodata_input = None
+        # If it's missing or None, use NaN to disable NoData for all features
+        if nodata_input is MissingType.MISSING or nodata_input is None:
+            nodata_input = np.nan
 
-        # If it's None or a numeric scalar, broadcast it to all features
-        if nodata_input is None or (
-            isinstance(nodata_input, (float, int))
-            and not isinstance(nodata_input, bool)
+        # If it's a numeric scalar (including NaN), broadcast it to all features
+        if isinstance(nodata_input, (float, int)) and not isinstance(
+            nodata_input, bool
         ):
-            return np.full((self.n_features,), nodata_input)
+            values = np.full((self.n_features,), nodata_input)
+            return self._build_masked_nodata_array(values)
 
         # If it's not a scalar, it must be an iterable
         if not isinstance(nodata_input, Sized) or isinstance(nodata_input, (str, dict)):
@@ -70,7 +72,19 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
                 f" The length of `nodata_input` must match the number of features."
             )
 
-        return np.asarray(nodata_input)
+        # Assign values feature-wise, disabling masking for None or NaN entries
+        return self._build_masked_nodata_array(np.asarray(nodata_input))
+
+    def _build_masked_nodata_array(self, values: NDArray) -> ma.MaskedArray:
+        """
+        Build a masked NoData array.
+
+        NaN-like values are replaced with zeros and masked, and the array is cast to the
+        feature array type to ensure compatibility and avoid object dtypes.
+        """
+        mask = np.isnan(values.astype(np.float32))
+        values = np.where(mask, 0, values)
+        return ma.masked_array(values, mask=mask).astype(self.feature_array.dtype)
 
     def apply_ufunc_across_features(
         self,
@@ -291,18 +305,17 @@ class DataArrayFeatures(FeatureArray):
     def feature_names(self) -> NDArray:
         return self.feature_array[self.feature_dim_name].values
 
-    def _validate_nodata_input(self, nodata_input: NoDataType | MissingType) -> NDArray:
+    def _validate_nodata_input(
+        self, nodata_input: NoDataType | MissingType
+    ) -> ma.MaskedArray:
         """
         Get an array of NoData values in the shape (features,) based on user input and
         DataArray metadata.
         """
-        # Infer NoData from _FillValue if present (or None) for all features
+        # Infer NoData from _FillValue for all features
         if nodata_input is MissingType.MISSING:
-            return np.full(
-                (self.n_features,), self.feature_array.attrs.get("_FillValue")
-            )
+            nodata_input = self.feature_array.attrs.get("_FillValue")
 
-        # Defer to user-provided NoData values over stored attributes
         return super()._validate_nodata_input(nodata_input)
 
     @map_over_arguments("result", "nodata_output")
@@ -400,21 +413,20 @@ class DatasetFeatures(DataArrayFeatures):
     def feature_names(self) -> NDArray:
         return np.array(list(self.dataset.data_vars))
 
-    def _validate_nodata_input(self, nodata_input: NoDataType | MissingType) -> NDArray:
+    def _validate_nodata_input(
+        self, nodata_input: NoDataType | MissingType
+    ) -> ma.MaskedArray:
         """
         Get an array of NoData values in the shape (features,) based on user input and
         Dataset metadata.
         """
         # Infer NoData from _FillValue if present (or None) for each feature
         if nodata_input is MissingType.MISSING:
-            return np.asarray(
-                [
-                    self.dataset[var].attrs.get("_FillValue")
-                    for var in self.dataset.data_vars
-                ]
-            )
+            nodata_input = [
+                self.dataset[var].attrs.get("_FillValue")
+                for var in self.dataset.data_vars
+            ]
 
-        # Defer to user-provided NoData values
         return super()._validate_nodata_input(nodata_input)
 
     @map_over_arguments("result", "nodata_output")

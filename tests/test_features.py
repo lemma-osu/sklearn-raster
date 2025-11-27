@@ -405,7 +405,8 @@ def test_nodata_single_value():
     a = np.zeros((n_features, 2, 2))
 
     features = FeatureArray.from_feature_array(a, nodata_input=nodata_val)
-    assert features.nodata_input.tolist() == [nodata_val] * n_features
+    assert features.nodata_input.data.tolist() == [nodata_val] * n_features
+    assert features.nodata_input.mask.tolist() == [False] * n_features
 
 
 def test_nodata_multiple_values():
@@ -415,10 +416,27 @@ def test_nodata_multiple_values():
     a = np.zeros((n_features, 2, 2))
 
     features = FeatureArray.from_feature_array(a, nodata_input=nodata_input)
-    assert features.nodata_input.tolist() == nodata_input
+    assert features.nodata_input.data.tolist() == nodata_input
+    assert features.nodata_input.mask.tolist() == [False] * n_features
 
 
-@pytest.mark.parametrize("nodata_input", [MissingType.MISSING, None, -32768])
+@pytest.mark.parametrize("array_dtype", [np.uint8, np.float32])
+def test_nodata_input_masks_missing_values(array_dtype: np.dtype):
+    """Test that None and NaN are treated as missing values in the NoData."""
+    n_features = 4
+    nodata_input = [None, 255, np.nan, 0]
+    a = np.ones((n_features, 2, 2), dtype=array_dtype)
+    features = FeatureArray.from_feature_array(a, nodata_input=nodata_input)
+
+    # nodata_input should match the array dtype
+    assert features.nodata_input.dtype == a.dtype
+
+    # Missing values (NaN or None) should be replaced with zeroes and masked
+    assert features.nodata_input.data.tolist() == [0, 255, 0, 0]
+    assert features.nodata_input.mask.tolist() == [True, False, True, False]
+
+
+@pytest.mark.parametrize("nodata_input", [MissingType.MISSING, None, 255])
 def test_nodata_dataarray_fillvalue(nodata_input):
     """Test that a _FillValue in a DataArray is broadcast if NoData is not provided."""
     n_features = 3
@@ -431,9 +449,16 @@ def test_nodata_dataarray_fillvalue(nodata_input):
 
     # _FillValue should only be used if nodata_input is not provided (including None)
     if nodata_input == MissingType.MISSING:
-        assert features.nodata_input.tolist() == [fill_val] * n_features
+        assert features.nodata_input.data.tolist() == [fill_val] * n_features
+        assert features.nodata_input.mask.tolist() == [False] * n_features
+    # None should be treated as all missing values
+    elif nodata_input is None:
+        assert features.nodata_input.data.tolist() == [0] * n_features
+        assert features.nodata_input.mask.tolist() == [True] * n_features
+    # Otherwise, nodata_input should be used
     else:
-        assert features.nodata_input.tolist() == [nodata_input] * n_features
+        assert features.nodata_input.data.tolist() == [nodata_input] * n_features
+        assert features.nodata_input.mask.tolist() == [False] * n_features
 
 
 @pytest.mark.parametrize("nodata_input", [MissingType.MISSING, None, -32768])
@@ -461,12 +486,20 @@ def test_nodata_dataset_infers_fillvalues(nodata_input, fill_vals):
     ds = xr.merge(das).assign_attrs({"_FillValue": -999})
     features = FeatureArray.from_feature_array(ds, nodata_input=nodata_input)
 
-    # NoData vals should match the fill values, even if some are None
+    # nodata_input is missing: use non-null _FillValue for each feature
     if nodata_input is MissingType.MISSING:
-        assert features.nodata_input.tolist() == fill_vals
-    # _FillValue should be ignored if nodata_input is provided
+        assert features.nodata_input.data.tolist() == [val or 0 for val in fill_vals]
+        assert features.nodata_input.mask.tolist() == [val is None for val in fill_vals]
+
+    # nodata_input is None: ignore _FillValue and treat all as missing
+    elif nodata_input is None:
+        assert features.nodata_input.data.tolist() == [0] * n_features
+        assert features.nodata_input.mask.tolist() == [True] * n_features
+
+    # nodata_input is non-null: ignore _FillValue and use provided value
     else:
-        assert features.nodata_input.tolist() == [nodata_input] * n_features
+        assert features.nodata_input.data.tolist() == [nodata_input] * n_features
+        assert features.nodata_input.mask.tolist() == [False] * n_features
 
 
 @pytest.mark.parametrize("nodata_output", [np.nan, 0, -32768])

@@ -15,6 +15,7 @@ All notable changes to this project will be documented in this file.
 ### Changed
 
 - Replaced `utils.features.reshape_to_samples` with the more generalized `utils.decorators.with_inputs_reshaped_to_ndim` which supports reshaping multiple arrays to arbitrary dimensionality
+- `FeatureArray.nodata_input` now uses a masked array to encode missing NoData values, rather than encoding them as `None` and implicitly casting to an `object` type array which impacts ufunc performance.
 
 ## [0.1.0.dev1] - 2025-11-04
 
