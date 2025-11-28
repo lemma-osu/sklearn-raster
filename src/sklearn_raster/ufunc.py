@@ -51,7 +51,12 @@ class UfuncSampleProcessor:
 
         # If NoData was specified, mask those values
         if nodata_specified:
-            mask |= (self.samples == self.nodata_input) & (~self.nodata_input.mask)
+            # Fast path: NoData values should be applied to all features
+            if not np.any(self.nodata_input.mask):
+                mask |= self.samples == self.nodata_input.data
+            # Slow path: NoData values are missing from some features
+            else:
+                mask |= (self.samples == self.nodata_input) & (~self.nodata_input.mask)
 
         # Return a mask where any feature contains NoData
         return mask.max(axis=self.feature_dim)
