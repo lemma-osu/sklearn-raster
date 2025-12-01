@@ -111,7 +111,9 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
         # Identify, skip, and warn for any NoData values that can't fit in the feature
         # array type, since we don't want to mask with a rounded or truncated value.
         uncastable = []
-        for i, val in enumerate(original_values[~nodata_mask]):
+        for i, val in enumerate(original_values):
+            if nodata_mask[i]:
+                continue
             if not np.can_cast(np.min_scalar_type(val), target_dtype):
                 uncastable.append(val)
                 nodata_mask[i] = True
