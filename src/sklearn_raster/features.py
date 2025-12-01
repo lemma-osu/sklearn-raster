@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import warnings
 from abc import ABC, abstractmethod
-from collections.abc import Sized
+from collections.abc import Sequence, Sized
 from datetime import datetime, timezone
 from typing import Any, Callable, Generic
 
@@ -55,7 +55,7 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
         if isinstance(nodata_input, (float, int)) and not isinstance(
             nodata_input, bool
         ):
-            values = np.full((self.n_features,), nodata_input)
+            values = [nodata_input] * self.n_features
             return self._build_masked_nodata_array(values)
 
         # If it's not a scalar, it must be an iterable
@@ -76,7 +76,9 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
         # Assign values feature-wise, disabling masking for None or NaN entries
         return self._build_masked_nodata_array(nodata_input)
 
-    def _build_masked_nodata_array(self, values: NDArray) -> ma.MaskedArray:
+    def _build_masked_nodata_array(
+        self, values: Sequence[float | None]
+    ) -> ma.MaskedArray:
         """
         Build a masked NoData array.
 
@@ -92,7 +94,7 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
         # their dtype against the target dtype before any implicit casting occurs
         original_values = np.asarray(values, dtype=object)
 
-        values = np.where(nodata_mask, nodata_fill_value, values)
+        filled_values = np.where(nodata_mask, nodata_fill_value, values)
         target_dtype = self.feature_array.dtype
 
         # Identify, skip, and warn for any NoData values that can't fit in the feature
@@ -102,7 +104,7 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
             if not np.can_cast(np.min_scalar_type(val), target_dtype):
                 uncastable.append(val)
                 nodata_mask[i] = True
-                values[i] = 0
+                filled_values[i] = 0
         if uncastable:
             msg = (
                 f"The selected or inferred NoData value(s) {uncastable} cannot be "
@@ -111,7 +113,7 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
             )
             warnings.warn(msg, UserWarning, stacklevel=2)
 
-        return ma.masked_array(values, mask=nodata_mask, dtype=target_dtype)
+        return ma.masked_array(filled_values, mask=nodata_mask, dtype=target_dtype)
 
     def apply_ufunc_across_features(
         self,
