@@ -105,7 +105,8 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
         nodata_mask = np.asarray([v is None for v in values], dtype=bool)
 
         # Replace missing NoData values with zero since it fits in any dtype
-        filled_values = np.where(nodata_mask, 0, values)
+        missing_fill_value = 0
+        filled_values = np.where(nodata_mask, missing_fill_value, values)
         target_dtype = self.feature_array.dtype
 
         # Identify, skip, and warn for any NoData values that can't fit in the feature
@@ -117,7 +118,7 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
             if not np.can_cast(np.min_scalar_type(val), target_dtype):
                 uncastable.append(val)
                 nodata_mask[i] = True
-                filled_values[i] = 0
+                filled_values[i] = missing_fill_value
         if uncastable:
             msg = (
                 f"The selected or inferred NoData value(s) {uncastable} cannot be "
@@ -126,7 +127,12 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
             )
             warnings.warn(msg, UserWarning, stacklevel=2)
 
-        return ma.masked_array(filled_values, mask=nodata_mask, dtype=target_dtype)
+        return ma.masked_array(
+            filled_values,
+            mask=nodata_mask,
+            dtype=target_dtype,
+            fill_value=missing_fill_value,
+        )
 
     def apply_ufunc_across_features(
         self,
