@@ -47,13 +47,14 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
         number of features and cast to ndarrays. There is no need to specify np.nan as a
         NoData value because it will be masked automatically for floating point arrays.
         """
-        # If it's missing or None, use NaN to disable NoData for all features
+        # If it's missing or None, use None to disable NoData for all features
         if nodata_input is MissingType.MISSING or nodata_input is None:
-            nodata_input = np.nan
+            nodata_input = None
 
-        # If it's a numeric scalar (including NaN), broadcast it to all features
-        if isinstance(nodata_input, (float, int)) and not isinstance(
-            nodata_input, bool
+        # If it's a valid scalar (including None), broadcast it to all features
+        if nodata_input is None or (
+            isinstance(nodata_input, (float, int))
+            and not isinstance(nodata_input, bool)
         ):
             values = [nodata_input] * self.n_features
             return self._build_masked_nodata_array(values)
@@ -80,21 +81,31 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
         self, values: Sequence[float | None]
     ) -> ma.MaskedArray:
         """
-        Build a masked NoData array.
+        Build a masked NoData array from a sequence of NoData values.
 
-        NaN-like values are replaced with zeros and masked, and the array is cast to the
-        feature array type to ensure compatibility and avoid object dtypes.
+        Parameters
+        ----------
+        values : Sequence[float | None]
+            A sequence of NoData values, one per feature. None values indicate that
+            NoData masking should be disabled for that feature. Any values that cannot
+            be safely cast to the feature array dtype will be disabled with a warning.
+
+        Returns
+        -------
+        ma.MaskedArray
+            A masked array of NoData values with shape (n_features,). The mask is True
+            for features where the NoData value should not be applied (i.e., None or
+            uncastable values).
         """
-        # Casting to float converts None to NaN so we can mask both as invalid NoData
-        nodata_mask = np.isnan(np.asarray(values, dtype=np.float32))
-        # Use 0 to replace missing NoData values since it fits in any dtype
-        nodata_fill_value = 0
-
         # Keep a copy of the original values as an object array so that we can check
         # their dtype against the target dtype before any implicit casting occurs
         original_values = np.asarray(values, dtype=object)
 
-        filled_values = np.where(nodata_mask, nodata_fill_value, values)
+        # Create an initial mask to mark None values as missing
+        nodata_mask = np.asarray([v is None for v in values], dtype=bool)
+
+        # Replace missing NoData values with zero since it fits in any dtype
+        filled_values = np.where(nodata_mask, 0, values)
         target_dtype = self.feature_array.dtype
 
         # Identify, skip, and warn for any NoData values that can't fit in the feature
