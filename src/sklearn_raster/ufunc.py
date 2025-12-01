@@ -56,7 +56,9 @@ class UfuncSampleProcessor:
                 mask |= self.samples == self.nodata_input.data
             # Slow path: NoData values are missing from some features
             else:
-                mask |= (self.samples == self.nodata_input) & (~self.nodata_input.mask)
+                mask |= (self.samples == self.nodata_input.data) & (
+                    ~self.nodata_input.mask
+                )
 
         # Return a mask where any feature contains NoData
         return mask.max(axis=self.feature_dim)

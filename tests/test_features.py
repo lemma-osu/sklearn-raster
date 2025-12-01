@@ -433,8 +433,8 @@ def test_nodata_input_unsupported_dtype():
     # Note that None should be missing, not unsupported, so it shouldn't appear in the
     # warning message.
     expected_msg = re.escape(
-        "NoData value(s) [-1, 0.99, nan] cannot be safely cast to the feature array "
-        "dtype uint8, so they will be ignored."
+        "The selected or inferred NoData value(s) [-1, 0.99, nan] cannot be safely "
+        "cast to the feature array dtype uint8, so they will be ignored."
     )
     with pytest.warns(UserWarning, match=expected_msg):
         fa = FeatureArray.from_feature_array(a, nodata_input=nodata_input)
@@ -453,7 +453,7 @@ def test_nodata_input_masks_missing_values(array_dtype: np.dtype):
     # nodata_input should match the array dtype
     assert features.nodata_input.dtype == a.dtype
 
-    # Missing values (NaN or None) should be replaced with zeroes and masked
+    # Missing values (None) should be replaced with zeroes and masked
     assert features.nodata_input.data.tolist() == [0, 255, 0, 0]
     assert features.nodata_input.mask.tolist() == [True, False, True, False]
 
