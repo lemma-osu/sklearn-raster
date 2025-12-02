@@ -47,8 +47,10 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
         number of features and cast to ndarrays. There is no need to specify np.nan as a
         NoData value because it will be masked automatically for floating point arrays.
         """
-        # If it's missing or None, use None to disable NoData for all features
-        if nodata_input is MissingType.MISSING or nodata_input is None:
+        # If NoData isn't provided, treat all NoData values as missing by setting to
+        # None. Note that subclasses may distinguish between MISSING and None to infer
+        # NoData values.
+        if nodata_input is MissingType.MISSING:
             nodata_input = None
 
         # If it's a valid scalar (including None), broadcast it to all features
@@ -74,7 +76,7 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
                 f" The length of `nodata_input` must match the number of features."
             )
 
-        # Assign values feature-wise, disabling masking for None or NaN entries
+        # Assign values feature-wise, disabling masking for None entries
         return self._build_masked_nodata_array(nodata_input)
 
     def _build_masked_nodata_array(
