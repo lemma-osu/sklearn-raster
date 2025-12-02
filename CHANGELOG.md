@@ -7,10 +7,12 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 
 - Fix potential performance and stability issues from OpenBLAS oversubscription by limiting nested parallelism in [#87](https://github.com/lemma-osu/sklearn-raster/pull/87)
+- Fix slow performance when `nodata_input` contains explicit or inferred missing NoData values
 
 ### Added
 
 - All estimator methods now accept an `inner_thread_limit` keyword argument which limits nested parallelism within Dask workers
+- `nodata_input` values are now validated to ensure that they can be safely cast to the `FeatureArray` data type. If not, a `ValueError` is raised.
 
 ### Changed
 

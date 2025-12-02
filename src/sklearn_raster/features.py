@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Sequence, Sized
 from datetime import datetime, timezone
@@ -88,50 +87,50 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
         Parameters
         ----------
         values : Sequence[float | None]
-            A sequence of NoData values, one per feature. None values indicate that
-            NoData masking should be disabled for that feature. Any values that cannot
-            be safely cast to the feature array dtype will be disabled with a warning.
+            A sequence of NoData values, one per feature, where None indicates a missing
+            value. Values that can't be safely cast to the feature array dtype will
+            result in an error.
 
         Returns
         -------
         ma.MaskedArray
             A masked array of NoData values with shape (n_features,). The mask is True
-            for features where the NoData value should not be applied (i.e., None or
-            uncastable values).
+            for features where the NoData value is None, indicating a missing value that
+            should not be applied.
         """
         # Keep a copy of the original values as an object array so that we can check
         # their dtype against the target dtype before any implicit casting occurs
         original_values = np.asarray(values, dtype=object)
 
-        # Create an initial mask to mark None values as missing
-        nodata_mask = np.asarray([v is None for v in values], dtype=bool)
+        # Create a mask to mark None values as missing
+        missing_values = np.asarray([v is None for v in values], dtype=bool)
 
         # Replace missing NoData values with zero since it fits in any dtype
         missing_fill_value = 0
-        filled_values = np.where(nodata_mask, missing_fill_value, values)
+        filled_values = np.where(missing_values, missing_fill_value, values)
         target_dtype = self.feature_array.dtype
 
-        # Identify, skip, and warn for any NoData values that can't fit in the feature
-        # array type, since we don't want to mask with a rounded or truncated value.
+        # Raise if any NoData values that can't fit in the feature array type, since we
+        # don't want to mask with a rounded or truncated value.
         uncastable = []
         for i, val in enumerate(original_values):
-            if nodata_mask[i]:
+            if missing_values[i]:
                 continue
             if not np.can_cast(np.min_scalar_type(val), target_dtype):
                 uncastable.append(val)
-                nodata_mask[i] = True
-                filled_values[i] = missing_fill_value
         if uncastable:
             msg = (
                 f"The selected or inferred NoData value(s) {uncastable} cannot be "
-                f"safely cast to the feature array dtype {target_dtype}, so they will "
-                "be ignored."
+                f"safely cast to the feature array dtype {target_dtype}. Ensure that "
+                "all values in `nodata_input` are compatible with the data type, or "
+                "`None` to disable NoData masking. If `nodata_input` was not provided, "
+                "check the `_FillValue` attribute(s) of the input data."
             )
-            warnings.warn(msg, UserWarning, stacklevel=2)
+            raise ValueError(msg)
 
         return ma.masked_array(
             filled_values,
-            mask=nodata_mask,
+            mask=missing_values,
             dtype=target_dtype,
             fill_value=missing_fill_value,
         )
