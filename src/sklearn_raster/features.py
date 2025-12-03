@@ -110,8 +110,8 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
         filled_values = np.where(missing_values, missing_fill_value, values)
         target_dtype = self.feature_array.dtype
 
-        # Raise if any NoData values that can't fit in the feature array type, since we
-        # don't want to mask with a rounded or truncated value.
+        # Raise if any NoData values can't be safely cast to the feature array dtype,
+        # to avoid masking with a rounded or truncated value.
         uncastable = []
         for i, val in enumerate(original_values):
             if missing_values[i]:
