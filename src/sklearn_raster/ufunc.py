@@ -4,6 +4,7 @@ from typing import cast
 from warnings import warn
 
 import numpy as np
+import numpy.ma as ma
 from numpy.typing import NDArray
 
 from .types import ArrayUfunc, MaybeTuple
@@ -24,7 +25,7 @@ class UfuncSampleProcessor:
 
     feature_dim = -1
 
-    def __init__(self, samples: NDArray, *, nodata_input: NDArray):
+    def __init__(self, samples: NDArray, *, nodata_input: ma.MaskedArray):
         self.samples = samples
         self.nodata_input = nodata_input
 
@@ -37,8 +38,8 @@ class UfuncSampleProcessor:
         self._num_unmasked = num_samples - self._num_masked
 
     def _get_nodata_mask(self) -> NDArray | None:
-        # Skip allocating a mask if the array is not float and NoData wasn't given
-        nodata_specified = np.any([n is not None for n in self.nodata_input])
+        # Skip allocating a mask if there's no chance of NoData values
+        nodata_specified = np.any(~self.nodata_input.mask)
         if not self._input_supports_nan and not nodata_specified:
             return None
 
@@ -50,7 +51,14 @@ class UfuncSampleProcessor:
 
         # If NoData was specified, mask those values
         if nodata_specified:
-            mask |= self.samples == self.nodata_input
+            # Fast path: NoData values should be applied to all features
+            if not np.any(self.nodata_input.mask):
+                mask |= self.samples == self.nodata_input.data
+            # Slow path: NoData values are missing from some features
+            else:
+                mask |= (self.samples == self.nodata_input.data) & (
+                    ~self.nodata_input.mask
+                )
 
         # Return a mask where any feature contains NoData
         return mask.max(axis=self.feature_dim)
