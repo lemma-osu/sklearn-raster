@@ -565,6 +565,24 @@ def test_nodata_output_set_in_dataset_attrs(nodata_output: int | float):
             assert result[var].attrs.get("_FillValue") == nodata_output
 
 
+@parametrize_feature_array_types(feature_array_types=[xr.DataArray, xr.Dataset])
+def test_empty_output_sizes_error(feature_array_type: type[FeatureArrayType]):
+    """Test that missing output sizes raise a helpful error."""
+    a = wrap_features(np.array([[[1, 2]]]), type=feature_array_type)
+    features = FeatureArray.from_feature_array(a)
+
+    msg = (
+        "dimension 'variable' in 'output_core_dims' needs corresponding (dim, size) in "
+        "'output_sizes'"
+    )
+    with pytest.raises(ValueError, match=re.escape(msg)):
+        features.apply_ufunc_across_features(
+            lambda x: x,
+            output_dims=[["variable"]],
+            output_sizes=None,
+        )
+
+
 @pytest.mark.parametrize("thread_limit", [1, 2, 8])
 def test_inner_thread_limit(thread_limit: int):
     """

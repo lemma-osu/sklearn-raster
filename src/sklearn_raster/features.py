@@ -217,8 +217,12 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
         FeatureArrayType or tuple[FeatureArrayType]
             The result of applying the universal function across features.
         """
-        if output_sizes is not None:
-            # Default to sequential coordinates for each output dimension
+        if output_sizes is None:
+            # Xarray raises a confusing TypeError if output_sizes is required and isn't
+            # iterable. An empty dict will still fail, but with a better message.
+            output_sizes = {}
+        else:
+            # Use output_sizes to build sequential coordinates for each output dimension
             output_coords = output_coords or {
                 k: list(range(s)) for k, s in output_sizes.items()
             }
