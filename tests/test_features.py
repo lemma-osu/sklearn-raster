@@ -420,6 +420,18 @@ def test_nodata_multiple_values():
     assert features.nodata_input.mask.tolist() == [False] * n_features
 
 
+def test_nodata_positive_value_cast_to_signed_dtype():
+    """Test that a large positive NoData value can be cast to a signed dtype."""
+    # https://github.com/lemma-osu/sklearn-raster/issues/96
+    n_features = 1
+    nodata_val = 999
+    a = np.zeros((n_features, 2, 2), dtype=np.int16)
+
+    features = FeatureArray.from_feature_array(a, nodata_input=nodata_val)
+    assert features.nodata_input.data.tolist() == [nodata_val] * n_features
+    assert features.nodata_input.mask.tolist() == [False] * n_features
+
+
 def test_nodata_input_unsupported_dtype():
     """When input NoData values don't fit in the feature array, an error is raised."""
     # Place a missing None value at the start of the list to ensure that unsupported
