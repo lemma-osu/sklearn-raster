@@ -143,11 +143,18 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
             If True, NoData and NaN values will be skipped during prediction. This
             speeds up processing of partially masked arrays, but may be incompatible if
             estimators expect a consistent number of input samples.
-        nodata_input : float, sequence of floats, or None, optional
-            NoData values other than NaN to mask in the output array. A single value
-            will be broadcast to all features while sequences of values will be assigned
-            feature-wise. By default, values will be inferred if possible based on
-            available metadata.
+        nodata_input : float, sequence of floats, dict, or None, optional
+            Values encoded as NoData in the input array to be masked in the output
+            array. These can be defined with:
+
+            - A single value broadcast to all features.
+            - A sequence with one value for each feature.
+            - A dict mapping from feature name or index to value.
+
+            A value of None disables masking for the selected feature. NaN is always
+            treated as NoData and does not need to be specified. When `nodata_input` is
+            not provided, it will be inferred if possible based on available metadata
+            for the given array type, e.g. `_FillValue` attributes.
         nodata_output : float or int, default np.nan
             NoData samples in the input features will be replaced with this value in the
             output targets. If the value does not fit the array dtype returned by the
@@ -248,11 +255,18 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
             If True, NoData and NaN values will be skipped during prediction. This
             speeds up processing of partially masked arrays, but may be incompatible if
             estimators expect a consistent number of input samples.
-        nodata_input : float, sequence of floats, or None, optional
-            NoData values other than NaN to mask in the output array. A single value
-            will be broadcast to all features while sequences of values will be assigned
-            feature-wise. By default, values will be inferred if possible based on
-            available metadata.
+        nodata_input : float, sequence of floats, dict, or None, optional
+            Values encoded as NoData in the input array to be masked in the output
+            array. These can be defined with:
+
+            - A single value broadcast to all features.
+            - A sequence with one value for each feature.
+            - A dict mapping from feature name or index to value.
+
+            A value of None disables masking for the selected feature. NaN is always
+            treated as NoData and does not need to be specified. When `nodata_input` is
+            not provided, it will be inferred if possible based on available metadata
+            for the given array type, e.g. `_FillValue` attributes.
         nodata_output : float or int, default np.nan
             NoData samples in the input features will be replaced with this value in the
             output targets. If the value does not fit the array dtype returned by the
@@ -401,11 +415,18 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
             If True, NoData and NaN values will be skipped during prediction. This
             speeds up processing of partially masked features, but may be incompatible
             if estimators expect a consistent number of input samples.
-        nodata_input : float, sequence of floats, or None, optional
-            NoData values other than NaN to mask in the output array. A single value
-            will be broadcast to all features while sequences of values will be assigned
-            feature-wise. By default, values will be inferred if possible based on
-            available metadata.
+        nodata_input : float, sequence of floats, dict, or None, optional
+            Values encoded as NoData in the input array to be masked in the output
+            array. These can be defined with:
+
+            - A single value broadcast to all features.
+            - A sequence with one value for each feature.
+            - A dict mapping from feature name or index to value.
+
+            A value of None disables masking for the selected feature. NaN is always
+            treated as NoData and does not need to be specified. When `nodata_input` is
+            not provided, it will be inferred if possible based on available metadata
+            for the given array type, e.g. `_FillValue` attributes.
         nodata_output : float or int or tuple, optional
             NoData samples in the input features will be replaced with this value in the
             output targets. If the value does not fit the array dtype returned by the
@@ -520,11 +541,18 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
             If True, NoData and NaN values will be skipped during prediction. This
             speeds up processing of partially masked features, but may be incompatible
             if estimators expect a consistent number of input samples.
-        nodata_input : float, sequence of floats, or None, optional
-            NoData values other than NaN to mask in the output array. A single value
-            will be broadcast to all features while sequences of values will be assigned
-            feature-wise. By default, values will be inferred if possible based on
-            available metadata.
+        nodata_input : float, sequence of floats, dict, or None, optional
+            Values encoded as NoData in the input array to be masked in the output
+            array. These can be defined with:
+
+            - A single value broadcast to all features.
+            - A sequence with one value for each feature.
+            - A dict mapping from feature name or index to value.
+
+            A value of None disables masking for the selected feature. NaN is always
+            treated as NoData and does not need to be specified. When `nodata_input` is
+            not provided, it will be inferred if possible based on available metadata
+            for the given array type, e.g. `_FillValue` attributes.
         nodata_output : float or int or tuple, optional
             NoData samples in the input features will be replaced with this value in the
             output features. If the value does not fit the array dtype returned by the
@@ -619,11 +647,18 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
             If True, NoData and NaN values will be skipped during prediction. This
             speeds up processing of partially masked features, but may be incompatible
             if estimators expect a consistent number of input samples.
-        nodata_input : float, sequence of floats, or None, optional
-            NoData values other than NaN to mask in the output array. A single value
-            will be broadcast to all features while sequences of values will be assigned
-            feature-wise. By default, values will be inferred if possible based on
-            available metadata.
+        nodata_input : float, sequence of floats, dict, or None, optional
+            Values encoded as NoData in the input array to be masked in the output
+            array. These can be defined with:
+
+            - A single value broadcast to all features.
+            - A sequence with one value for each feature.
+            - A dict mapping from feature name or index to value.
+
+            A value of None disables masking for the selected feature. NaN is always
+            treated as NoData and does not need to be specified. When `nodata_input` is
+            not provided, it will be inferred if possible based on available metadata
+            for the given array type, e.g. `_FillValue` attributes.
         nodata_output : float or int or tuple, optional
             NoData samples in the input features will be replaced with this value in the
             output features. If the value does not fit the array dtype returned by the
