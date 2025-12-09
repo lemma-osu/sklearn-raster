@@ -8,6 +8,7 @@ All notable changes to this project will be documented in this file.
 
 - Fix potential performance and stability issues from OpenBLAS oversubscription by limiting nested parallelism in [#87](https://github.com/lemma-osu/sklearn-raster/pull/87)
 - Fix slow performance when `nodata_input` contains explicit or inferred missing NoData values
+- When `output_sizes` is required but not provided to `FeatureArray.apply_ufunc_across_features`, a helpful error message is raised
 
 ### Added
 
