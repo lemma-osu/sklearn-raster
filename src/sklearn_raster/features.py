@@ -392,7 +392,7 @@ class DataArrayFeatures(FeatureArray):
 
     @property
     def _default_nodata_mapping(self) -> NoDataMap:
-        # Infer Nodata from global _FillValue (or None) for all features
+        # Infer NoData from global _FillValue (or None) for all features
         global_fill_value = self.feature_array.attrs.get("_FillValue")
         return {name: global_fill_value for name in self.feature_names}
 
