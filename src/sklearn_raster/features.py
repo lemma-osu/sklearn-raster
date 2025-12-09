@@ -69,7 +69,7 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
         # If it's a dict, map names or indices to values, falling back to inferred
         # default values for unspecified features
         if isinstance(nodata_input, dict):
-            defaults = self._default_nodata_mapping
+            defaults = self._default_nodata_mapping.copy()
             for key, val in nodata_input.items():
                 if key not in defaults:
                     msg = (
