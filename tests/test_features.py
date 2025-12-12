@@ -407,6 +407,7 @@ def test_nodata_single_value():
     features = FeatureArray.from_feature_array(a, nodata_input=nodata_val)
     assert features.nodata_input.data.tolist() == [nodata_val] * n_features
     assert features.nodata_input.mask.tolist() == [False] * n_features
+    assert features.nodata_input.dtype == a.dtype
 
 
 def test_nodata_multiple_values():
@@ -418,6 +419,7 @@ def test_nodata_multiple_values():
     features = FeatureArray.from_feature_array(a, nodata_input=nodata_input)
     assert features.nodata_input.data.tolist() == nodata_input
     assert features.nodata_input.mask.tolist() == [False] * n_features
+    assert features.nodata_input.dtype == a.dtype
 
 
 def test_nodata_positive_value_cast_to_signed_dtype():
@@ -430,6 +432,7 @@ def test_nodata_positive_value_cast_to_signed_dtype():
     features = FeatureArray.from_feature_array(a, nodata_input=nodata_val)
     assert features.nodata_input.data.tolist() == [nodata_val] * n_features
     assert features.nodata_input.mask.tolist() == [False] * n_features
+    assert features.nodata_input.dtype == a.dtype
 
 
 def test_nodata_input_unsupported_dtype():
@@ -462,6 +465,7 @@ def test_nodata_input_masks_missing_values(array_dtype: np.dtype):
     # Missing values (None) should be replaced with zeroes and masked
     assert features.nodata_input.data.tolist() == [0, 255, 0, 0]
     assert features.nodata_input.mask.tolist() == [True, False, True, False]
+    assert features.nodata_input.dtype == a.dtype
 
 
 @pytest.mark.parametrize("nodata_input", [MissingType.MISSING, None, 255])
