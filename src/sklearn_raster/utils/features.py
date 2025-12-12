@@ -19,11 +19,13 @@ def get_minimum_precise_numeric_dtype(value: int | float) -> np.dtype:
 
 def can_cast_value(value: float | int | np.number, to_dtype: np.dtype) -> bool:
     """
-    Test whether a given numeric value can be safely cast to the target dtype.
+    Test whether a given value can be safely cast to the target dtype.
 
-    Compared to `np.can_cast` and `np.min_scalar_type`, this check is determined based
-    on the value itself and is able to cast positive integers to compatible signed
-    types.
+    This is implemented with `np.can_cast(np.min_scalar_type(value), to_dtype)` except
+    in the case of integer target types, where casting is more permissive to allow:
+
+    - Casting from float whole numbers to integers (e.g. `1.0` to `np.int8`)
+    - Casting from unsigned to signed integers where safe (e.g. `9999` to `np.int16`)
 
     Examples
     --------
@@ -31,25 +33,25 @@ def can_cast_value(value: float | int | np.number, to_dtype: np.dtype) -> bool:
     False
     >>> can_cast_value(255, np.uint8)
     True
-    >>> can_cast_value(1.0, np.uint8)
+    >>> can_cast_value(True, np.uint8)
     True
 
-    Note that `can_cast_value` supports casting from positive integers to compatible
-    signed types where Numpy does not:
+    `can_cast_value` is more permissive than `np.can_cast` for some values:
 
     >>> import numpy as np
     >>> np.can_cast(np.min_scalar_type(999), np.int16)
     False
     >>> can_cast_value(999, np.int16)
     True
+    >>> np.can_cast(np.min_scalar_type(1.0), np.int8)
+    False
+    >>> can_cast_value(1.0, np.int8)
+    True
     """
-    value_type = type(value)
-
-    if np.issubdtype(to_dtype, np.floating):
-        # Use Numpy precision rules when casting to float
-        return np.can_cast(np.min_scalar_type(value), to_dtype)
-
+    # Override Numpy with permissive rules for integer target types
     if np.issubdtype(to_dtype, np.integer):
+        value_type = type(value)
+
         # If the value is a float whole number, continue to the integer casting rules
         if np.issubdtype(value_type, np.floating) and value % 1 == 0:
             value = int(value)
@@ -60,4 +62,5 @@ def can_cast_value(value: float | int | np.number, to_dtype: np.dtype) -> bool:
             info = np.iinfo(to_dtype)
             return value >= info.min and value <= info.max
 
-    return False
+    # Use Numpy casting rules for everything else
+    return np.can_cast(np.min_scalar_type(value), to_dtype)

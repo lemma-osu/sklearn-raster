@@ -114,6 +114,9 @@ def test_with_inputs_reshaped_to_ndim(ndim: int, expected_shape: tuple[int, ...]
         (np.nan, np.int32, False),
         (np.inf, np.int32, False),
         (-np.inf, np.int32, False),
+        # Boolean values can cast to integer types
+        (True, np.uint8, True),
+        (False, np.int8, True),
     ],
 )
 def test_can_cast_value(value: float | int, to_dtype: np.dtype, can_cast: bool):
