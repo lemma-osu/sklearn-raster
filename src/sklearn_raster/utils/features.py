@@ -17,7 +17,7 @@ def get_minimum_precise_numeric_dtype(value: int | float) -> np.dtype:
     )
 
 
-def can_cast_value(value: float | int, to_dtype: np.dtype) -> bool:
+def can_cast_value(value: float | int | np.number, to_dtype: np.dtype) -> bool:
     """
     Test whether a given numeric value can be safely cast to the target dtype.
 
@@ -51,7 +51,7 @@ def can_cast_value(value: float | int, to_dtype: np.dtype) -> bool:
 
     if np.issubdtype(to_dtype, np.integer):
         # If the value is a float whole number, continue to the integer casting rules
-        if np.issubdtype(value_type, np.floating) and value.is_integer():
+        if np.issubdtype(value_type, np.floating) and value % 1 == 0:
             value = int(value)
             value_type = int
 
