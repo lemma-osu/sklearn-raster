@@ -52,13 +52,10 @@ def can_cast_value(value: float | int | np.number, to_dtype: np.dtype) -> bool:
     if np.issubdtype(to_dtype, np.integer):
         value_type = type(value)
 
-        # If the value is a float whole number, continue to the integer casting rules
-        if np.issubdtype(value_type, np.floating) and value % 1 == 0:
-            value = int(value)
-            value_type = int
-
-        # When casting between integer types, check that the value is within the range
-        if np.issubdtype(value_type, np.integer):
+        # If the value is an integer or whole-number float, check that it is in range
+        if np.issubdtype(value_type, np.integer) or (
+            np.issubdtype(value_type, np.floating) and value % 1 == 0
+        ):
             info = np.iinfo(to_dtype)
             return value >= info.min and value <= info.max
 
