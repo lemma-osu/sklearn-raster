@@ -54,10 +54,7 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
             nodata_input = None
 
         # If it's a valid scalar (including None), broadcast it to all features
-        if nodata_input is None or (
-            isinstance(nodata_input, (float, int))
-            and not isinstance(nodata_input, bool)
-        ):
+        if nodata_input is None or isinstance(nodata_input, (float, int, bool)):
             values = [nodata_input] * self.n_features
             return self._build_masked_nodata_array(values)
 
@@ -65,8 +62,8 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
         if not isinstance(nodata_input, Sized) or isinstance(nodata_input, (str, dict)):
             raise TypeError(
                 f"Invalid type `{type(nodata_input).__name__}` for `nodata_input`. "
-                "Provide a single number to apply to all features, a sequence of "
-                "numbers, or None."
+                "Provide a single value to apply to all features, a sequence of "
+                "values, or None."
             )
 
         # If it's an iterable, it must contain one element per feature

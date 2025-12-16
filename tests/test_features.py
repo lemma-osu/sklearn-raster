@@ -376,7 +376,7 @@ def test_nan_filled(feature_array_type: type[FeatureArrayType], nan_fill: float 
     unwrap_features(result)
 
 
-@pytest.mark.parametrize("nodata_input", ["test", {}, False], ids=type)
+@pytest.mark.parametrize("nodata_input", ["test", {}], ids=type)
 def test_nodata_validates_type(nodata_input):
     """Test that invalid NoData types are recognized."""
     a = np.zeros((3, 2, 2))
