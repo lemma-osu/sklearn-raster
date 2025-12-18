@@ -17,7 +17,9 @@ def get_minimum_precise_numeric_dtype(value: int | float) -> np.dtype:
     )
 
 
-def can_cast_nodata_value(value: float | int | np.number, to_dtype: np.dtype) -> bool:
+def can_cast_nodata_value(
+    value: float | int | bool | np.number, to_dtype: np.dtype
+) -> bool:
     """
     Test whether a given NoData value can be safely cast to the target dtype.
 
