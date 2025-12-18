@@ -398,11 +398,18 @@ def test_nodata_validates_length():
         FeatureArray.from_feature_array(a, nodata_input=[-32768])
 
 
-def test_nodata_single_value():
+@pytest.mark.parametrize(
+    ("nodata_val", "dtype"),
+    [
+        (-32768, np.int16),
+        (False, np.bool_),
+        (0, np.uint8),
+    ],
+)
+def test_nodata_single_value(nodata_val, dtype):
     """Test that a single NoData value is broadcast to all features."""
     n_features = 3
-    nodata_val = -32768
-    a = np.zeros((n_features, 2, 2))
+    a = np.zeros((n_features, 2, 2), dtype=dtype)
 
     features = FeatureArray.from_feature_array(a, nodata_input=nodata_val)
     assert features.nodata_input.data.tolist() == [nodata_val] * n_features

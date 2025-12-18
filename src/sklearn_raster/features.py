@@ -18,7 +18,7 @@ from .utils.decorators import (
     map_over_arguments,
     with_inputs_reshaped_to_ndim,
 )
-from .utils.features import can_cast_value
+from .utils.features import can_cast_nodata_value
 
 
 class FeatureArray(Generic[FeatureArrayType], ABC):
@@ -114,7 +114,7 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
         for i, val in enumerate(original_values):
             if missing_values[i]:
                 continue
-            if not can_cast_value(val, target_dtype):
+            if not can_cast_nodata_value(val, target_dtype):
                 uncastable.append(val)
         if uncastable:
             msg = (

@@ -10,7 +10,7 @@ from sklearn_raster.utils.decorators import (
     with_inputs_reshaped_to_ndim,
 )
 from sklearn_raster.utils.features import (
-    can_cast_value,
+    can_cast_nodata_value,
     get_minimum_precise_numeric_dtype,
 )
 
@@ -114,13 +114,18 @@ def test_with_inputs_reshaped_to_ndim(ndim: int, expected_shape: tuple[int, ...]
         (np.nan, np.int32, False),
         (np.inf, np.int32, False),
         (-np.inf, np.int32, False),
-        # Boolean values can cast to integer types
-        (True, np.uint8, True),
-        (False, np.int8, True),
+        # Boolean values cannot cast to numeric types
+        (True, np.uint8, False),
+        (False, np.int8, False),
+        (True, np.float32, False),
+        (False, np.float32, False),
+        # Boolean values can only cast to boolean types
+        (True, np.bool_, True),
+        (False, np.bool_, True),
     ],
 )
-def test_can_cast_value(value: float | int, to_dtype: np.dtype, can_cast: bool):
+def test_can_cast_nodata_value(value: float | int, to_dtype: np.dtype, can_cast: bool):
     """
-    Test that can_cast_value works as expected.
+    Test that can_cast_nodata_value works as expected.
     """
-    assert can_cast_value(value, to_dtype) == can_cast
+    assert can_cast_nodata_value(value, to_dtype) == can_cast
