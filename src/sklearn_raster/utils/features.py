@@ -53,9 +53,9 @@ def can_cast_nodata_value(
 
     `can_cast_nodata_value` is more restrictive than `np.can_cast` for boolean values:
 
-    >>> np.can_cast(np.min_scalar_type(False), np.uint8)
+    >>> np.can_cast(np.min_scalar_type(True), np.uint8)
     True
-    >>> can_cast_nodata_value(False, np.uint8)
+    >>> can_cast_nodata_value(True, np.uint8)
     False
     >>> can_cast_nodata_value(True, np.int16)
     False
