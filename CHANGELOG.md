@@ -15,6 +15,7 @@ All notable changes to this project will be documented in this file.
 
 - All estimator methods now accept an `inner_thread_limit` keyword argument which limits nested parallelism within Dask workers
 - `nodata_input` values are now validated to ensure that they can be safely cast to the `FeatureArray` data type. If not, a `ValueError` is raised.
+- `nodata_input` now accepts dictionary inputs mapping from feature names (or indices for Numpy arrays) to NoData values
 
 ### Changed
 

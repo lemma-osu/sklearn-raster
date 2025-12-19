@@ -16,7 +16,9 @@ FeatureArrayType = TypeVar(
 )
 EstimatorType = TypeVar("EstimatorType", bound=BaseEstimator)
 AnyType = TypeVar("AnyType", bound=Any)
-NoDataType = Union[float, Sequence[float], None]
+NoDataValue = Union[float, int, bool, None]
+NoDataMap = dict[Union[str, int], NoDataValue]
+NoDataType = Union[NoDataValue, Sequence[NoDataValue], NoDataMap]
 
 # A sentinel value to distinguish missing parameters from None
 MissingType = enum.Enum("MissingType", "MISSING")

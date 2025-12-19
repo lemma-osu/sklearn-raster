@@ -53,9 +53,15 @@ The downside of this approach is that NaN can only be stored in a floating point
 
 #### Manually Specifying Input NoData
 
-Most methods take a `nodata_input` parameter where you can specify encoded values to treat as NoData. When all bands use the same value, you can provide a scalar value, e.g. `nodata_input=-32768`. When a raster contains multiple bands with different values used to encode NoData, you can provide a sequence with one value per band, e.g. `nodata_input=(-32768, 0, 255)`.
+Most methods take a `nodata_input` parameter where you can specify encoded values to treat as NoData. `nodata_input` can be defined with:
 
-`sklearn-raster` will use the provided values to internally build a NoData mask that it uses to skip null pixels and postprocess output results.
+1. A single value which is broadcast to all features, e.g. `nodata_input=-32768`.
+2. A sequence with one value for each feature, assigned positionally, e.g. `nodata_input=(-32768, 0, 999)`.
+3. A dictionary mapping from feature name or index to value, e.g. `nodata_input={"DEM": -32768, "SLOPE": 0, "ASPECT": 999}` for a raster that supports named features, or `nodata_input={0: -32768, 1: 0, 2: 999}` if not. Unlike a sequence, a dictionary does not need to include a value for every feature.
+
+When `nodata_input` is not provided or one or more features are unspecified in a dictionary, they will be inferred from [raster metadata](#storing-nodata-values-in-raster-metadata) if possible. This can be disabled by instead specifying a value of `None`, which indicates that the selected feature does not encode a NoData value.
+
+`sklearn-raster` will use the provided `nodata_input` values to internally build a NoData mask that it uses to skip null pixels and postprocess output results.
 
 #### Storing NoData Values in Raster Metadata
 
