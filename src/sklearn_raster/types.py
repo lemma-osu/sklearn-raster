@@ -16,7 +16,7 @@ FeatureArrayType = TypeVar(
 )
 EstimatorType = TypeVar("EstimatorType", bound=BaseEstimator)
 AnyType = TypeVar("AnyType", bound=Any)
-NoDataValue = Union[float, None]
+NoDataValue = Union[float, int, bool, None]
 NoDataMap = dict[Union[str, int], NoDataValue]
 NoDataType = Union[NoDataValue, Sequence[NoDataValue], NoDataMap]
 
