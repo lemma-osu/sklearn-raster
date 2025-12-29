@@ -376,7 +376,7 @@ def test_nan_filled(feature_array_type: type[FeatureArrayType], nan_fill: float 
     unwrap_features(result)
 
 
-@pytest.mark.parametrize("nodata_input", ["test", {}], ids=type)
+@pytest.mark.parametrize("nodata_input", ["test"], ids=type)
 def test_nodata_validates_type(nodata_input):
     """Test that invalid NoData types are recognized."""
     a = np.zeros((3, 2, 2))
@@ -440,6 +440,71 @@ def test_nodata_positive_value_cast_to_signed_dtype():
     assert features.nodata_input.data.tolist() == [nodata_val] * n_features
     assert features.nodata_input.mask.tolist() == [False] * n_features
     assert features.nodata_input.dtype == a.dtype
+
+
+@parametrize_feature_array_types(feature_array_types=(xr.DataArray, xr.Dataset))
+def test_nodata_name_dict(feature_array_type: type[FeatureArrayType]):
+    """Test that NoData values can be assigned by name."""
+    n_features = 3
+    nodata_input = {"b0": -32768, "b2": 255}
+    a = np.zeros((n_features, 2, 2))
+    wrapped = wrap_features(a, type=feature_array_type)
+
+    features = FeatureArray.from_feature_array(wrapped, nodata_input=nodata_input)
+    # Feature b1 wasn't specified, so it should be missing
+    assert features.nodata_input.data.tolist() == [-32768, 0, 255]
+    assert features.nodata_input.mask.tolist() == [False, True, False]
+
+    # Add a fill value to ensure that unspecified features are inferred, if possible
+    if feature_array_type is xr.DataArray:
+        wrapped.attrs.update({"_FillValue": 123})
+    else:
+        wrapped["b1"].attrs.update({"_FillValue": 123})
+
+    features = FeatureArray.from_feature_array(wrapped, nodata_input=nodata_input)
+    # Feature b1 wasn't specified, so it should be inferred from the _FillValue
+    assert features.nodata_input.data.tolist() == [-32768, 123, 255]
+    assert features.nodata_input.mask.tolist() == [False, False, False]
+
+
+def test_nodata_index_dict():
+    """Test that NoData values can be assigned by index."""
+    n_features = 3
+    nodata_input = {0: -32768, 2: 255}
+    a = np.zeros((n_features, 2, 2))
+
+    features = FeatureArray.from_feature_array(a, nodata_input=nodata_input)
+    # Feature at index 1 wasn't specified, so it should be missing
+    assert features.nodata_input.data.tolist() == [-32768, 0, 255]
+    assert features.nodata_input.mask.tolist() == [False, True, False]
+
+
+@parametrize_feature_array_types(feature_array_types=(xr.DataArray, xr.Dataset))
+def test_nodata_dict_raises_with_invalid_name(
+    feature_array_type: type[FeatureArrayType],
+):
+    """Test that an invalid feature name raises a helpful error."""
+    n_features = 3
+    nodata_input = {"foo": -32768}
+    a = np.zeros((n_features, 2, 2))
+    features = wrap_features(a, type=feature_array_type)
+
+    with pytest.raises(KeyError) as e:
+        FeatureArray.from_feature_array(features, nodata_input=nodata_input)
+    assert "`foo` is not a valid feature name/index" in str(e.value)
+    assert "Choose from ['b0', 'b1', 'b2']" in str(e.value)
+
+
+def test_nodata_dict_raises_with_invalid_index():
+    """Test that an invalid feature index raises a helpful error."""
+    n_features = 3
+    nodata_input = {99: -32768}
+    a = np.zeros((n_features, 2, 2))
+
+    with pytest.raises(KeyError) as e:
+        FeatureArray.from_feature_array(a, nodata_input=nodata_input)
+    assert "`99` is not a valid feature name/index" in str(e.value)
+    assert "Choose from [0, 1, 2]" in str(e.value)
 
 
 def test_nodata_input_unsupported_dtype():

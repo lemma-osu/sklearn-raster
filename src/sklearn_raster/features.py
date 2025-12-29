@@ -11,7 +11,14 @@ import pandas as pd
 import xarray as xr
 from numpy.typing import NDArray
 
-from .types import ArrayUfunc, FeatureArrayType, MaybeTuple, MissingType, NoDataType
+from .types import (
+    ArrayUfunc,
+    FeatureArrayType,
+    MaybeTuple,
+    MissingType,
+    NoDataMap,
+    NoDataType,
+)
 from .ufunc import UfuncSampleProcessor
 from .utils.decorators import (
     limit_inner_threads,
@@ -47,23 +54,38 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
         number of features and cast to ndarrays. There is no need to specify np.nan as a
         NoData value because it will be masked automatically for floating point arrays.
         """
-        # If NoData isn't provided, treat all NoData values as missing by setting to
-        # None. Note that subclasses may distinguish between MISSING and None to infer
-        # NoData values.
+        # If NoData isn't provided, attempt to infer values using subclass logic
         if nodata_input is MissingType.MISSING:
-            nodata_input = None
+            inferred_nodata = list(self._get_default_nodata_mapping().values())
+            return self._build_masked_nodata_array(inferred_nodata)
 
         # If it's a valid scalar (including None), broadcast it to all features
         if nodata_input is None or isinstance(nodata_input, (float, int, bool)):
             values = [nodata_input] * self.n_features
             return self._build_masked_nodata_array(values)
 
-        # If it's not a scalar, it must be an iterable
-        if not isinstance(nodata_input, Sized) or isinstance(nodata_input, (str, dict)):
+        # If it's a dict, map names or indices to values, falling back to inferred
+        # default values for unspecified features
+        if isinstance(nodata_input, dict):
+            defaults = self._get_default_nodata_mapping()
+            for key, val in nodata_input.items():
+                if key not in defaults:
+                    msg = (
+                        f"`{key}` is not a valid feature name/index, and therefore "
+                        "can't be assigned a NoData value. Choose from "
+                        f"{list(defaults.keys())}."
+                    )
+                    raise KeyError(msg)
+
+                defaults[key] = val
+            nodata_input = list(defaults.values())
+
+        # If it's not a scalar or a dict, it must be an iterable
+        if not isinstance(nodata_input, Sized) or isinstance(nodata_input, str):
             raise TypeError(
                 f"Invalid type `{type(nodata_input).__name__}` for `nodata_input`. "
                 "Provide a single value to apply to all features, a sequence of "
-                "values, or None."
+                "values, a mapping from feature names/indices to values, or None."
             )
 
         # If it's an iterable, it must contain one element per feature
@@ -75,6 +97,10 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
 
         # Assign values feature-wise, disabling masking for None entries
         return self._build_masked_nodata_array(nodata_input)
+
+    @abstractmethod
+    def _get_default_nodata_mapping(self) -> NoDataMap:
+        """Return a mapping from feature names or indices to default NoData values."""
 
     def _build_masked_nodata_array(
         self, values: Sequence[float | None]
@@ -322,6 +348,10 @@ class NDArrayFeatures(FeatureArray):
     ):
         super().__init__(features, nodata_input=nodata_input)
 
+    def _get_default_nodata_mapping(self) -> NoDataMap:
+        # Use sequential indices with no inferred NoData value for all features
+        return {i: None for i in range(self.n_features)}
+
     def _preprocess_ufunc_input(self, features: NDArray) -> NDArray:
         """Preprocess by moving features to the last dimension for apply_ufunc."""
         # Copy to avoid mutating the original array
@@ -349,25 +379,17 @@ class DataArrayFeatures(FeatureArray):
         features: xr.DataArray,
         nodata_input: NoDataType | MissingType = MissingType.MISSING,
     ):
-        super().__init__(features, nodata_input=nodata_input)
         self.feature_dim_name = features.dims[self.feature_dim]
+        super().__init__(features, nodata_input=nodata_input)
 
     @property
     def feature_names(self) -> NDArray:
-        return self.feature_array[self.feature_dim_name].values
+        return self.feature_array[self.feature_dim_name].values.astype(object)
 
-    def _validate_nodata_input(
-        self, nodata_input: NoDataType | MissingType
-    ) -> ma.MaskedArray:
-        """
-        Get an array of NoData values in the shape (features,) based on user input and
-        DataArray metadata.
-        """
-        # Infer NoData from _FillValue for all features
-        if nodata_input is MissingType.MISSING:
-            nodata_input = self.feature_array.attrs.get("_FillValue")
-
-        return super()._validate_nodata_input(nodata_input)
+    def _get_default_nodata_mapping(self) -> NoDataMap:
+        # Infer NoData from global _FillValue (or None) for all features
+        global_fill_value = self.feature_array.attrs.get("_FillValue")
+        return {name: global_fill_value for name in self.feature_names}
 
     @map_over_arguments("result", "nodata_output")
     def _postprocess_ufunc_output(
@@ -464,21 +486,12 @@ class DatasetFeatures(DataArrayFeatures):
     def feature_names(self) -> NDArray:
         return np.array(list(self.dataset.data_vars))
 
-    def _validate_nodata_input(
-        self, nodata_input: NoDataType | MissingType
-    ) -> ma.MaskedArray:
-        """
-        Get an array of NoData values in the shape (features,) based on user input and
-        Dataset metadata.
-        """
-        # Infer NoData from _FillValue if present (or None) for each feature
-        if nodata_input is MissingType.MISSING:
-            nodata_input = [
-                self.dataset[var].attrs.get("_FillValue")
-                for var in self.dataset.data_vars
-            ]
-
-        return super()._validate_nodata_input(nodata_input)
+    def _get_default_nodata_mapping(self) -> NoDataMap:
+        # Infer NoData from variable-level _FillValues (or None) per-feature
+        return {
+            var: self.dataset[var].attrs.get("_FillValue")
+            for var in self.dataset.data_vars
+        }
 
     @map_over_arguments("result", "nodata_output")
     def _postprocess_ufunc_output(
