@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 
 import numpy as np
+import pandas as pd
 import pytest
 import threadpoolctl
 import xarray as xr
@@ -18,6 +19,45 @@ from .feature_utils import (
     unwrap_features,
     wrap_features,
 )
+
+
+@pytest.mark.parametrize(
+    ("input_types", "expected_type"),
+    [
+        ((xr.Dataset, xr.DataArray), (xr.Dataset)),
+        ((xr.Dataset, pd.DataFrame), (xr.Dataset)),
+        ((xr.DataArray, pd.DataFrame), (xr.DataArray)),
+    ],
+    ids=[
+        "dataset_over_dataarray",
+        "dataset_over_dataframe",
+        "dataarray_over_dataframe",
+    ],
+)
+@pytest.mark.parametrize("reverse", [False, True], ids=["forward", "reverse"])
+def test_ufunc_return_type_priority(
+    input_types: tuple[type, ...], expected_type: type, reverse: bool
+):
+    n_features = 3
+    base = np.zeros((n_features, 10), dtype=np.float64)
+
+    wrapped_features = [wrap_features(base, type=t) for t in input_types]
+    features = [
+        FeatureArray.from_feature_array(raw, nodata_input=None)
+        for raw in wrapped_features
+    ]
+    if reverse:
+        features = list(reversed(features))
+
+    ufunc = FeaturewiseUfunc(
+        lambda *x: x[0],
+        output_dims=[["variable"]],
+        output_sizes={"variable": n_features},
+        output_coords={"variable": [f"b{i}" for i in range(n_features)]},
+        output_dtypes=[np.dtype(np.float64)],
+    )
+
+    assert isinstance(ufunc(*features), expected_type)
 
 
 @parametrize_feature_array_types()

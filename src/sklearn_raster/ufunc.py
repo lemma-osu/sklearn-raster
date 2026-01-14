@@ -8,6 +8,12 @@ import numpy.ma as ma
 import xarray as xr
 from numpy.typing import NDArray
 
+from .features import (
+    DataArrayFeatures,
+    DataFrameFeatures,
+    DatasetFeatures,
+    NDArrayFeatures,
+)
 from .types import ArrayUfunc, FeatureArrayType, MaybeTuple
 from .utils.decorators import (
     limit_inner_threads,
@@ -192,7 +198,10 @@ class FeaturewiseUfunc:
         Returns
         -------
         FeatureArrayType or tuple[FeatureArrayType]
-            The result of applying the universal function across features.
+            The result of applying the universal function across features. The output
+            type will match the highest-priority input type (Dataset > DataArray >
+            DataFrame > ndarray). If multiple arrays are returned by `func`, a tuple of
+            arrays will be returned.
         """
         # Validate non-empty array inputs
         if not arrays:
@@ -251,12 +260,21 @@ class FeaturewiseUfunc:
             ),
         )
 
-        # TODO: Ideally we could just build a feature array from result and let xarray
-        # decide the type, but that doesn't work because pre-processing converts
-        # everything to DataArrays. If that's unavoidable, we could check the input
-        # types and match by the same priority that Xarray uses, which is Dataset >
-        # DataArray > Numpy array.
-        return arrays[0]._postprocess_ufunc_output(
+        # In normal usage, xr.apply_ufunc returns the type of the highest-priority input
+        # following the type priority below. Because FeatureArray pre-processing coerces
+        # all inputs to DataArrays, we need to manually apply that logic here by
+        # having the highest priority FeatureArray post-process the output.
+        type_priority = (
+            DatasetFeatures,
+            DataArrayFeatures,
+            DataFrameFeatures,
+            NDArrayFeatures,
+        )
+        highest_priority_array = sorted(
+            arrays,
+            key=lambda arr: type_priority.index(type(arr)),
+        )[0]
+        return highest_priority_array._postprocess_ufunc_output(
             result,
             output_coords=self.output_coords,
             nodata_output=nodata_output,
