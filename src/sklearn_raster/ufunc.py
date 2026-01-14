@@ -194,7 +194,6 @@ class FeaturewiseUfunc:
         FeatureArrayType or tuple[FeatureArrayType]
             The result of applying the universal function across features.
         """
-        # TODO: Test empty input raises
         if not arrays:
             msg = (
                 f"{self.__class__.__name__} requires at least one feature array input."

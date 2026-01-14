@@ -478,6 +478,16 @@ def test_empty_output_sizes_error(feature_array_type: type[FeatureArrayType]):
         ufunc(features)
 
 
+def test_ufunc_raises_on_missing_arrays():
+    """Test that applying a ufunc without any arrays raises an error."""
+    ufunc = FeaturewiseUfunc(
+        lambda x: x,
+        output_dims=[["variable"]],
+    )
+    with pytest.raises(ValueError, match="requires at least one feature array input"):
+        ufunc()
+
+
 @pytest.mark.parametrize("thread_limit", [1, 2, 8])
 def test_inner_thread_limit(thread_limit: int):
     """
