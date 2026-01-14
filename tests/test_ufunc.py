@@ -488,6 +488,29 @@ def test_ufunc_raises_on_missing_arrays():
         ufunc()
 
 
+def test_ufunc_raises_on_mismatched_feature_dim_names():
+    """Test that applying a ufunc with mismatched feature dimension names raises."""
+    a = wrap_features(np.array([[[1, 2]]]), type=xr.DataArray).rename(
+        {"variable": "feat1"}
+    )
+    b = wrap_features(np.array([[[3, 4]]]), type=xr.DataArray).rename(
+        {"variable": "feat2"}
+    )
+
+    features_a = FeatureArray.from_feature_array(a)
+    features_b = FeatureArray.from_feature_array(b)
+
+    ufunc = FeaturewiseUfunc(
+        lambda x: x,
+        output_dims=[["variable"]],
+    )
+    with pytest.raises(
+        ValueError,
+        match="All input feature arrays must share the same feature dimension name",
+    ):
+        ufunc(features_a, features_b)
+
+
 @pytest.mark.parametrize("thread_limit", [1, 2, 8])
 def test_inner_thread_limit(thread_limit: int):
     """

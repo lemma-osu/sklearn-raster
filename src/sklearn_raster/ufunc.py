@@ -194,18 +194,24 @@ class FeaturewiseUfunc:
         FeatureArrayType or tuple[FeatureArrayType]
             The result of applying the universal function across features.
         """
+        # Validate non-empty array inputs
         if not arrays:
             msg = (
                 f"{self.__class__.__name__} requires at least one feature array input."
             )
             raise ValueError(msg)
 
-        # Extract the feature dimension name from the first feature array
-        feature_dim_name = arrays[0].feature_dim_name
+        # Validate that all feature dimension names match
+        feature_dim_names = list(set([array.feature_dim_name for array in arrays]))
+        if len(feature_dim_names) > 1:
+            msg = (
+                "All input feature arrays must share the same feature dimension "
+                f"name. Got {feature_dim_names}."
+            )
+            raise ValueError(msg)
+        feature_dim_name = feature_dim_names[0]
 
         nodata_inputs: list[ma.MaskedArray] = [array.nodata_input for array in arrays]
-
-        # TODO: This is a weird pattern that I don't really like
         preprocessed = [
             array._preprocess_ufunc_input(array.feature_array) for array in arrays
         ]
