@@ -511,6 +511,38 @@ def test_ufunc_raises_on_mismatched_feature_dim_names():
         ufunc(features_a, features_b)
 
 
+def test_ufunc_raises_on_mismatched_shapes():
+    """Test that applying a ufunc with mismatched number of samples raises."""
+    a = np.zeros((3, 10))
+    b = np.zeros((3, 11))
+
+    features_a = FeatureArray.from_feature_array(a)
+    features_b = FeatureArray.from_feature_array(b)
+
+    ufunc = FeaturewiseUfunc(
+        lambda x, y: x + y,
+        output_dims=[["variable"]],
+    )
+    with pytest.raises(ValueError, match="All arrays must have the same shape"):
+        ufunc(features_a, features_b)
+
+
+def test_ufunc_broadcasts_feature_dimensions():
+    """Test that ufuncs can broadcast the feature dimension."""
+    a = np.zeros((1, 10))
+    b = np.zeros((5, 10))
+
+    features_a = FeatureArray.from_feature_array(a)
+    features_b = FeatureArray.from_feature_array(b)
+
+    ufunc = FeaturewiseUfunc(
+        lambda x, y: x + y,
+        output_dims=[["variable"]],
+    )
+    result = ufunc(features_a, features_b)
+    assert result.shape == (5, 10)
+
+
 @pytest.mark.parametrize("thread_limit", [1, 2, 8])
 def test_inner_thread_limit(thread_limit: int):
     """

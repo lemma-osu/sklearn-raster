@@ -362,8 +362,8 @@ class FeaturewiseUfunc:
         **kwargs,
     ) -> NDArray | tuple[NDArray, ...]:
         """Apply a function to all non-NoData samples in an array."""
-        # TODO: This assumes all samples are the same shape. Make sure that's true
-        input_shape = arrays[0].shape
+        # Array sizes have already been validated to match
+        n_samples = arrays[0].shape[0]
 
         # The NoData mask is guaranteed to exist since this method is only called when
         # there are masked samples, so we can safely cast it for type checking.
@@ -371,10 +371,10 @@ class FeaturewiseUfunc:
         num_unmasked = (~nodata_mask).sum()
 
         if inserted_dummy_values := num_unmasked < ensure_min_samples:
-            if ensure_min_samples > input_shape[0]:
+            if ensure_min_samples > n_samples:
                 raise ValueError(
                     f"Cannot ensure {ensure_min_samples} samples with only "
-                    f"{input_shape[0]} total samples in the array."
+                    f"{n_samples} total samples in the array."
                 )
 
             # Fill NoData samples with dummy values to ensure minimum samples. Copy
@@ -409,7 +409,7 @@ class FeaturewiseUfunc:
             # output dtype. The shape will be (n, f) where n is the number of samples
             # in the array and f is the number of features in the func result.
             full_result = np.full(
-                (input_shape[0], result.shape[-1]),
+                (n_samples, result.shape[-1]),
                 nodata_output,
                 dtype=result.dtype,
             )
