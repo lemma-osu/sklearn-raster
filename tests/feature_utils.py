@@ -252,6 +252,18 @@ def wrap_features(features: NDArray, type: type[FeatureArrayType]) -> FeatureArr
 
     if type is xr.Dataset:
         return wrap_features(features, xr.DataArray).to_dataset(dim="variable")
+    
+    if type is pd.DataFrame:
+        if features.ndim != 2:
+            raise ValueError("DataFrame features must be 2D (features, samples).")
+        da = wrap_features(features, xr.DataArray)
+        return (
+            da
+            # Transpose from (target, samples) back to (samples, target)
+            .T.to_pandas()
+            # Preserve the input index name(s)
+            .rename_axis([None], axis=0)
+        )
 
     raise ValueError(f"Unsupported feature type: {type}")
 
@@ -278,5 +290,8 @@ def unwrap_features(features: Any) -> NDArray:
 
     if isinstance(features, xr.Dataset):
         return unwrap_features(features.to_dataarray())
+    
+    if isinstance(features, pd.DataFrame):
+        return unwrap_features(features.to_xarray())
 
     raise ValueError(f"Unsupported feature type: {type(features)}")
