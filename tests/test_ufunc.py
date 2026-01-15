@@ -314,7 +314,9 @@ def test_ufunc_ensures_min_samples(
 
 
 @parametrize_feature_array_types()
-def test_ufunc_raises_on_ensure_too_many_samples(feature_array_type: type[FeatureArrayType]):
+def test_ufunc_raises_on_ensure_too_many_samples(
+    feature_array_type: type[FeatureArrayType],
+):
     """Test that an error is raised if ensure_min_samples is larger than the array."""
     a = np.full((1, 1, 10), np.nan, dtype=np.float64)
 
@@ -419,7 +421,9 @@ def test_ufunc_skips_nodata(
 
 @parametrize_feature_array_types()
 @pytest.mark.parametrize("nan_fill", [None, 42.0])
-def test_ufunc_fills_nans(feature_array_type: type[FeatureArrayType], nan_fill: float | None):
+def test_ufunc_fills_nans(
+    feature_array_type: type[FeatureArrayType], nan_fill: float | None
+):
     """Test that NaNs in the features are filled before passing to func."""
     a = np.array([[[1, np.nan]]])
     features = FeatureArray.from_feature_array(
@@ -501,7 +505,9 @@ def test_ufunc_sets_dataset_fillvalue(nodata_output: int | float):
 
 
 @parametrize_feature_array_types(feature_array_types=[xr.DataArray, xr.Dataset])
-def test_ufunc_raises_on_missing_output_sizes(feature_array_type: type[FeatureArrayType]):
+def test_ufunc_raises_on_missing_output_sizes(
+    feature_array_type: type[FeatureArrayType],
+):
     """Test that missing output sizes raise a helpful error."""
     a = wrap_features(np.array([[[1, 2]]]), type=feature_array_type)
     features = FeatureArray.from_feature_array(a)
