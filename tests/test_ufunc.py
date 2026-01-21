@@ -509,7 +509,10 @@ def test_ufunc_sets_dataarray_fillvalue(nodata_output: int | float):
 
 @pytest.mark.parametrize("nodata_output", [np.nan, 0, -32768])
 def test_ufunc_sets_dataset_fillvalue(nodata_output: int | float):
-    """Test that the output NoData value is stored as the _FillValue for a DataArray."""
+    """
+    Test that the output NoData value is stored as the _FillValue for each variable in a
+    Dataset.
+    """
     a = np.array([[[1, 2, 3]]])
     features = FeatureArray.from_feature_array(
         wrap_features(a, type=xr.Dataset), nodata_input=0
