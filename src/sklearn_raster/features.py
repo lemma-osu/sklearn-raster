@@ -344,13 +344,6 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
 class NDArrayFeatures(FeatureArray):
     """Features stored in a Numpy NDArray of shape (features, ...)."""
 
-    def __init__(
-        self,
-        features: NDArray,
-        nodata_input: NoDataType | MissingType = MissingType.MISSING,
-    ):
-        super().__init__(features, nodata_input=nodata_input)
-
     def _validate_feature_names(self) -> NDArray:
         # NDArrays are unnamed, so no validation checks are needed
         return np.array([])
