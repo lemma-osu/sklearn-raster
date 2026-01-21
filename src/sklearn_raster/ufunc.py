@@ -305,15 +305,19 @@ class FeaturewiseUfunc:
             for uinput in uinputs:
                 uinput.samples = uinput._fill_nans(nan_fill)
 
+        # If any input contains masked values, build a cumulative NoData mask
         any_masked = bool(sum([array._num_masked for array in uinputs]))
-
-        # Build a cumulative NoData mask across all samples
-        nodata_masks = [
-            uinput.nodata_mask for uinput in uinputs if uinput.nodata_mask is not None
-        ]
-        nodata_mask = (
-            np.stack(nodata_masks, axis=-1).max(axis=-1) if nodata_masks else None
-        )
+        if any_masked:
+            nodata_mask = np.stack(
+                [
+                    uinput.nodata_mask
+                    for uinput in uinputs
+                    if uinput.nodata_mask is not None
+                ],
+                axis=-1,
+            ).max(axis=-1)
+        else:
+            nodata_mask = None
 
         # Only skip NoData if there's something to skip
         if skip_nodata and any_masked:

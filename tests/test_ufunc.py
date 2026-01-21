@@ -187,6 +187,36 @@ def test_ufunc_allows_casting_of_unsupported_nodata_output(
     assert result.dtype == expected_dtype
 
 
+@parametrize_feature_array_types()
+@pytest.mark.parametrize("input_dtype", [np.uint8, np.float32, np.float64])
+def test_ufunc_skips_nodata_output_validation_if_unmasked(
+    feature_array_type: type[FeatureArrayType],
+    input_dtype: np.dtype,
+):
+    """If the input doesn't contain NoData, we shouldn't test nodata_output's dtype."""
+    # Make a feature array without any NoData
+    a = np.ones((4, 4), dtype=input_dtype)
+    array = wrap_features(a, type=feature_array_type)
+    features = FeatureArray.from_feature_array(array, nodata_input=0)
+
+    ufunc = FeaturewiseUfunc(
+        lambda x: x,
+        output_dims=[["variable"]],
+        output_sizes={"variable": a.shape[0]},
+        output_dtypes=[a.dtype],
+    )
+    # Unwrap to force computation for lazy arrays
+    unwrap_features(
+        ufunc(
+            features,
+            # Set a value that doesn't fit in the feature array type
+            nodata_output=np.float128(np.nan),
+            skip_nodata=True,
+            allow_cast=False,
+        )
+    )
+
+
 @pytest.mark.parametrize("nodata_output", [np.nan, 42.0])
 @parametrize_feature_array_types()
 @pytest.mark.parametrize("skip_nodata", [True, False])
