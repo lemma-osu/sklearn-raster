@@ -577,7 +577,7 @@ def test_ufunc_raises_on_mismatched_feature_dim_names():
     features_b = FeatureArray.from_feature_array(b)
 
     ufunc = FeaturewiseUfunc(
-        lambda x: x,
+        lambda x, y: x + y,
         output_dims=[["variable"]],
     )
     with pytest.raises(
