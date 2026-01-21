@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections import Counter
 from collections.abc import Sequence, Sized
 from datetime import datetime, timezone
 from typing import Any, Callable, Generic
@@ -33,7 +34,6 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
 
     feature_dim_name: str | None = None
     feature_dim: int = 0
-    feature_names: NDArray
 
     def __init__(
         self,
@@ -41,8 +41,13 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
         nodata_input: NoDataType | MissingType = MissingType.MISSING,
     ):
         self.feature_array = feature_array
+        self.feature_names = self._validate_feature_names()
         self.n_features = self.feature_array.shape[self.feature_dim]
         self.nodata_input = self._validate_nodata_input(nodata_input)
+
+    @abstractmethod
+    def _validate_feature_names(self) -> NDArray:
+        """Validate and return feature names from the feature array."""
 
     def _validate_nodata_input(
         self, nodata_input: NoDataType | MissingType
@@ -339,14 +344,16 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
 class NDArrayFeatures(FeatureArray):
     """Features stored in a Numpy NDArray of shape (features, ...)."""
 
-    feature_names = np.array([])
-
     def __init__(
         self,
         features: NDArray,
         nodata_input: NoDataType | MissingType = MissingType.MISSING,
     ):
         super().__init__(features, nodata_input=nodata_input)
+
+    def _validate_feature_names(self) -> NDArray:
+        # NDArrays are unnamed, so no validation checks are needed
+        return np.array([])
 
     def _get_default_nodata_mapping(self) -> NoDataMap:
         # Use sequential indices with no inferred NoData value for all features
@@ -382,9 +389,17 @@ class DataArrayFeatures(FeatureArray):
         self.feature_dim_name = features.dims[self.feature_dim]
         super().__init__(features, nodata_input=nodata_input)
 
-    @property
-    def feature_names(self) -> NDArray:
-        return self.feature_array[self.feature_dim_name].values.astype(object)
+    def _validate_feature_names(self) -> NDArray:
+        names = self.feature_array[self.feature_dim_name].values.astype(object)
+        # Feature names must be unique to allow mapping NoData values by name
+        duplicated_names = [name for name, count in Counter(names).items() if count > 1]
+        if duplicated_names:
+            msg = (
+                "All feature names must be unique. Found duplicated names "
+                f"{duplicated_names}."
+            )
+            raise ValueError(msg)
+        return names
 
     def _get_default_nodata_mapping(self) -> NoDataMap:
         # Infer NoData from global _FillValue (or None) for all features
@@ -481,10 +496,6 @@ class DatasetFeatures(DataArrayFeatures):
         # like _FillValues.
         self.dataset = features
         super().__init__(features.to_dataarray(), nodata_input=nodata_input)
-
-    @property
-    def feature_names(self) -> NDArray:
-        return np.array(list(self.dataset.data_vars))
 
     def _get_default_nodata_mapping(self) -> NoDataMap:
         # Infer NoData from variable-level _FillValues (or None) per-feature

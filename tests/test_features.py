@@ -698,6 +698,70 @@ def test_inner_thread_limit(thread_limit: int):
     assert threadpoolctl.threadpool_info() == original_thread_info
 
 
+def test_ndarray_feature_names():
+    """Test that NDArray sets no feature names."""
+    assert_array_equal(
+        FeatureArray.from_feature_array(np.ones((3, 8, 8))).feature_names,
+        np.array([]),
+    )
+
+
+@pytest.mark.parametrize("duplicate_names", [True, False])
+def test_dataarray_feature_names(duplicate_names: bool):
+    """Test that DataArray sets and validates feature names."""
+    feature_names = ["A", "B", "A"] if duplicate_names else ["A", "B", "C"]
+
+    da = xr.DataArray(
+        np.ones((3, 8, 8)),
+        dims=["feature", "y", "x"],
+        coords={"feature": feature_names},
+    )
+
+    if duplicate_names:
+        expected = re.escape("Found duplicated names ['A']")
+        with pytest.raises(ValueError, match=expected):
+            FeatureArray.from_feature_array(da)
+    else:
+        assert_array_equal(
+            FeatureArray.from_feature_array(da).feature_names, feature_names
+        )
+
+
+def test_dataset_feature_names():
+    """Test that Dataset sets feature names."""
+    feature_names = ["A", "B", "C"]
+
+    # Note that Dataset can't contain duplicate feature names, so we don't test for it
+    ds = xr.DataArray(
+        np.ones((3, 8, 8)),
+        dims=["feature", "y", "x"],
+        coords={"feature": feature_names},
+    ).to_dataset(dim="feature")
+
+    assert_array_equal(FeatureArray.from_feature_array(ds).feature_names, feature_names)
+
+
+@pytest.mark.parametrize("duplicate_names", [True, False])
+def test_dataframe_feature_names(duplicate_names: bool):
+    """Test that DataFrame sets and validates feature names."""
+    feature_names = ["A", "B", "A"] if duplicate_names else ["A", "B", "C"]
+
+    da = xr.DataArray(
+        np.ones((3, 8)), dims=["feature", "samples"], coords={"feature": feature_names}
+    ).T.to_pandas()
+
+    if duplicate_names:
+        # Duplicate columns are detected by Xarray during FeatureArray instantiation,
+        # so we never reach our validation and end up with a different error.
+        expected = "cannot convert DataFrame with non-unique columns"
+        with pytest.raises(ValueError, match=expected):
+            FeatureArray.from_feature_array(da)
+    else:
+        assert_array_equal(
+            FeatureArray.from_feature_array(da).feature_names, feature_names
+        )
+
+
 @parametrize_feature_array_types()
 def test_wrappers(feature_array_type):
     """Confirm that the test wrappers function as expected."""
