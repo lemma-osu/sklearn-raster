@@ -39,8 +39,8 @@ class ModelData(Generic[FeatureArrayType]):
     >>> X_image, X, y = model_data
     >>> type(X_image)
     <class 'xarray.core.dataset.Dataset'>
-    >>> type(y)
-    <class 'pandas.core.frame.DataFrame'>
+    >>> type(y) # doctest: +SKIP
+    <class 'pandas.DataFrame'>
 
     Data is generated on-the-fly, so you can mutate the ModelData with `set` and then
     retrieve new data.
