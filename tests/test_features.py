@@ -746,7 +746,7 @@ def test_dataframe_feature_names(duplicate_names: bool):
     """Test that DataFrame sets and validates feature names."""
     feature_names = ["A", "B", "A"] if duplicate_names else ["A", "B", "C"]
 
-    da = xr.DataArray(
+    df = xr.DataArray(
         np.ones((3, 8)), dims=["feature", "samples"], coords={"feature": feature_names}
     ).T.to_pandas()
 
@@ -755,10 +755,10 @@ def test_dataframe_feature_names(duplicate_names: bool):
         # so we never reach our validation and end up with a different error.
         expected = "cannot convert DataFrame with non-unique columns"
         with pytest.raises(ValueError, match=expected):
-            FeatureArray.from_feature_array(da)
+            FeatureArray.from_feature_array(df)
     else:
         assert_array_equal(
-            FeatureArray.from_feature_array(da).feature_names, feature_names
+            FeatureArray.from_feature_array(df).feature_names, feature_names
         )
 
 
