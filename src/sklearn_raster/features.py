@@ -13,18 +13,13 @@ import xarray as xr
 from numpy.typing import NDArray
 
 from .types import (
-    ArrayUfunc,
     FeatureArrayType,
-    MaybeTuple,
     MissingType,
     NoDataMap,
     NoDataType,
 )
-from .ufunc import UfuncSampleProcessor
 from .utils.decorators import (
-    limit_inner_threads,
     map_over_arguments,
-    with_inputs_reshaped_to_ndim,
 )
 from .utils.features import can_cast_nodata_value
 
@@ -162,138 +157,6 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
             mask=missing_values,
             dtype=target_dtype,
             fill_value=missing_fill_value,
-        )
-
-    def apply_ufunc_across_features(
-        self,
-        func: ArrayUfunc,
-        *,
-        output_dims: list[list[str]],
-        output_dtypes: list[np.dtype] | None = None,
-        output_sizes: dict[str, int] | None = None,
-        output_coords: dict[str, list[str] | list[int]] | None = None,
-        skip_nodata: bool = True,
-        nodata_output: MaybeTuple[float | int] = np.nan,
-        nan_fill: float | int | None = None,
-        ensure_min_samples: int = 1,
-        allow_cast: bool = False,
-        check_output_for_nodata: bool = True,
-        keep_attrs: bool = False,
-        inner_thread_limit: int | None = 1,
-        **ufunc_kwargs,
-    ) -> FeatureArrayType | tuple[FeatureArrayType]:
-        """
-        Apply a universal function to all features of the array.
-
-        Parameters
-        ----------
-        func : callable
-            The universal function to apply across features. The function should accept
-            an array of shape (samples, features) and return one or more arrays of shape
-            (samples, size), where size is defined by `output_sizes`.
-        output_dims : list[list[str]]
-            List of output core dimension names for each output.
-        output_dtypes : list[np.dtype], optional
-            List of output data types for each output. Required for Dask-backed arrays.
-        output_sizes : dict[str, int], optional
-            Mapping from output dimension names to their sizes.
-        output_coords : dict[str, list[str] | list[int]], optional
-            Mapping from output dimension names to their coordinates. If not provided,
-            defaults to sequential integer coordinates for each output dimension.
-        skip_nodata : bool, default=True
-            If True, NoData and NaN values will be not be passed to `func`. This speeds
-            up processing of partially masked features, but may be incompatible if
-            `func` expects a consistent number of input samples.
-        nodata_output : float or int or tuple, optional
-            NoData samples in the input features will be replaced with this value in the
-            output features. If the value does not fit the array dtype(s) returned by
-            `func`, an error will be raised unless `allow_cast` is True. When `func`
-            returns multiple arrays, you can provide either a single value for all
-            arrays or a tuple with one value per output array. Defaults to np.nan.
-        nan_fill : float or int, optional
-            If `skip_nodata=False`, any NaNs in the input array will be filled with this
-            value prior to calling `func` to avoid errors from functions that do not
-            support NaN inputs. If None, NaNs will not be filled.
-        ensure_min_samples : int, default 1
-            The minimum number of samples that should be passed to `func`. If the
-            array is fully masked and `skip_nodata=True`, dummy values (0) will be
-            inserted to ensure this number of samples. No effect if the array contains
-            enough unmasked samples or if `skip_nodata=False`.
-        allow_cast : bool, default=False
-            If True and the `func` output dtype is incompatible with the chosen
-            `nodata_output` value, the output will be cast to the correct dtype instead
-            of raising an error.
-        check_output_for_nodata : bool, default True
-            If True and `nodata_output` is not np.nan, a warning will be raised if the
-            selected `nodata_output` value is returned by `func`, as this may indicate a
-            valid sample being masked.
-        keep_attrs : bool, default=False
-            If True and the input is an Xarray object, the output will keep all
-            attributes of the input features, unless they're set by `func`. Note that
-            some attributes (e.g. `scale_factor`) may become inaccurate, which is why
-            they are dropped by default. The `history` attribute will always be kept. No
-            effect if the input is a Numpy array.
-        inner_thread_limit : int or None, default=1
-            The maximum number of threads allowed per Dask worker. Higher values can
-            result in nested parallelism and oversubscription, which may cause
-            slowdowns, stalls, or system crashes. Use caution when increasing the limit
-            or disabling it by setting to `None`.
-        **ufunc_kwargs
-            Additional keyword arguments passed to the universal function.
-
-        Returns
-        -------
-        FeatureArrayType or tuple[FeatureArrayType]
-            The result of applying the universal function across features.
-        """
-        if output_sizes is None:
-            # Xarray raises a confusing TypeError if output_sizes is required and isn't
-            # iterable. An empty dict will still fail, but with a better message.
-            output_sizes = {}
-        else:
-            # Use output_sizes to build sequential coordinates for each output dimension
-            output_coords = output_coords or {
-                k: list(range(s)) for k, s in output_sizes.items()
-            }
-
-        @with_inputs_reshaped_to_ndim(2)
-        @limit_inner_threads(inner_thread_limit)
-        def ufunc(x):
-            return UfuncSampleProcessor(x, nodata_input=self.nodata_input).apply(
-                func,
-                skip_nodata=skip_nodata,
-                nodata_output=nodata_output,
-                nan_fill=nan_fill,
-                ensure_min_samples=ensure_min_samples,
-                allow_cast=allow_cast,
-                check_output_for_nodata=check_output_for_nodata,
-                **ufunc_kwargs,
-            )
-
-        result = xr.apply_ufunc(
-            ufunc,
-            self._preprocess_ufunc_input(self.feature_array),
-            dask="parallelized",
-            input_core_dims=[[self.feature_dim_name]],
-            exclude_dims=set((self.feature_dim_name,)),
-            output_core_dims=output_dims,
-            output_dtypes=output_dtypes,
-            # Keep all attributes here to avoid dropping the spatial reference from the
-            # coordinate attributes. Unwanted attrs will be dropped during
-            # postprocessing.
-            keep_attrs=True,
-            dask_gufunc_kwargs=dict(
-                output_sizes=output_sizes,
-                allow_rechunk=True,
-            ),
-        )
-
-        return self._postprocess_ufunc_output(
-            result=result,
-            output_coords=output_coords,
-            nodata_output=nodata_output,
-            func=func,
-            keep_attrs=keep_attrs,
         )
 
     def _preprocess_ufunc_input(self, features: FeatureArrayType) -> FeatureArrayType:

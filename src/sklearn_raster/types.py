@@ -30,5 +30,7 @@ RT = TypeVar("RT")
 
 MaybeTuple = Union[T, tuple[T, ...]]
 
-# A function that takes an NDArray and any parameters and returns one or more NDArrays
+# A function that takes one or more NDArrays and any parameters and returns one or more
+# NDArrays
+# TODO: Fix this type to indicate varargs inputs
 ArrayUfunc = Callable[Concatenate[NDArray, P], Union[NDArray, tuple[NDArray, ...]]]
