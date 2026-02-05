@@ -21,6 +21,106 @@ from .feature_utils import (
 )
 
 
+@parametrize_feature_array_types()
+@pytest.mark.parametrize("n_inputs", [1, 2, 5])
+def test_ufunc_with_multiple_inputs(
+    feature_array_type: type[FeatureArrayType],
+    n_inputs: int,
+):
+    """Ensure that ufuncs are called correctly with multiple inputs."""
+    a = np.ones((1, 2, 2))
+    input_arrays = [a.copy() for _ in range(n_inputs)]
+    input_features = [
+        FeatureArray.from_feature_array(wrap_features(arr, type=feature_array_type))
+        for arr in input_arrays
+    ]
+
+    ufunc = FeaturewiseUfunc(
+        lambda *args: sum(args),
+        output_dims=[["variable"]],
+        output_sizes={"variable": 1},
+        output_dtypes=[input_arrays[0].dtype],
+    )
+    result = unwrap_features(ufunc(*input_features))
+    expected_output = np.full((1, 2, 2), n_inputs)
+
+    assert_array_equal(result, expected_output)
+
+
+@parametrize_feature_array_types()
+@pytest.mark.parametrize("skip_nodata", [True, False])
+def test_ufunc_propagates_nodata_from_inputs(
+    feature_array_type: type[FeatureArrayType], skip_nodata: bool
+):
+    """Ensure that NoData values in input arrays are propagated to the output."""
+    d1 = np.asarray(
+        [
+            [
+                [1, 0],
+                [1, 1],
+            ]
+        ]
+    )
+    d2 = np.asarray(
+        [
+            [
+                [1, 1],
+                [1, 0],
+            ]
+        ]
+    )
+    d3 = np.asarray(
+        [
+            [
+                [1, 1],
+                [0, 0],
+            ]
+        ]
+    )
+
+    f1 = FeatureArray.from_feature_array(
+        wrap_features(d1, type=feature_array_type), nodata_input=0
+    )
+    f2 = FeatureArray.from_feature_array(
+        wrap_features(d2, type=feature_array_type), nodata_input=0
+    )
+    f3 = FeatureArray.from_feature_array(
+        wrap_features(d3, type=feature_array_type), nodata_input=0
+    )
+
+    ufunc = FeaturewiseUfunc(
+        lambda x, y, z: x + y + z,
+        output_dims=[["variable"]],
+        output_sizes={"variable": 1},
+        output_dtypes=[d1.dtype],
+    )
+    result = unwrap_features(
+        ufunc(f1, f2, f3, skip_nodata=skip_nodata, nodata_output=-99)
+    )
+    expected_output = np.asarray(
+        [
+            [
+                [3, -99],
+                [-99, -99],
+            ]
+        ]
+    )
+
+    assert_array_equal(result, expected_output)
+
+
+def test_ufunc_raises_with_no_inputs():
+    """Test that calling a ufunc without any arrays raises an error."""
+    ufunc = FeaturewiseUfunc(
+        lambda: None,
+        output_dims=[["variable"]],
+        output_sizes={"variable": 1},
+        output_dtypes=[np.float64],
+    )
+    with pytest.raises(ValueError, match="requires at least one feature array input"):
+        ufunc()
+
+
 @pytest.mark.parametrize(
     ("input_types", "expected_type"),
     [
