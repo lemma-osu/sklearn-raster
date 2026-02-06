@@ -166,7 +166,7 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
         return features
 
     @abstractmethod
-    @map_over_arguments("result", "nodata_output")
+    @map_over_arguments("result", "nodata_output", "output_coords")
     def _postprocess_ufunc_output(
         self,
         result: FeatureArrayType,
@@ -262,7 +262,7 @@ class DataArrayFeatures(FeatureArray):
         global_fill_value = self.feature_array.attrs.get("_FillValue")
         return {name: global_fill_value for name in self.feature_names}
 
-    @map_over_arguments("result", "nodata_output")
+    @map_over_arguments("result", "nodata_output", "output_coords")
     def _postprocess_ufunc_output(
         self,
         result: xr.DataArray,
@@ -360,7 +360,7 @@ class DatasetFeatures(DataArrayFeatures):
             for var in self.dataset.data_vars
         }
 
-    @map_over_arguments("result", "nodata_output")
+    @map_over_arguments("result", "nodata_output", "output_coords")
     def _postprocess_ufunc_output(
         self,
         result: xr.DataArray,
@@ -409,7 +409,7 @@ class DataFrameFeatures(DataArrayFeatures):
         data_array = xr.Dataset.from_dataframe(features).to_dataarray()
         super().__init__(data_array, nodata_input=nodata_input)
 
-    @map_over_arguments("result", "nodata_output")
+    @map_over_arguments("result", "nodata_output", "output_coords")
     def _postprocess_ufunc_output(
         self,
         result: xr.DataArray,

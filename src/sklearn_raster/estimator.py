@@ -213,7 +213,7 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
             output_dims=[[output_dim_name]],
             output_dtypes=[output_dtype],
             output_sizes={output_dim_name: self.n_targets_in_},
-            output_coords={output_dim_name: output_names},
+            output_coords=[{output_dim_name: output_names}],
         )
         return ufunc(
             features,
@@ -326,7 +326,7 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
             output_dims=[[output_dim_name]],
             output_dtypes=[np.float64],
             output_sizes={output_dim_name: len(self.wrapped_estimator.classes_)},
-            output_coords={output_dim_name: list(self.wrapped_estimator.classes_)},
+            output_coords=[{output_dim_name: list(self.wrapped_estimator.classes_)}],
         )
         return ufunc(
             features,
@@ -480,6 +480,7 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
             neighbors as variables.
         """
         output_dim_name = "neighbor"
+        num_outputs = 2 if return_distance else 1
 
         if nodata_output is None:
             nodata_output = (np.nan, -2147483648) if return_distance else -2147483648
@@ -491,17 +492,16 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
         k = n_neighbors or cast(int, getattr(self.wrapped_estimator, "n_neighbors", 5))
 
         self._check_feature_names(features.feature_names)
+        neighbor_coords: dict[str, list[str] | list[int]] = {
+            output_dim_name: generate_sequential_names(k, output_dim_name)
+        }
 
         ufunc = FeaturewiseUfunc(
             suppress_feature_name_warnings(self.wrapped_estimator.kneighbors),
-            output_dims=[[output_dim_name], [output_dim_name]]
-            if return_distance
-            else [[output_dim_name]],
+            output_dims=[[output_dim_name]] * num_outputs,
             output_dtypes=[float, int] if return_distance else [int],
             output_sizes={output_dim_name: k},
-            output_coords={
-                output_dim_name: generate_sequential_names(k, output_dim_name)
-            },
+            output_coords=[neighbor_coords] * num_outputs,
         )
         return ufunc(
             features,
@@ -612,7 +612,7 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
             output_dims=[[output_dim_name]],
             output_dtypes=[np.float64],
             output_sizes={output_dim_name: len(feature_names)},
-            output_coords={output_dim_name: list(feature_names)},
+            output_coords=[{output_dim_name: list(feature_names)}],
         )
         return ufunc(
             features,
@@ -723,7 +723,7 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
             output_dims=[[output_dim_name]],
             output_dtypes=[np.float64],
             output_sizes={output_dim_name: self.n_features_in_},
-            output_coords={output_dim_name: feature_names},
+            output_coords=[{output_dim_name: feature_names}],
         )
         return ufunc(
             features,

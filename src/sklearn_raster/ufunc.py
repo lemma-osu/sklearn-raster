@@ -109,9 +109,9 @@ class FeaturewiseUfunc:
     output_sizes : dict[str, int], optional
         Mapping from dimension names in `output_dims` to their sizes. Required for Dask-
         backed arrays.
-    output_coords : dict[str, list[str] | list[int]], optional
-        Mapping from dimension names in `output_dims` to their coordinates. If not
-        provided, defaults to sequential integer coordinates for each output dimension.
+    output_coords : list[dict[str, list[str] | list[int]]], optional
+        Custom coordinates to assign by dimension, provided as a list of mappings from
+        dimensions to coordinates per output array.
     """
 
     def __init__(
@@ -121,7 +121,7 @@ class FeaturewiseUfunc:
         output_dims: list[list[str]] | None = None,
         output_dtypes: list[np.dtype] | None = None,
         output_sizes: dict[str, int] | None = None,
-        output_coords: dict[str, list[str] | list[int]] | None = None,
+        output_coords: list[dict[str, list[str] | list[int]]] | None = None,
     ):
         self.func = func
         self.output_dims = output_dims
@@ -129,10 +129,7 @@ class FeaturewiseUfunc:
         # Xarray raises a confusing TypeError if output_sizes is required and isn't
         # iterable. An empty dict will still fail, but with a better message.
         self.output_sizes = output_sizes or {}
-        # Default to sequential coordinates for each output dimension
-        self.output_coords = output_coords or {
-            k: list(range(s)) for k, s in self.output_sizes.items()
-        }
+        self.output_coords = output_coords
 
     def __call__(
         self,
@@ -274,9 +271,18 @@ class FeaturewiseUfunc:
             arrays,
             key=lambda arr: type_priority.index(type(arr)),
         )[0]
+
+        # If output_coords contains a single mapping, unwrap it to avoid returning a
+        # tuple of one array.
+        output_coords = (
+            self.output_coords[0]
+            if (self.output_coords and len(self.output_coords) == 1)
+            else self.output_coords
+        )
+
         return highest_priority_array._postprocess_ufunc_output(
             result,
-            output_coords=self.output_coords,
+            output_coords=output_coords,
             nodata_output=nodata_output,
             func=self.func,
             keep_attrs=keep_attrs,

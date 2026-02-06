@@ -121,6 +121,42 @@ def test_ufunc_raises_with_no_inputs():
         ufunc()
 
 
+@pytest.mark.parametrize("dims", [["foo", "bar"], ["foo", "foo"]])
+def test_ufunc_sets_explicit_output_coords(dims):
+    """Test that output coordinates are set correctly when specified."""
+    a = np.zeros((3, 2, 2))
+    features = FeatureArray.from_feature_array(wrap_features(a, type=xr.DataArray))
+
+    ufunc = FeaturewiseUfunc(
+        lambda x: (x, x),
+        output_dims=[[dims[0]], [dims[1]]],
+        output_sizes={dims[0]: 3, dims[1]: 3},
+        output_dtypes=[a.dtype, a.dtype],
+        output_coords=[{dims[0]: ["a0", "a1", "a2"]}, {dims[1]: ["b0", "b1", "b2"]}],
+    )
+    r1, r2 = ufunc(features)
+
+    assert r1.coords[dims[0]].values.tolist() == ["a0", "a1", "a2"]
+    assert r2.coords[dims[1]].values.tolist() == ["b0", "b1", "b2"]
+
+
+def test_ufunc_sets_implicit_output_coords():
+    """Test that output coordinates are set correctly when not specified."""
+    a = np.zeros((3, 2, 2))
+    features = FeatureArray.from_feature_array(wrap_features(a, type=xr.DataArray))
+
+    ufunc = FeaturewiseUfunc(
+        lambda x: (x, x),
+        output_dims=[["foo"], ["bar"]],
+        output_sizes={"foo": 3, "bar": 3},
+        output_dtypes=[a.dtype, a.dtype],
+    )
+    r1, r2 = ufunc(features)
+
+    assert r1.coords["foo"].values.tolist() == [0, 1, 2]
+    assert r2.coords["bar"].values.tolist() == [0, 1, 2]
+
+
 @pytest.mark.parametrize(
     ("input_types", "expected_type"),
     [
@@ -153,7 +189,7 @@ def test_ufunc_return_type_priority(
         lambda *x: x[0],
         output_dims=[["variable"]],
         output_sizes={"variable": n_features},
-        output_coords={"variable": [f"b{i}" for i in range(n_features)]},
+        output_coords=[{"variable": [f"b{i}" for i in range(n_features)]}],
         output_dtypes=[np.dtype(np.float64)],
     )
 
