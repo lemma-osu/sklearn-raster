@@ -8,27 +8,23 @@ import numpy.ma as ma
 import xarray as xr
 from numpy.typing import NDArray
 
-from .features import (
-    DataArrayFeatures,
-    DataFrameFeatures,
-    DatasetFeatures,
-    NDArrayFeatures,
-)
-from .types import ArrayUfunc, FeatureArrayType, MaybeTuple
-from .utils.decorators import (
+from ..types import ArrayUfunc, FeatureArrayType, MaybeTuple
+from ..utils.decorators import (
     limit_inner_threads,
-    map_over_arguments,
     with_inputs_reshaped_to_ndim,
 )
-from .utils.features import get_minimum_precise_numeric_dtype
+from ..utils.features import get_minimum_precise_numeric_dtype
+from ..utils.ufunc import _UfuncResult
+from ._meta import _UfuncMeta
 
 if TYPE_CHECKING:
-    from .features import FeatureArray
+    from ..features import FeatureArray
+    from ._meta import Output
 
 
 class _UfuncInput:
     """
-    An array of samples with NoData handling for use in a RasterUfunc.
+    An array of samples with NoData handling for use in a FeaturewiseUfunc.
 
     The processor takes Numpy arrays in the shape (samples, features) and:
 
@@ -85,59 +81,67 @@ class _UfuncInput:
         return self.samples
 
 
+class _UfuncInputs:
+    """A collection of inputs to a FeaturewiseUfunc with NoData handling."""
+
+    def __init__(
+        self, arrays: tuple[NDArray, ...], nodata_inputs: tuple[ma.MaskedArray, ...]
+    ):
+        self.inputs = [
+            _UfuncInput(array, nodata_input=nodata)
+            for array, nodata in zip(arrays, nodata_inputs, strict=True)
+        ]
+
+    def fill_nans(self, nan_fill: float | None) -> None:
+        """Fill NaNs in all input arrays in place."""
+        for uinput in self.inputs:
+            uinput.samples = uinput._fill_nans(nan_fill)
+
+    def get_nodata_mask(self) -> NDArray | None:
+        """Return a mask where any input array contains NoData."""
+        any_masked = bool(sum([array._num_masked for array in self.inputs]))
+        if any_masked:
+            return np.stack(
+                [
+                    uinput.nodata_mask
+                    for uinput in self.inputs
+                    if uinput.nodata_mask is not None
+                ],
+                axis=-1,
+            ).max(axis=-1)
+        return None
+
+    def get_samples(self) -> list[NDArray]:
+        """Return a list of the sample arrays for all inputs."""
+        return [uinput.samples for uinput in self.inputs]
+
+
 class FeaturewiseUfunc:
     """
     Build a feature-wise universal function with NoData filling, skipping, and masking.
-
-    The ufunc is applied with a single core input dimension representing features and
-    returns arbitrary outputs with the number and dimensions defined by `output_dims`.
 
     Parameters
     ----------
     func : callable
         A function to apply to flattened array(s). The function should accept one or
         more arrays of shape (samples, features) and return one or more arrays of shape
-        (samples, size), where size is defined by `output_sizes`.
-    output_dims : list[list[str]]
-        Output core dimension names as a list of lists. The outer list represents the
-        number of return values from `func` and the inner lists represent the output
-        dimensions of each return value. A single value, e.g. [['variable']], represents
-        a single return with a single output dimension named 'variable'.
-    output_dtypes : list[np.dtype], optional
-        The expected output data types for each value returned by `func`. Required for
-        Dask-backed arrays.
-    output_sizes : dict[str, int], optional
-        Mapping from dimension names in `output_dims` to their sizes. Required for Dask-
-        backed arrays.
-    output_coords : list[dict[str, list[str] | list[int]]], optional
-        Custom coordinates to assign by dimension, provided as a list of mappings from
-        dimensions to coordinates per output array. For example, a function that returns
-        a single array with one dimension of three bands could be defined with
-        `output_coords=[{"band": ["R", "G", "B"]}]`.
+        (samples, size) defined by `outputs`.
+    outputs : list[Output]
+        A list of metadata for each output array returned by `func`. The length of the
+        list determines the number of arrays returned by the ufunc, and the metadata
+        defines the dimensions, data types, coordinates, and NoData values of each
+        output array.
     """
 
-    def __init__(
-        self,
-        func: ArrayUfunc,
-        *,
-        output_dims: list[list[str]] | None = None,
-        output_dtypes: list[np.dtype] | None = None,
-        output_sizes: dict[str, int] | None = None,
-        output_coords: list[dict[str, list[str] | list[int]]] | None = None,
-    ):
+    def __init__(self, func: ArrayUfunc, *, outputs: list[Output]):
         self.func = func
-        self.output_dims = output_dims
-        self.output_dtypes = output_dtypes
-        # Xarray raises a confusing TypeError if output_sizes is required and isn't
-        # iterable. An empty dict will still fail, but with a better message.
-        self.output_sizes = output_sizes or {}
-        self.output_coords = output_coords
+        self.meta = _UfuncMeta.from_outputs(outputs)
 
     def __call__(
         self,
         *arrays: FeatureArray,
         skip_nodata: bool = True,
-        nodata_output: MaybeTuple[float | int] = np.nan,
+        nodata_output: MaybeTuple[float | int] | None = None,
         nan_fill: float | int | None = None,
         ensure_min_samples: int = 1,
         allow_cast: bool = False,
@@ -162,7 +166,9 @@ class FeaturewiseUfunc:
             output features. If the value does not fit in the array dtype(s) returned by
             `func`, an error will be raised unless `allow_cast` is True. When `func`
             returns multiple arrays, you can provide either a single value for all
-            arrays or a tuple with one value per output array. Defaults to np.nan.
+            arrays or a tuple with one value per output array. If not provided, NoData
+            values will fall back to those defined or inferred from the ufunc's output
+            metadata.
         nan_fill : float or int, optional
             If `skip_nodata=False`, any NaNs in the input array will be filled with this
             value prior to calling `func` to avoid errors from functions that do not
@@ -202,138 +208,92 @@ class FeaturewiseUfunc:
             DataFrame > ndarray). If multiple arrays are returned by `func`, a tuple of
             arrays will be returned.
         """
-        # Validate non-empty array inputs
-        if not arrays:
-            msg = (
-                f"{self.__class__.__name__} requires at least one feature array input."
-            )
-            raise ValueError(msg)
-
-        # Validate that all feature dimension names match
-        feature_dim_names = list(set([array.feature_dim_name for array in arrays]))
-        if len(feature_dim_names) > 1:
-            msg = (
-                "All input feature arrays must share the same feature dimension "
-                f"name. Got {feature_dim_names}."
-            )
-            raise ValueError(msg)
-        feature_dim_name = feature_dim_names[0]
-
-        nodata_inputs: list[ma.MaskedArray] = [array.nodata_input for array in arrays]
-        preprocessed = [
-            array._preprocess_ufunc_input(array.feature_array) for array in arrays
-        ]
+        call_meta = self.meta.with_inputs(
+            *arrays,
+            nodata_output=nodata_output,
+        )
 
         @with_inputs_reshaped_to_ndim(2)
         @limit_inner_threads(inner_thread_limit)
         def ufunc(*arrays: NDArray) -> MaybeTuple[NDArray]:
+            # Unwrap single-element tuples to match the output expected by
+            # xr.apply_ufunc.
             return self._apply(
                 *arrays,
                 skip_nodata=skip_nodata,
-                nodata_output=nodata_output,
-                nodata_inputs=nodata_inputs,
+                nodata_outputs=call_meta.nodata_outputs,
+                nodata_inputs=call_meta.nodata_inputs,
                 nan_fill=nan_fill,
                 ensure_min_samples=ensure_min_samples,
                 allow_cast=allow_cast,
                 check_output_for_nodata=check_output_for_nodata,
                 **ufunc_kwargs,
+            ).unwrap()
+
+        preprocessed = [
+            array._preprocess_ufunc_input(array.feature_array) for array in arrays
+        ]
+
+        raw_result = _UfuncResult(
+            xr.apply_ufunc(
+                ufunc,
+                *preprocessed,
+                dask="parallelized",
+                input_core_dims=call_meta.input_core_dims,
+                exclude_dims=call_meta.exclude_dims,
+                output_core_dims=self.meta.output_core_dims,
+                output_dtypes=self.meta.output_dtypes,
+                # Keep all attributes here to avoid dropping the spatial reference from
+                # the coordinate attributes. Unwanted attrs will be dropped during
+                # postprocessing.
+                keep_attrs=True,
+                dask_gufunc_kwargs=dict(
+                    output_sizes=self.meta.output_sizes,
+                    allow_rechunk=True,
+                ),
             )
+        )
 
-        result = xr.apply_ufunc(
-            ufunc,
-            *preprocessed,
-            dask="parallelized",
-            # All inputs must share the same feature input core dimension
-            input_core_dims=[[feature_dim_name]] * len(arrays),
-            # The feature dimension is allowed to change size, so must be excluded
-            exclude_dims=set((feature_dim_name,)),
-            output_core_dims=self.output_dims,
-            output_dtypes=self.output_dtypes,
-            # Keep all attributes here to avoid dropping the spatial reference from the
-            # coordinate attributes. Unwanted attrs will be dropped during
-            # postprocessing.
-            keep_attrs=True,
-            dask_gufunc_kwargs=dict(
-                output_sizes=self.output_sizes,
-                allow_rechunk=True,
+        return raw_result.zip_map(
+            lambda res, coords, nodata: call_meta.postprocessor(
+                res,
+                output_coords=coords,
+                nodata_output=nodata,
+                func=self.func,
+                keep_attrs=keep_attrs,
             ),
-        )
-
-        # In normal usage, xr.apply_ufunc returns the type of the highest-priority input
-        # following the type priority below. Because FeatureArray pre-processing coerces
-        # all inputs to DataArrays, we need to manually apply that logic here by
-        # having the highest priority FeatureArray post-process the output.
-        type_priority = (
-            DatasetFeatures,
-            DataArrayFeatures,
-            DataFrameFeatures,
-            NDArrayFeatures,
-        )
-        highest_priority_array = sorted(
-            arrays,
-            key=lambda arr: type_priority.index(type(arr)),
-        )[0]
-
-        # If output_coords contains a single mapping, unwrap it to avoid returning a
-        # tuple of one array.
-        output_coords = (
-            self.output_coords[0]
-            if (self.output_coords and len(self.output_coords) == 1)
-            else self.output_coords
-        )
-
-        return highest_priority_array._postprocess_ufunc_output(
-            result,
-            output_coords=output_coords,
-            nodata_output=nodata_output,
-            func=self.func,
-            keep_attrs=keep_attrs,
-        )
+            self.meta.output_coords,
+            call_meta.nodata_outputs,
+        ).unwrap()
 
     def _apply(
         self,
         *arrays: NDArray,
-        nodata_inputs: list[ma.MaskedArray],
+        nodata_inputs: tuple[ma.MaskedArray, ...],
+        nodata_outputs: tuple[float | int, ...],
         skip_nodata: bool = True,
-        nodata_output: MaybeTuple[float | int] = np.nan,
         nan_fill: float | int | None = None,
         ensure_min_samples: int = 1,
         allow_cast: bool = False,
         check_output_for_nodata: bool = True,
         **ufunc_kwargs,
-    ) -> MaybeTuple[NDArray]:
+    ) -> _UfuncResult[NDArray]:
         # Convert Numpy arrays to _UfuncInputs which handle NoData
-        uinputs = [
-            _UfuncInput(array, nodata_input=nodata)
-            for array, nodata in zip(arrays, nodata_inputs, strict=True)
-        ]
+        uinputs = _UfuncInputs(arrays, nodata_inputs=nodata_inputs)
 
-        # Only fill NaNs in the input arrays if they're not being skipped
+        # Only fill NaNs if they're not being skipped
         if nan_fill is not None and not skip_nodata:
-            for uinput in uinputs:
-                uinput.samples = uinput._fill_nans(nan_fill)
+            uinputs.fill_nans(nan_fill)
 
-        # If any input contains masked values, build a cumulative NoData mask
-        any_masked = bool(sum([array._num_masked for array in uinputs]))
-        if any_masked:
-            nodata_mask = np.stack(
-                [
-                    uinput.nodata_mask
-                    for uinput in uinputs
-                    if uinput.nodata_mask is not None
-                ],
-                axis=-1,
-            ).max(axis=-1)
-        else:
-            nodata_mask = None
+        nodata_mask = uinputs.get_nodata_mask()
 
         # Only skip NoData if there's something to skip
-        if skip_nodata and any_masked:
+        if skip_nodata and nodata_mask is not None:
             return self._apply_to_valid_samples(
-                *[uinput.samples for uinput in uinputs],
+                *uinputs.get_samples(),
                 ensure_min_samples=ensure_min_samples,
                 nodata_mask=nodata_mask,
-                nodata_output=nodata_output,
+                nodata_outputs=nodata_outputs,
                 allow_cast=allow_cast,
                 nan_fill=nan_fill,
                 check_output_for_nodata=check_output_for_nodata,
@@ -341,9 +301,9 @@ class FeaturewiseUfunc:
             )
 
         return self._apply_to_all_samples(
-            *[uinput.samples for uinput in uinputs],
+            *uinputs.get_samples(),
             nodata_mask=nodata_mask,
-            nodata_output=nodata_output,
+            nodata_outputs=nodata_outputs,
             allow_cast=allow_cast,
             check_output_for_nodata=check_output_for_nodata,
             **ufunc_kwargs,
@@ -353,17 +313,16 @@ class FeaturewiseUfunc:
         self,
         *arrays: NDArray,
         nodata_mask: NDArray | None,
-        nodata_output: MaybeTuple[float | int],
+        nodata_outputs: tuple[float | int, ...],
         allow_cast: bool,
         check_output_for_nodata: bool,
         **kwargs,
-    ) -> NDArray | tuple[NDArray, ...]:
+    ) -> _UfuncResult[NDArray]:
         """Apply a function to all samples in all arrays."""
 
-        @map_over_arguments("result", "nodata_output")
         def mask_nodata(result: NDArray, nodata_output: float | int) -> NDArray:
             """Replace NoData values in the input array with `output_nodata`."""
-            result = self._validate_nodata_output(
+            result = self._maybe_cast_for_nodata(
                 result,
                 nodata_output,
                 allow_cast=allow_cast,
@@ -373,10 +332,10 @@ class FeaturewiseUfunc:
             result[nodata_mask] = nodata_output
             return result
 
-        result = self.func(*arrays, **kwargs)
+        result = self._validate_result(self.func(*arrays, **kwargs))
 
         if nodata_mask is not None:
-            return mask_nodata(result=result, nodata_output=nodata_output)
+            return result.zip_map(mask_nodata, nodata_outputs)
 
         return result
 
@@ -384,13 +343,13 @@ class FeaturewiseUfunc:
         self,
         *arrays: NDArray,
         nodata_mask: NDArray | None,
-        nodata_output: MaybeTuple[float | int],
+        nodata_outputs: tuple[float | int, ...],
         ensure_min_samples: int,
         allow_cast: bool,
         nan_fill: float | int | None,
         check_output_for_nodata: bool,
         **kwargs,
-    ) -> NDArray | tuple[NDArray, ...]:
+    ) -> _UfuncResult[NDArray]:
         """Apply a function to all non-NoData samples in an array."""
         # Array sizes have already been validated to match
         n_samples = arrays[0].shape[0]
@@ -418,12 +377,11 @@ class FeaturewiseUfunc:
                     nan_fill if nan_fill is not None else 0
                 )
 
-        @map_over_arguments("result", "nodata_output")
         def populate_missing_samples(
             result: NDArray, nodata_output: float | int
         ) -> NDArray:
             """Insert the array result for valid samples into the full-shaped array."""
-            result = self._validate_nodata_output(
+            result = self._maybe_cast_for_nodata(
                 result,
                 nodata_output,
                 allow_cast=allow_cast,
@@ -453,10 +411,11 @@ class FeaturewiseUfunc:
             return full_result
 
         # Apply the func only to valid samples
-        func_result = self.func(*[array[~nodata_mask] for array in arrays], **kwargs)
-        return populate_missing_samples(result=func_result, nodata_output=nodata_output)
+        return self._validate_result(
+            self.func(*[array[~nodata_mask] for array in arrays], **kwargs)
+        ).zip_map(populate_missing_samples, nodata_outputs)
 
-    def _validate_nodata_output(
+    def _maybe_cast_for_nodata(
         self,
         output: NDArray,
         nodata_output: float | int,
@@ -508,3 +467,15 @@ class FeaturewiseUfunc:
             )
 
         return output
+
+    def _validate_result(self, result: MaybeTuple[NDArray]) -> _UfuncResult[NDArray]:
+        """Validate that the result from the ufunc is in the expected format."""
+        result = _UfuncResult(result)
+
+        if len(result) != self.meta.num_outputs:
+            raise ValueError(
+                f"The applied function returned {len(result)} outputs, but "
+                f"{self.meta.num_outputs} were expected based on the ufunc metadata."
+            )
+
+        return result

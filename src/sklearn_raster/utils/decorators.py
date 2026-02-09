@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from functools import wraps
-from inspect import signature
 from typing import TYPE_CHECKING, Concatenate
 
 import threadpoolctl
@@ -10,6 +9,7 @@ from numpy.typing import NDArray
 from sklearn.utils.validation import check_is_fitted
 
 from ..types import RT, MaybeTuple, P
+from .ufunc import _UfuncResult
 
 if TYPE_CHECKING:
     from ..estimator import FeatureArrayEstimator
@@ -77,109 +77,6 @@ def requires_attributes(
         return wrapper
 
     return decorator
-
-
-def map_over_arguments(
-    *map_args: str,
-    mappable=(tuple, list),
-    validate_args=True,
-):
-    """
-    A decorator that allows a function to map over selected arguments.
-
-    When the selected arguments are mappable, the function will be called once with
-    each value and a tuple of results will be returned. Non-mapped arguments and scalar
-    mapped arguments will be passed to each call.
-
-    Parameters
-    ----------
-    map_args : str
-        The names of the arguments to support mapping over.
-    mappable : tuple[type], default (list, tuple)
-        The types that will be mapped over when passed to a mapped argument.
-    validate_args : bool, default True
-        If True, the decorator will check that all mapped arguments are defined as
-        parameters of the decorated function and raise a ValueError if not.
-
-    Examples
-    --------
-
-    Providing an iterable to a mapped argument will return a tuple of results mapped
-    over each value:
-
-    >>> @map_over_arguments('b')
-    ... def func(a, b):
-    ...     return a + b
-    >>> func(1, b=[2, 3])
-    (3, 4)
-
-    When multiple arguments are mapped, they will be mapped together:
-
-    >>> @map_over_arguments('a', 'b')
-    ... def func(a, b):
-    ...     return a + b
-    >>> func(a=[1, 2], b=[3, 4])
-    (4, 6)
-
-    Providing a mapped argument as a scalar will disable mapping over that argument:
-
-    >>> @map_over_arguments('a', 'b')
-    ... def func(a, b):
-    ...     return a + b
-    >>> func(a=1, b=[2, 3])
-    (3, 4)
-    >>> func(a=1, b=2)
-    3
-    """
-
-    def arg_mapper(func: Callable[P, RT]) -> Callable[P, MaybeTuple[RT]]:
-        if validate_args:
-            accepted_args = signature(func).parameters
-            invalid_args = [arg for arg in map_args if arg not in accepted_args]
-            if invalid_args:
-                msg = (
-                    "The following arguments are not accepted by the decorated "
-                    f"function and cannot be mapped over: {invalid_args}"
-                )
-                raise ValueError(msg)
-
-        def wrapper(*args, **kwargs):
-            # Bind the arguments as they will be called to allow mapping over positional
-            # or keyword arguments.
-            bound_args = signature(func).bind(*args, **kwargs)
-            bound_args.apply_defaults()
-
-            # Collect the mapped arguments that have mappable values
-            to_map = {
-                arg: val
-                for arg, val in bound_args.arguments.items()
-                if arg in map_args and isinstance(val, mappable)
-            }
-            if not to_map:
-                return func(*args, **kwargs)
-
-            num_mapped_vals = [len(v) for v in to_map.values()]
-            if any([val < max(num_mapped_vals) for val in num_mapped_vals]):
-                raise ValueError(
-                    "All mapped arguments must be the same length or scalar."
-                )
-
-            # Group the mapped arguments for each call
-            map_groups = [
-                {**{k: v[i] for k, v in to_map.items()}}
-                for i in range(max(num_mapped_vals))
-            ]
-
-            # Return one result per group of mapped values
-            results = []
-            for map_group in map_groups:
-                bound_args.arguments.update(map_group)
-                results.append(func(*bound_args.args, **bound_args.kwargs))
-            return tuple(results)
-
-        return wrapper
-
-    return arg_mapper
 
 
 def _get_threadpool_controller() -> threadpoolctl.ThreadpoolController:
@@ -287,7 +184,6 @@ def with_inputs_reshaped_to_ndim(ndim: int | None):
             if ndim_in == ndim:
                 return func(*arrays, **kwargs)
 
-            @map_over_arguments("out")
             def restore_dimensions(out: NDArray) -> NDArray:
                 # For the output shape to be solvable, only one dimension can change.
                 # Since we flatten/expand from the left, we allow the rightmost final
@@ -296,8 +192,11 @@ def with_inputs_reshaped_to_ndim(ndim: int | None):
                 return out.reshape(shape_out)
 
             reshaped = [_reshape_to_ndim(a, ndim) for a in arrays]
-            result = func(*reshaped, **kwargs)
-            return restore_dimensions(result)
+            # Wrap the function output in a tuple to unify handling single vs.
+            # multiple outputs, then unwrap it to match the function signature
+            return (
+                _UfuncResult(func(*reshaped, **kwargs)).map(restore_dimensions).unwrap()
+            )
 
         return validate_and_reshape
 
