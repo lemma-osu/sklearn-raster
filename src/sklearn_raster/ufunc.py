@@ -96,12 +96,12 @@ class FeaturewiseUfunc:
     ----------
     func : callable
         A function to apply to flattened array(s). The function should accept one or
-        more array of shape (samples, features) and return one or more arrays of shape
+        more arrays of shape (samples, features) and return one or more arrays of shape
         (samples, size), where size is defined by `output_sizes`.
     output_dims : list[list[str]]
         Output core dimension names as a list of lists. The outer list represents the
         number of return values from `func` and the inner lists represent the output
-        dimensions of each return value. A single value, e.g. [['variable']] represents
+        dimensions of each return value. A single value, e.g. [['variable']], represents
         a single return with a single output dimension named 'variable'.
     output_dtypes : list[np.dtype], optional
         The expected output data types for each value returned by `func`. Required for
@@ -111,7 +111,9 @@ class FeaturewiseUfunc:
         backed arrays.
     output_coords : list[dict[str, list[str] | list[int]]], optional
         Custom coordinates to assign by dimension, provided as a list of mappings from
-        dimensions to coordinates per output array.
+        dimensions to coordinates per output array. For example, a function that returns
+        a single array with one dimension of three bands could be defined with
+        `output_coords=[{"band": ["R", "G", "B"]}]`.
     """
 
     def __init__(
@@ -157,7 +159,7 @@ class FeaturewiseUfunc:
             `func` expects a consistent number of input samples.
         nodata_output : float or int or tuple, optional
             NoData samples in the input features will be replaced with this value in the
-            output features. If the value does not fit the array dtype(s) returned by
+            output features. If the value does not fit in the array dtype(s) returned by
             `func`, an error will be raised unless `allow_cast` is True. When `func`
             returns multiple arrays, you can provide either a single value for all
             arrays or a tuple with one value per output array. Defaults to np.nan.
