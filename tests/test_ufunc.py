@@ -324,7 +324,7 @@ def test_ufunc_allows_casting_of_unsupported_nodata_output(
 
 
 @parametrize_feature_array_types()
-@pytest.mark.parametrize("input_dtype", [np.uint8, np.float32, np.float64])
+@pytest.mark.parametrize("input_dtype", [np.uint8, np.float32])
 def test_ufunc_skips_nodata_output_validation_if_unmasked(
     feature_array_type: type[FeatureArrayType],
     input_dtype: np.dtype,
@@ -346,7 +346,7 @@ def test_ufunc_skips_nodata_output_validation_if_unmasked(
         ufunc(
             features,
             # Set a value that doesn't fit in the feature array type
-            nodata_output=np.float128(np.nan),
+            nodata_output=np.float64(np.nan),
             skip_nodata=True,
             allow_cast=False,
         )
