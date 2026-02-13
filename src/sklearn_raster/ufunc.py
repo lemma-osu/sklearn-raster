@@ -302,7 +302,7 @@ class FeaturewiseUfunc:
         check_output_for_nodata: bool = True,
         **ufunc_kwargs,
     ) -> MaybeTuple[NDArray]:
-        # Convert flat Numpy arrays to _UfuncInputs which handle NoData
+        # Convert Numpy arrays to _UfuncInputs which handle NoData
         uinputs = [
             _UfuncInput(array, nodata_input=nodata)
             for array, nodata in zip(arrays, nodata_inputs)
