@@ -505,7 +505,6 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
         )
         return ufunc(
             features,
-            return_distance=return_distance,
             skip_nodata=skip_nodata,
             nodata_output=nodata_output,
             ensure_min_samples=ensure_min_samples,
@@ -514,6 +513,8 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
             nan_fill=0.0,
             keep_attrs=keep_attrs,
             inner_thread_limit=inner_thread_limit,
+            # Arguments below are passed through to `kneighbors`
+            return_distance=return_distance,
             n_neighbors=k,
             **kneighbors_kwargs,
         )
