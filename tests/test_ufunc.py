@@ -361,7 +361,7 @@ def test_ufunc_sets_nodata_output(
     feature_array_type: type[FeatureArrayType],
     skip_nodata: bool,
 ):
-    """Test that NoData in the features are filled or not."""
+    """Test that NoData in the features are filled with nodata_output."""
     nodata_input = 0
 
     # Encoded NoData and NaN should both be replaced across features with the
