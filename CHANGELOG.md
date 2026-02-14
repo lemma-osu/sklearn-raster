@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- `ufunc.FeaturewiseUfunc` was added for ufuncs that operate on a feature core input dimension with NoData handling. This replaces `FeatureArray.apply_ufunc_across_features` and adds support for ufuncs with multiple feature array inputs.
+
+### Removed
+
+- `FeatureArray.apply_ufunc_across_features` has been removed in favor of `ufunc.FeaturewiseUfunc`
+
 ## [0.1.0.dev2] - 2025-12-29
 
 ### Fixed

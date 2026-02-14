@@ -271,13 +271,18 @@ def with_inputs_reshaped_to_ndim(ndim: int | None):
             if not arrays:
                 return func(*arrays, **kwargs)
 
-            # Input shapes must be consistent to determine the output shape
-            shapes = tuple(set([a.shape for a in arrays]))
+            # Input shapes must be consistent to determine the output shape, excluding
+            # the final dimension which can change.
+            shapes = tuple(set([a.shape[:-1] for a in arrays]))
             if len(shapes) > 1:
-                raise ValueError("All arrays must have the same shape.")
+                msg = (
+                    "All arrays must have the same shape, excluding the feature "
+                    f"dimension. Got shapes: {shapes}"
+                )
+                raise ValueError(msg)
 
             shape_in = shapes[0]
-            ndim_in = len(shape_in)
+            ndim_in = len(shape_in) + 1
             # Input is already the correct dimensionality - no need for reshaping
             if ndim_in == ndim:
                 return func(*arrays, **kwargs)
@@ -287,7 +292,7 @@ def with_inputs_reshaped_to_ndim(ndim: int | None):
                 # For the output shape to be solvable, only one dimension can change.
                 # Since we flatten/expand from the left, we allow the rightmost final
                 # dimension to change.
-                shape_out = tuple([*shape_in[:-1], -1])
+                shape_out = tuple([*shape_in, -1])
                 return out.reshape(shape_out)
 
             reshaped = [_reshape_to_ndim(a, ndim) for a in arrays]

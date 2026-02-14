@@ -9,6 +9,7 @@ from typing_extensions import Literal, overload
 
 from .features import FeatureArray
 from .types import EstimatorType, MissingType
+from .ufunc import FeaturewiseUfunc
 from .utils.decorators import (
     requires_attributes,
     requires_fitted,
@@ -194,7 +195,6 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
             The predicted values. Array types will be in the shape (targets, ...) while
             xr.Dataset will store targets as variables.
         """
-        wrapped_func = self.wrapped_estimator.predict
         output_dim_name = "target"
         features = FeatureArray.from_feature_array(X, nodata_input=nodata_input)
 
@@ -208,12 +208,15 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
             self.n_targets_in_, output_dim_name
         )
 
-        return features.apply_ufunc_across_features(
-            suppress_feature_name_warnings(wrapped_func),
+        ufunc = FeaturewiseUfunc(
+            suppress_feature_name_warnings(self.wrapped_estimator.predict),
             output_dims=[[output_dim_name]],
             output_dtypes=[output_dtype],
             output_sizes={output_dim_name: self.n_targets_in_},
-            output_coords={output_dim_name: output_names},
+            output_coords=[{output_dim_name: output_names}],
+        )
+        return ufunc(
+            features,
             skip_nodata=skip_nodata,
             nodata_output=nodata_output,
             ensure_min_samples=ensure_min_samples,
@@ -306,7 +309,6 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
             The predicted class probabilities. Array types will be in the shape
             (classes, ...) while xr.Dataset will store classes as variables.
         """
-        wrapped_func = self.wrapped_estimator.predict_proba
         output_dim_name = "class"
         features = FeatureArray.from_feature_array(X, nodata_input=nodata_input)
 
@@ -319,12 +321,15 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
             )
             raise NotImplementedError(msg)
 
-        return features.apply_ufunc_across_features(
-            suppress_feature_name_warnings(wrapped_func),
+        ufunc = FeaturewiseUfunc(
+            suppress_feature_name_warnings(self.wrapped_estimator.predict_proba),
             output_dims=[[output_dim_name]],
             output_dtypes=[np.float64],
             output_sizes={output_dim_name: len(self.wrapped_estimator.classes_)},
-            output_coords={output_dim_name: list(self.wrapped_estimator.classes_)},
+            output_coords=[{output_dim_name: list(self.wrapped_estimator.classes_)}],
+        )
+        return ufunc(
+            features,
             skip_nodata=skip_nodata,
             nodata_output=nodata_output,
             ensure_min_samples=ensure_min_samples,
@@ -474,8 +479,8 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
             Array types will be in the shape (neighbor, ...) while xr.Dataset will store
             neighbors as variables.
         """
-        wrapped_func = self.wrapped_estimator.kneighbors
         output_dim_name = "neighbor"
+        num_outputs = 2 if return_distance else 1
 
         if nodata_output is None:
             nodata_output = (np.nan, -2147483648) if return_distance else -2147483648
@@ -487,19 +492,19 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
         k = n_neighbors or cast(int, getattr(self.wrapped_estimator, "n_neighbors", 5))
 
         self._check_feature_names(features.feature_names)
+        neighbor_coords: dict[str, list[str] | list[int]] = {
+            output_dim_name: generate_sequential_names(k, output_dim_name)
+        }
 
-        return features.apply_ufunc_across_features(
-            suppress_feature_name_warnings(wrapped_func),
-            output_dims=[[output_dim_name], [output_dim_name]]
-            if return_distance
-            else [[output_dim_name]],
+        ufunc = FeaturewiseUfunc(
+            suppress_feature_name_warnings(self.wrapped_estimator.kneighbors),
+            output_dims=[[output_dim_name]] * num_outputs,
             output_dtypes=[float, int] if return_distance else [int],
             output_sizes={output_dim_name: k},
-            output_coords={
-                output_dim_name: generate_sequential_names(k, output_dim_name)
-            },
-            n_neighbors=k,
-            return_distance=return_distance,
+            output_coords=[neighbor_coords] * num_outputs,
+        )
+        return ufunc(
+            features,
             skip_nodata=skip_nodata,
             nodata_output=nodata_output,
             ensure_min_samples=ensure_min_samples,
@@ -508,6 +513,9 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
             nan_fill=0.0,
             keep_attrs=keep_attrs,
             inner_thread_limit=inner_thread_limit,
+            # Arguments below are passed through to `kneighbors`
+            return_distance=return_distance,
+            n_neighbors=k,
             **kneighbors_kwargs,
         )
 
@@ -594,19 +602,21 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
             while xr.Dataset will store features as variables, with the feature names
             based on the estimator's `get_feature_names_out` method.
         """
-        wrapped_func = self.wrapped_estimator.transform
         output_dim_name = "feature"
         features = FeatureArray.from_feature_array(X, nodata_input=nodata_input)
         feature_names = self.wrapped_estimator.get_feature_names_out()
 
         self._check_feature_names(features.feature_names)
 
-        return features.apply_ufunc_across_features(
-            suppress_feature_name_warnings(wrapped_func),
+        ufunc = FeaturewiseUfunc(
+            suppress_feature_name_warnings(self.wrapped_estimator.transform),
             output_dims=[[output_dim_name]],
             output_dtypes=[np.float64],
             output_sizes={output_dim_name: len(feature_names)},
-            output_coords={output_dim_name: list(feature_names)},
+            output_coords=[{output_dim_name: list(feature_names)}],
+        )
+        return ufunc(
+            features,
             skip_nodata=skip_nodata,
             nodata_output=nodata_output,
             ensure_min_samples=ensure_min_samples,
@@ -699,7 +709,6 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
             The inverse-transformed features. Array types will be in the shape
             (features, ...) while xr.Dataset will store features as variables.
         """
-        wrapped_func = self.wrapped_estimator.inverse_transform
         output_dim_name = "feature"
         features = FeatureArray.from_feature_array(X, nodata_input=nodata_input)
         feature_names = self.feature_names_in_
@@ -710,12 +719,15 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
                 self.n_features_in_, output_dim_name
             )
 
-        return features.apply_ufunc_across_features(
-            suppress_feature_name_warnings(wrapped_func),
+        ufunc = FeaturewiseUfunc(
+            suppress_feature_name_warnings(self.wrapped_estimator.inverse_transform),
             output_dims=[[output_dim_name]],
             output_dtypes=[np.float64],
             output_sizes={output_dim_name: self.n_features_in_},
-            output_coords={output_dim_name: feature_names},
+            output_coords=[{output_dim_name: feature_names}],
+        )
+        return ufunc(
+            features,
             skip_nodata=skip_nodata,
             nodata_output=nodata_output,
             ensure_min_samples=ensure_min_samples,
