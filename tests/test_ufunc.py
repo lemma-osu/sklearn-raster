@@ -11,7 +11,7 @@ from numpy.testing import assert_array_equal
 
 from sklearn_raster.features import FeatureArray
 from sklearn_raster.types import FeatureArrayType
-from sklearn_raster.ufunc import FeaturewiseUfunc
+from sklearn_raster.ufunc import FeaturewiseUfunc, Output
 from sklearn_raster.utils.features import get_minimum_precise_numeric_dtype
 
 from .feature_utils import (
@@ -37,9 +37,7 @@ def test_ufunc_with_multiple_inputs(
 
     ufunc = FeaturewiseUfunc(
         lambda *args: sum(args),
-        output_dims=[["variable"]],
-        output_sizes={"variable": 1},
-        output_dtypes=[input_arrays[0].dtype],
+        outputs=[Output.from_1d("variable", size=1, dtype=input_arrays[0].dtype)],
     )
     result = unwrap_features(ufunc(*input_features))
     expected_output = np.full((1, 2, 2), n_inputs)
@@ -90,9 +88,7 @@ def test_ufunc_propagates_nodata_from_inputs(
 
     ufunc = FeaturewiseUfunc(
         lambda x, y, z: x + y + z,
-        output_dims=[["variable"]],
-        output_sizes={"variable": 1},
-        output_dtypes=[d1.dtype],
+        outputs=[Output.from_1d("variable", size=1, dtype=d1.dtype)],
     )
     result = unwrap_features(
         ufunc(f1, f2, f3, skip_nodata=skip_nodata, nodata_output=-99)
@@ -113,9 +109,7 @@ def test_ufunc_raises_with_no_inputs():
     """Test that calling a ufunc without any arrays raises an error."""
     ufunc = FeaturewiseUfunc(
         lambda: None,
-        output_dims=[["variable"]],
-        output_sizes={"variable": 1},
-        output_dtypes=[np.float64],
+        outputs=[Output.from_1d("variable", size=1, dtype=np.dtype(np.float64))],
     )
     with pytest.raises(ValueError, match="requires at least one feature array input"):
         ufunc()
@@ -129,10 +123,10 @@ def test_ufunc_sets_explicit_output_coords(dims):
 
     ufunc = FeaturewiseUfunc(
         lambda x: (x, x),
-        output_dims=[[dims[0]], [dims[1]]],
-        output_sizes={dims[0]: 3, dims[1]: 3},
-        output_dtypes=[a.dtype, a.dtype],
-        output_coords=[{dims[0]: ["a0", "a1", "a2"]}, {dims[1]: ["b0", "b1", "b2"]}],
+        outputs=[
+            Output.from_1d(dims[0], coords=["a0", "a1", "a2"], dtype=a.dtype),
+            Output.from_1d(dims[1], coords=["b0", "b1", "b2"], dtype=a.dtype),
+        ],
     )
     r1, r2 = ufunc(features)
 
@@ -147,9 +141,10 @@ def test_ufunc_sets_implicit_output_coords():
 
     ufunc = FeaturewiseUfunc(
         lambda x: (x, x),
-        output_dims=[["foo"], ["bar"]],
-        output_sizes={"foo": 3, "bar": 3},
-        output_dtypes=[a.dtype, a.dtype],
+        outputs=[
+            Output.from_1d("foo", size=3, dtype=a.dtype),
+            Output.from_1d("bar", size=3, dtype=a.dtype),
+        ],
     )
     r1, r2 = ufunc(features)
 
@@ -187,10 +182,13 @@ def test_ufunc_return_type_priority(
 
     ufunc = FeaturewiseUfunc(
         lambda *x: x[0],
-        output_dims=[["variable"]],
-        output_sizes={"variable": n_features},
-        output_coords=[{"variable": [f"b{i}" for i in range(n_features)]}],
-        output_dtypes=[np.dtype(np.float64)],
+        outputs=[
+            Output.from_1d(
+                "variable",
+                coords=[f"b{i}" for i in range(n_features)],
+                dtype=np.dtype(np.float64),
+            ),
+        ],
     )
 
     assert isinstance(ufunc(*features), expected_type)
@@ -210,9 +208,7 @@ def test_ufunc_does_not_mutate_input(
     features = FeatureArray.from_feature_array(array, nodata_input=0)
     FeaturewiseUfunc(
         lambda x: x * 2.0,
-        output_dims=[["variable"]],
-        output_sizes={"variable": a.shape[0]},
-        output_dtypes=[a.dtype],
+        outputs=[Output.from_1d("variable", size=a.shape[0], dtype=a.dtype)],
     )(features, skip_nodata=skip_nodata)
 
     assert_array_equal(a, original_array)
@@ -241,9 +237,7 @@ def test_ufunc_raises_with_unsupported_nodata_output_dtype(
     )
     ufunc = FeaturewiseUfunc(
         lambda x: np.ones_like(x).astype(return_dtype),
-        output_dims=[["variable"]],
-        output_sizes={"variable": a.shape[0]},
-        output_dtypes=[a.dtype],
+        outputs=[Output.from_1d("variable", size=a.shape[0], dtype=a.dtype)],
     )
     with pytest.raises(ValueError, match=re.escape(expected_msg)):
         # Unwrap to force computation for lazy arrays
@@ -273,9 +267,7 @@ def test_ufunc_raises_with_unsupported_nodata_output_float_precision(
     expected_msg = "Consider casting `nodata_output` to a lower precision"
     ufunc = FeaturewiseUfunc(
         lambda x: np.ones_like(x).astype(return_dtype),
-        output_dims=[["variable"]],
-        output_sizes={"variable": a.shape[0]},
-        output_dtypes=[a.dtype],
+        outputs=[Output.from_1d("variable", size=a.shape[0], dtype=a.dtype)],
     )
     with pytest.raises(ValueError, match=expected_msg):
         # Unwrap to force computation for lazy arrays
@@ -307,9 +299,7 @@ def test_ufunc_allows_casting_of_unsupported_nodata_output(
     # Unwrap to force computation for lazy arrays
     ufunc = FeaturewiseUfunc(
         lambda x: np.ones_like(x).astype(output_dtype),
-        output_dims=[["variable"]],
-        output_sizes={"variable": a.shape[0]},
-        output_dtypes=[a.dtype],
+        outputs=[Output.from_1d("variable", size=a.shape[0], dtype=a.dtype)],
     )
     result = unwrap_features(
         ufunc(
@@ -337,9 +327,7 @@ def test_ufunc_skips_nodata_output_validation_if_unmasked(
 
     ufunc = FeaturewiseUfunc(
         lambda x: x,
-        output_dims=[["variable"]],
-        output_sizes={"variable": a.shape[0]},
-        output_dtypes=[a.dtype],
+        outputs=[Output.from_1d("variable", size=a.shape[0], dtype=a.dtype)],
     )
     # Unwrap to force computation for lazy arrays
     unwrap_features(
@@ -374,9 +362,7 @@ def test_ufunc_sets_nodata_output(
     )
     ufunc = FeaturewiseUfunc(
         lambda x: x,
-        output_dims=[["variable"]],
-        output_sizes={"variable": a.shape[0]},
-        output_dtypes=[a.dtype],
+        outputs=[Output.from_1d("variable", size=a.shape[0], dtype=a.dtype)],
     )
     result = ufunc(
         features,
@@ -385,6 +371,46 @@ def test_ufunc_sets_nodata_output(
     )
 
     assert_array_equal(unwrap_features(result), expected_output)
+
+
+def test_ufunc_uses_default_nodata_output():
+    """Test that the nodata defined in the ufunc metadata is used when not provided."""
+    nodata_output = -99.0
+    a = np.array([[[np.nan, 1, np.nan]]])
+    expected_output = np.array([[[nodata_output, 1, nodata_output]]])
+    features = FeatureArray.from_feature_array(a)
+
+    ufunc = FeaturewiseUfunc(
+        lambda x: x,
+        outputs=[Output.from_1d("variable", size=a.shape[0], nodata=nodata_output)],
+    )
+    result = ufunc(
+        features,
+        skip_nodata=True,
+    )
+
+    assert_array_equal(result, expected_output)
+
+
+def test_ufunc_overrides_default_nodata_output():
+    """Test that the nodata defined in the ufunc metadata is overriden when provided."""
+    nodata_output = -99.0
+    override_nodata = -32768.0
+    a = np.array([[[np.nan, 1, np.nan]]])
+    expected_output = np.array([[[override_nodata, 1, override_nodata]]])
+    features = FeatureArray.from_feature_array(a)
+
+    ufunc = FeaturewiseUfunc(
+        lambda x: x,
+        outputs=[Output.from_1d("variable", size=a.shape[0], nodata=nodata_output)],
+    )
+    result = ufunc(
+        features,
+        skip_nodata=True,
+        nodata_output=override_nodata,
+    )
+
+    assert_array_equal(result, expected_output)
 
 
 @pytest.mark.parametrize("n_features", [1, 2])
@@ -406,9 +432,7 @@ def test_ufunc_shape_when_squeezing_dimension(
     ufunc = FeaturewiseUfunc(
         lambda x: x.mean(axis=1, keepdims=False),
         # Squeeze out the feature dimension (like a single-output predict method would)
-        output_dims=[["variable"]],
-        output_sizes={"variable": 1},
-        output_dtypes=[a.dtype],
+        outputs=[Output.from_1d("variable", size=1, dtype=a.dtype)],
     )
     result = ufunc(
         features,
@@ -435,9 +459,7 @@ def test_ufunc_warns_when_returning_nodata(
     )
     ufunc = FeaturewiseUfunc(
         lambda x: np.full_like(x, nodata_output),
-        output_dims=[["variable"]],
-        output_sizes={"variable": a.shape[0]},
-        output_dtypes=[a.dtype],
+        outputs=[Output.from_1d("variable", size=a.shape[0], dtype=a.dtype)],
     )
     with pytest.warns(UserWarning, match=f"{nodata_output} was found in the array"):
         unwrap_features(
@@ -466,9 +488,7 @@ def test_ufunc_ensures_min_samples(
     )
     ufunc = FeaturewiseUfunc(
         lambda x: assert_array_size(x, min_samples),
-        output_dims=[["variable"]],
-        output_sizes={"variable": a.shape[0]},
-        output_dtypes=[a.dtype],
+        outputs=[Output.from_1d("variable", size=a.shape[0], dtype=a.dtype)],
     )
     result = ufunc(
         features,
@@ -491,9 +511,7 @@ def test_ufunc_raises_on_ensure_too_many_samples(
     )
     ufunc = FeaturewiseUfunc(
         lambda x: x,
-        output_dims=[["variable"]],
-        output_sizes={"variable": a.shape[0]},
-        output_dtypes=[a.dtype],
+        outputs=[Output.from_1d("variable", size=a.shape[0], dtype=a.dtype)],
     )
     with pytest.raises(ValueError, match="Cannot ensure 50 samples with only 10"):
         unwrap_features(
@@ -530,9 +548,7 @@ def test_ufunc_ensure_min_samples_does_not_overwrite(
     )
     ufunc = FeaturewiseUfunc(
         check_for_valid_sample,
-        output_dims=[["variable"]],
-        output_sizes={"variable": a.shape[0]},
-        output_dtypes=[a.dtype],
+        outputs=[Output.from_1d("variable", size=a.shape[0], dtype=a.dtype)],
     )
     result = unwrap_features(
         ufunc(
@@ -572,9 +588,7 @@ def test_ufunc_skips_nodata(
     )
     ufunc = FeaturewiseUfunc(
         lambda x: assert_array_size(x, num_valid),
-        output_dims=[["variable"]],
-        output_sizes={"variable": a.shape[0]},
-        output_dtypes=[a.dtype],
+        outputs=[Output.from_1d("variable", size=a.shape[0], dtype=a.dtype)],
     )
     result = ufunc(
         features,
@@ -604,9 +618,7 @@ def test_ufunc_fills_nans(
 
     ufunc = FeaturewiseUfunc(
         nan_check,
-        output_dims=[["variable"]],
-        output_sizes={"variable": a.shape[0]},
-        output_dtypes=[a.dtype],
+        outputs=[Output.from_1d("variable", size=a.shape[0], dtype=a.dtype)],
     )
     result = ufunc(
         features,
@@ -627,9 +639,7 @@ def test_ufunc_sets_dataarray_fillvalue(nodata_output: int | float):
 
     ufunc = FeaturewiseUfunc(
         lambda x: x,
-        output_dims=[["variable"]],
-        output_sizes={"variable": a.shape[0]},
-        output_dtypes=[a.dtype],
+        outputs=[Output.from_1d("variable", size=a.shape[0], dtype=a.dtype)],
     )
     result = ufunc(
         features,
@@ -656,9 +666,7 @@ def test_ufunc_sets_dataset_fillvalue(nodata_output: int | float):
 
     ufunc = FeaturewiseUfunc(
         lambda x: x,
-        output_dims=[["variable"]],
-        output_sizes={"variable": a.shape[0]},
-        output_dtypes=[a.dtype],
+        outputs=[Output.from_1d("variable", size=a.shape[0], dtype=a.dtype)],
     )
     result = ufunc(
         features,
@@ -686,8 +694,7 @@ def test_ufunc_raises_on_missing_output_sizes(
     )
     ufunc = FeaturewiseUfunc(
         lambda x: x,
-        output_dims=[["variable"]],
-        output_sizes=None,
+        outputs=[Output.from_1d("variable", dtype=np.uint8)],
     )
     with pytest.raises(ValueError, match=re.escape(msg)):
         ufunc(features)
@@ -697,7 +704,7 @@ def test_ufunc_raises_on_missing_arrays():
     """Test that applying a ufunc without any arrays raises an error."""
     ufunc = FeaturewiseUfunc(
         lambda x: x,
-        output_dims=[["variable"]],
+        outputs=[Output.from_1d("variable", size=1, dtype=np.dtype(np.float64))],
     )
     with pytest.raises(ValueError, match="requires at least one feature array input"):
         ufunc()
@@ -717,7 +724,7 @@ def test_ufunc_raises_on_mismatched_feature_dim_names():
 
     ufunc = FeaturewiseUfunc(
         lambda x, y: x + y,
-        output_dims=[["variable"]],
+        outputs=[Output.from_1d("variable", size=1, dtype=np.dtype(np.float64))],
     )
     with pytest.raises(
         ValueError,
@@ -736,7 +743,13 @@ def test_ufunc_raises_on_mismatched_shapes():
 
     ufunc = FeaturewiseUfunc(
         lambda x, y: x + y,
-        output_dims=[["variable"]],
+        outputs=[
+            Output.from_1d(
+                "variable",
+                size=a.shape[0],
+                dtype=np.dtype(np.float64),
+            )
+        ],
     )
     with pytest.raises(ValueError, match="All arrays must have the same shape"):
         ufunc(features_a, features_b)
@@ -752,7 +765,13 @@ def test_ufunc_broadcasts_feature_dimensions():
 
     ufunc = FeaturewiseUfunc(
         lambda x, y: x + y,
-        output_dims=[["variable"]],
+        outputs=[
+            Output.from_1d(
+                "variable",
+                size=b.shape[0],
+                dtype=np.dtype(np.float64),
+            )
+        ],
     )
     result = ufunc(features_a, features_b)
     assert result.shape == (5, 10)
@@ -777,7 +796,7 @@ def test_ufunc_applied_with_inner_thread_limit(thread_limit: int):
 
     ufunc = FeaturewiseUfunc(
         check_inner_threads,
-        output_dims=[["variable"]],
+        outputs=[Output.from_1d("variable", size=1, dtype=np.dtype(np.float64))],
     )
     ufunc(
         features,

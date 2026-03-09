@@ -7,10 +7,12 @@ All notable changes to this project will be documented in this file.
 ### Added
 
 - `ufunc.FeaturewiseUfunc` was added for ufuncs that operate on a feature core input dimension with NoData handling. This replaces `FeatureArray.apply_ufunc_across_features` and adds support for ufuncs with multiple feature array inputs.
+- `ufunc.Dimension` and `ufunc.Output` were added for defining a `FeaturewiseUfunc` based on its expected outputs. This transposes the parameters used in the previous API and adds support for inferring dimension size from coordinates and default NoData values from data type.
 
 ### Removed
 
 - `FeatureArray.apply_ufunc_across_features` has been removed in favor of `ufunc.FeaturewiseUfunc`
+- `utils.decorators.map_over_arguments` was removed with no public replacement.
 - Dropped support for Python `3.9` and `3.10`
 - Removed dependency on `typing-extensions`
 

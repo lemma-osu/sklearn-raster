@@ -1,18 +1,14 @@
 from __future__ import annotations
 
-import re
-
 import numpy as np
 import pytest
 
-from sklearn_raster.utils.decorators import (
-    map_over_arguments,
-    with_inputs_reshaped_to_ndim,
-)
+from sklearn_raster.utils.decorators import with_inputs_reshaped_to_ndim
 from sklearn_raster.utils.features import (
     can_cast_nodata_value,
     get_minimum_precise_numeric_dtype,
 )
+from sklearn_raster.utils.ufunc import _UfuncResult
 
 
 def test_minimum_precise_numeric_dtype():
@@ -25,29 +21,6 @@ def test_minimum_precise_numeric_dtype():
     # Floats should return their current precision
     assert get_minimum_precise_numeric_dtype(42.0) == np.float64
     assert get_minimum_precise_numeric_dtype(np.float32(np.nan)) == np.float32
-
-
-def test_map_over_arguments():
-    """Test that map_over_arguments decorator works as expected."""
-
-    @map_over_arguments("a", "b")
-    def func(a, b):
-        return a + b
-
-    assert func(1, 2) == 3
-    assert func(1, [2, 3]) == (3, 4)
-    assert func(a=[1, 2], b=[3, 4]) == (4, 6)
-
-    with pytest.raises(ValueError, match="must be the same length or scalar"):
-        func(a=[1, 2], b=[3, 4, 5])
-
-
-def test_map_over_arguments_validation():
-    """Test that map_over_arguments raises for unaccepted arguments."""
-    with pytest.raises(ValueError, match=re.escape("cannot be mapped over: ['a']")):
-
-        @map_over_arguments("a")
-        def _(): ...
 
 
 @pytest.mark.parametrize(
@@ -129,3 +102,33 @@ def test_can_cast_nodata_value(value: float | int, to_dtype: np.dtype, can_cast:
     Test that can_cast_nodata_value works as expected.
     """
     assert can_cast_nodata_value(value, to_dtype) == can_cast
+
+
+@pytest.mark.parametrize(("result", "unwrapped"), [(0, 0), ((0,), 0), ((0, 1), (0, 1))])
+def test_ufuncresult_unwraps(result, unwrapped):
+    assert _UfuncResult(result).unwrap() == unwrapped
+
+
+@pytest.mark.parametrize(("result", "length"), [(0, 1), ((0,), 1), ((0, 1), 2)])
+def test_ufuncresult_length(result, length):
+    assert len(_UfuncResult(result)) == length
+
+
+def test_ufuncresult_map():
+    result = _UfuncResult((1, 2, 3))
+    assert result.map(lambda x: x**2).unwrap() == (1, 4, 9)
+
+
+def test_ufuncresult_zipmap_single_value():
+    result = _UfuncResult(0)
+    assert result.zip_map(lambda x, y: x + y, (5,)).unwrap() == 5
+
+
+def test_ufuncresult_zipmap_tuple():
+    result = _UfuncResult((0, 0))
+    assert result.zip_map(lambda x, y: x + y, (5, 5)).unwrap() == (5, 5)
+
+
+def test_ufuncresult_map_passes_kwargs():
+    result = _UfuncResult(2)
+    assert result.zip_map(lambda x, pow: x**pow, pow=8).unwrap() == 256

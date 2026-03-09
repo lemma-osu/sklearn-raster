@@ -18,9 +18,6 @@ from .types import (
     NoDataMap,
     NoDataType,
 )
-from .utils.decorators import (
-    map_over_arguments,
-)
 from .utils.features import can_cast_nodata_value
 
 
@@ -166,14 +163,13 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
         return features
 
     @abstractmethod
-    @map_over_arguments("result", "nodata_output", "output_coords")
     def _postprocess_ufunc_output(
         self,
         result: FeatureArrayType,
         *,
         nodata_output: float | int,
         func: Callable,
-        output_coords: dict[str, list[str | int]] | None = None,
+        output_coords: dict[str, list[str | int]],
         keep_attrs: bool = False,
     ) -> FeatureArrayType:
         """
@@ -220,14 +216,13 @@ class NDArrayFeatures(FeatureArray):
         # Copy to avoid mutating the original array
         return np.moveaxis(features.copy(), 0, -1)
 
-    @map_over_arguments("result")
     def _postprocess_ufunc_output(
         self,
         result: NDArray,
         *,
         nodata_output: float | int,
         func: Callable,
-        output_coords=None,
+        output_coords: dict[str, list[str | int]],
         keep_attrs: bool = False,
     ) -> NDArray:
         """Postprocess the output by moving features back to the first dimension."""
@@ -262,19 +257,17 @@ class DataArrayFeatures(FeatureArray):
         global_fill_value = self.feature_array.attrs.get("_FillValue")
         return {name: global_fill_value for name in self.feature_names}
 
-    @map_over_arguments("result", "nodata_output", "output_coords")
     def _postprocess_ufunc_output(
         self,
         result: xr.DataArray,
         *,
         nodata_output: float | int,
         func: Callable,
-        output_coords: dict[str, list[str | int]] | None = None,
+        output_coords: dict[str, list[str | int]],
         keep_attrs: bool = False,
     ) -> xr.DataArray:
         """Process the ufunc output by assigning coordinates and transposing."""
-        if output_coords is not None:
-            result = result.assign_coords(output_coords)
+        result = result.assign_coords(output_coords)
 
         # Transpose features from the last to the first dimension
         result = result.transpose(result.dims[-1], ...)
@@ -360,14 +353,13 @@ class DatasetFeatures(DataArrayFeatures):
             for var in self.dataset.data_vars
         }
 
-    @map_over_arguments("result", "nodata_output", "output_coords")
     def _postprocess_ufunc_output(
         self,
         result: xr.DataArray,
         *,
         nodata_output: float | int,
         func: Callable,
-        output_coords: dict[str, list[str | int]] | None = None,
+        output_coords: dict[str, list[str | int]],
         keep_attrs: bool = False,
     ) -> xr.Dataset:
         """Process the ufunc output converting from DataArray to Dataset."""
@@ -409,14 +401,13 @@ class DataFrameFeatures(DataArrayFeatures):
         data_array = xr.Dataset.from_dataframe(features).to_dataarray()
         super().__init__(data_array, nodata_input=nodata_input)
 
-    @map_over_arguments("result", "nodata_output", "output_coords")
     def _postprocess_ufunc_output(
         self,
         result: xr.DataArray,
         *,
         nodata_output: float | int,
         func: Callable,
-        output_coords: dict[str, list[str | int]] | None = None,
+        output_coords: dict[str, list[str | int]],
         keep_attrs: bool = False,
     ) -> pd.DataFrame:
         """Process the ufunc output converting from DataArray to DataFrame."""
