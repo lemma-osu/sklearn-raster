@@ -7,7 +7,7 @@ name = "sklearn-raster"
 dynamic = ["version"]
 description = "Spatial raster prediction with scikit-learn estimators."
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 authors = [
     { name = "Aaron Zuspan", email = "aaron.zuspan@oregonstate.edu" },
     { name = "Matt Gregory", email = "matt.gregory@oregonstate.edu" }
@@ -18,7 +18,6 @@ dependencies = [
     "xarray",
     "dask",
     "scikit-learn",
-    "typing-extensions",
 ]
 
 [project.optional-dependencies]
@@ -80,7 +79,7 @@ cov = "pytest . --cov=src/sklearn_raster {args} --doctest-modules"
 template = "test"
 
 [[tool.hatch.envs.test_matrix.matrix]]
-python = ["3.9", "3.10", "3.11", "3.12"]
+python = ["3.11", "3.12", "3.13", "3.14"]
 
 [tool.hatch.envs.docs]
 dependencies = [

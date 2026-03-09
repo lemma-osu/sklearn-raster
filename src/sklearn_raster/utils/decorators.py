@@ -1,13 +1,13 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from functools import wraps
 from inspect import signature
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING, Concatenate
 
 import threadpoolctl
 from numpy.typing import NDArray
 from sklearn.utils.validation import check_is_fitted
-from typing_extensions import Concatenate
 
 from ..types import RT, MaybeTuple, P
 

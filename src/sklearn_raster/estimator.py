@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Generic, cast
+from typing import TYPE_CHECKING, Generic, Literal, cast, overload
 from warnings import warn
 
 import numpy as np
 from sklearn.base import BaseEstimator, clone
-from typing_extensions import Literal, overload
 
 from .features import FeatureArray
 from .types import EstimatorType, MissingType
@@ -484,7 +483,7 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
 
         if nodata_output is None:
             nodata_output = (np.nan, -2147483648) if return_distance else -2147483648
-        elif return_distance is False and isinstance(nodata_output, (tuple, list)):
+        elif return_distance is False and isinstance(nodata_output, tuple | list):
             msg = "`nodata_output` must be a scalar when `return_distance` is False."
             raise ValueError(msg)
 

@@ -6,6 +6,7 @@ import tempfile
 import warnings
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 from unittest import mock
 
 import numpy as np
@@ -14,7 +15,6 @@ import rasterio
 from freezegun import freeze_time
 from numpy.testing import assert_array_almost_equal
 from sklearn.datasets import make_classification
-from typing_extensions import Any
 from xarray_regressions import XarrayRegressionFixture
 
 from sklearn_raster.datasets import load_swo_ecoplot, synthesize_feature_array
