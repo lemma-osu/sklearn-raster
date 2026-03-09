@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any, Literal, overload
 
 import numpy as np
 import pandas as pd
 from numpy.typing import NDArray
-from typing_extensions import Any, Literal, overload
 
 from sklearn_raster import __version__
 from sklearn_raster.datasets._registry import registry
@@ -75,7 +75,7 @@ def _load_rasters_to_dataset(
 ) -> xr.Dataset:
     """Load a list of rasters as an xarray Dataset."""
     das = []
-    for path, var_meta in zip(file_paths, variables):
+    for path, var_meta in zip(file_paths, variables, strict=True):
         da = (
             rioxarray.open_rasterio(path, chunks=chunks)
             .rename(var_meta.name)

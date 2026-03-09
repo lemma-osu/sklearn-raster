@@ -11,6 +11,8 @@ All notable changes to this project will be documented in this file.
 ### Removed
 
 - `FeatureArray.apply_ufunc_across_features` has been removed in favor of `ufunc.FeaturewiseUfunc`
+- Dropped support for Python `3.9` and `3.10`
+- Removed dependency on `typing-extensions`
 
 ## [0.1.0.dev2] - 2025-12-29
 

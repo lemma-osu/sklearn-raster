@@ -305,7 +305,7 @@ class FeaturewiseUfunc:
         # Convert Numpy arrays to _UfuncInputs which handle NoData
         uinputs = [
             _UfuncInput(array, nodata_input=nodata)
-            for array, nodata in zip(arrays, nodata_inputs)
+            for array, nodata in zip(arrays, nodata_inputs, strict=True)
         ]
 
         # Only fill NaNs in the input arrays if they're not being skipped

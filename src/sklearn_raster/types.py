@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 import enum
-from collections.abc import Sequence
-from typing import Callable, Union
+from collections.abc import Callable, Sequence
+from typing import Any, Concatenate, ParamSpec, TypeAlias, TypeVar
 
 import pandas as pd
 import xarray as xr
 from numpy.typing import NDArray
 from sklearn.base import BaseEstimator
-from typing_extensions import Any, Concatenate, ParamSpec, TypeVar
 
 DaskBackedType = TypeVar("DaskBackedType", xr.DataArray, xr.Dataset)
 FeatureArrayType = TypeVar(
@@ -16,9 +15,9 @@ FeatureArrayType = TypeVar(
 )
 EstimatorType = TypeVar("EstimatorType", bound=BaseEstimator)
 AnyType = TypeVar("AnyType", bound=Any)
-NoDataValue = Union[float, int, bool, None]
-NoDataMap = dict[Union[str, int], NoDataValue]
-NoDataType = Union[NoDataValue, Sequence[NoDataValue], NoDataMap]
+NoDataValue = float | int | bool | None
+NoDataMap = dict[str | int, NoDataValue]
+NoDataType = NoDataValue | Sequence[NoDataValue] | NoDataMap
 
 # A sentinel value to distinguish missing parameters from None
 MissingType = enum.Enum("MissingType", "MISSING")
@@ -28,9 +27,9 @@ T = TypeVar("T")
 P = ParamSpec("P")
 RT = TypeVar("RT")
 
-MaybeTuple = Union[T, tuple[T, ...]]
+MaybeTuple: TypeAlias = T | tuple[T, ...]
 
 # A function that takes one or more NDArrays and any parameters and returns one or more
 # NDArrays
 # TODO: Fix this type to indicate varargs inputs
-ArrayUfunc = Callable[Concatenate[NDArray, P], Union[NDArray, tuple[NDArray, ...]]]
+ArrayUfunc = Callable[Concatenate[NDArray, P], NDArray | tuple[NDArray, ...]]

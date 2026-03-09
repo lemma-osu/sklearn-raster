@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections import Counter
-from collections.abc import Sequence, Sized
-from datetime import datetime, timezone
-from typing import Any, Callable, Generic
+from collections.abc import Callable, Sequence, Sized
+from datetime import UTC, datetime
+from typing import Any, Generic
 
 import numpy as np
 import numpy.ma as ma
@@ -60,7 +60,7 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
             return self._build_masked_nodata_array(inferred_nodata)
 
         # If it's a valid scalar (including None), broadcast it to all features
-        if nodata_input is None or isinstance(nodata_input, (float, int, bool)):
+        if nodata_input is None or isinstance(nodata_input, float | int | bool):
             values = [nodata_input] * self.n_features
             return self._build_masked_nodata_array(values)
 
@@ -321,7 +321,7 @@ class DataArrayFeatures(FeatureArray):
         prev_history = attrs.get("history", "")
 
         if append_to_history is not None:
-            timestamp = datetime.now(tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S %Z")
+            timestamp = datetime.now(tz=UTC).strftime("%Y-%m-%d %H:%M:%S %Z")
             set_attrs["history"] = (
                 prev_history + "\n" if prev_history else ""
             ) + f"{timestamp} {append_to_history}"

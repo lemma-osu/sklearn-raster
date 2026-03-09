@@ -530,7 +530,7 @@ def test_predict_raises_mismatched_feature_names(model_data: ModelData):
         estimator.predict(X_image)
 
     # Fit the estimator with same names in a different order than the features
-    rename_map = dict(zip(X.columns, X.columns[::-1]))
+    rename_map = dict(zip(X.columns, X.columns[::-1], strict=True))
     X_flipped = X.rename(columns=rename_map)
     estimator = FeatureArrayEstimator(RandomForestRegressor()).fit(X_flipped, y)
 
