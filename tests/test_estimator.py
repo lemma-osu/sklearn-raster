@@ -451,7 +451,7 @@ def test_predict_proba_class_names(model_data: ModelData):
     y_prob = estimator.predict_proba(X_image)
 
     if isinstance(X_image, xr.DataArray):
-        var_names = y_prob["class"].values
+        var_names = y_prob["label"].values
     else:
         var_names = y_prob.data_vars
 
@@ -469,6 +469,24 @@ def test_predict_proba_raises_for_multioutput(model_data: ModelData):
     expected_msg = "does not currently support multi-output classification"
     with pytest.raises(NotImplementedError, match=expected_msg):
         estimator.predict_proba(X_image)
+
+
+@parametrize_model_data(feature_array_types=(xr.DataArray,), mode="classification")
+def test_predict_proba_dimension_as_keyword(model_data: ModelData):
+    """
+    Test that predict_proba's output dimension can be specified as a keyword.
+    The original dimension name "class" caused syntax errors in this usage.
+    """
+    X_image, X, y = model_data.set(single_output=True)
+    estimator = FeatureArrayEstimator(KNeighborsClassifier()).fit(X, y)
+    y_prob = estimator.predict_proba(X_image)
+
+    assert isinstance(
+        # Use the dimension name (label) as a keyword argument rather than a dict to
+        # ensure it doesn't trigger syntax errors in the typical usage.
+        y_prob.sel(label=estimator.wrapped_estimator.classes_[0]),
+        xr.DataArray,
+    )
 
 
 @pytest.mark.parametrize(

@@ -322,7 +322,7 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
             suppress_feature_name_warnings(self.wrapped_estimator.predict_proba),
             outputs=[
                 Output.from_1d(
-                    name="class",
+                    name="label",
                     size=len(self.wrapped_estimator.classes_),
                     coords=list(self.wrapped_estimator.classes_),
                     dtype=np.float64,
