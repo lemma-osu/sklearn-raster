@@ -12,6 +12,7 @@ All notable changes to this project will be documented in this file.
 ### Changed
 
 - The output dimension from `predict_proba` was changed from `class` to `label` to avoid downstream syntax errors.
+- `NaN` is now encoded as a `_FillValue` like any other NoData value
 
 ### Removed
 

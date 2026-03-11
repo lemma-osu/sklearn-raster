@@ -647,8 +647,7 @@ def test_ufunc_sets_dataarray_fillvalue(nodata_output: int | float):
     )
 
     if np.isnan(nodata_output):
-        # NaN should not be stored as a _FillValue
-        assert "_FillValue" not in result.attrs
+        assert np.isnan(result.attrs.get("_FillValue"))
     else:
         assert result.attrs.get("_FillValue") == nodata_output
 
@@ -674,9 +673,8 @@ def test_ufunc_sets_dataset_fillvalue(nodata_output: int | float):
     )
 
     for var in result.data_vars:
-        # NaN should not be stored as a _FillValue
         if np.isnan(nodata_output):
-            assert "_FillValue" not in result[var].attrs
+            assert np.isnan(result[var].attrs.get("_FillValue"))
         else:
             assert result[var].attrs.get("_FillValue") == nodata_output
 
