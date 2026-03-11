@@ -9,6 +9,10 @@ All notable changes to this project will be documented in this file.
 - `ufunc.FeaturewiseUfunc` was added for ufuncs that operate on a feature core input dimension with NoData handling. This replaces `FeatureArray.apply_ufunc_across_features` and adds support for ufuncs with multiple feature array inputs.
 - `ufunc.Dimension` and `ufunc.Output` were added for defining a `FeaturewiseUfunc` based on its expected outputs. This transposes the parameters used in the previous API and adds support for inferring dimension size from coordinates and default NoData values from data type.
 
+### Changed
+
+- The output dimension from `predict_proba` was changed from `class` to `label` to avoid downstream syntax errors.
+
 ### Removed
 
 - `FeatureArray.apply_ufunc_across_features` has been removed in favor of `ufunc.FeaturewiseUfunc`
