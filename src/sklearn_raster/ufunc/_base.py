@@ -13,7 +13,7 @@ from ..utils.decorators import (
     limit_inner_threads,
     with_inputs_reshaped_to_ndim,
 )
-from ..utils.features import get_minimum_precise_numeric_dtype
+from ..utils.features import can_cast_nodata_value, get_minimum_precise_numeric_dtype
 from ..utils.ufunc import _UfuncResult
 from ._meta import _UfuncMeta
 
@@ -322,17 +322,20 @@ class FeaturewiseUfunc:
 
         def mask_nodata(result: NDArray, nodata_output: float | int) -> NDArray:
             """Replace NoData values in the input array with `output_nodata`."""
-            result = self._maybe_cast_for_nodata(
-                result,
-                nodata_output,
-                allow_cast=allow_cast,
-                check_output_for_nodata=check_output_for_nodata,
-            )
-
             result[nodata_mask] = nodata_output
             return result
 
-        result = self._validate_result(self.func(*arrays, **kwargs))
+        result = (
+            self._validate_result(self.func(*arrays, **kwargs))
+            # Validate and check for NoData even if there's no mask since we may store
+            # metadata like a _FillValue
+            .zip_map(
+                self._maybe_cast_for_nodata,
+                nodata_outputs,
+                allow_cast=allow_cast,
+                check_output_for_nodata=check_output_for_nodata,
+            )
+        )
 
         if nodata_mask is not None:
             return result.zip_map(mask_nodata, nodata_outputs)
@@ -381,13 +384,6 @@ class FeaturewiseUfunc:
             result: NDArray, nodata_output: float | int
         ) -> NDArray:
             """Insert the array result for valid samples into the full-shaped array."""
-            result = self._maybe_cast_for_nodata(
-                result,
-                nodata_output,
-                allow_cast=allow_cast,
-                check_output_for_nodata=check_output_for_nodata,
-            )
-
             # Ensure that the result has a feature dimension in case it was squeezed by
             # the ufunc. `atleast_2d` adds the new axis at the index 0, so transpose
             # twice to move it to the end.
@@ -411,9 +407,18 @@ class FeaturewiseUfunc:
             return full_result
 
         # Apply the func only to valid samples
-        return self._validate_result(
-            self.func(*[array[~nodata_mask] for array in arrays], **kwargs)
-        ).zip_map(populate_missing_samples, nodata_outputs)
+        result = self.func(*[array[~nodata_mask] for array in arrays], **kwargs)
+
+        return (
+            self._validate_result(result)
+            .zip_map(
+                self._maybe_cast_for_nodata,
+                nodata_outputs,
+                allow_cast=allow_cast,
+                check_output_for_nodata=check_output_for_nodata,
+            )
+            .zip_map(populate_missing_samples, nodata_outputs)
+        )
 
     def _maybe_cast_for_nodata(
         self,
@@ -430,27 +435,19 @@ class FeaturewiseUfunc:
         """
         nodata_output_type = get_minimum_precise_numeric_dtype(nodata_output)
 
-        if not np.can_cast(nodata_output_type, output.dtype):
+        # Use permissive casting rules to allow storing equivalent NoData values, e.g.
+        # whole-number floats in integer arrays or larger floats in smaller float arrays
+        # where precision isn't lost.
+        if not can_cast_nodata_value(nodata_output, output.dtype):
             if allow_cast:
                 output = output.astype(nodata_output_type)
             else:
-                msg = (
+                raise ValueError(
                     f"The selected `nodata_output` value {nodata_output} "
                     f"({nodata_output_type}) does not fit in the array dtype "
-                    f"({output.dtype}). "
+                    f"({output.dtype}). Consider choosing a different `nodata_output` "
+                    "value or set `allow_cast=True` to automatically cast the output."
                 )
-                if nodata_output_type.kind == output.dtype.kind == "f":
-                    msg += (
-                        "Consider casting `nodata_output` to a lower precision float "
-                        "or set `allow_cast=True` to automatically cast the output."
-                    )
-                else:
-                    msg += (
-                        "Consider choosing a different `nodata_output` value or set "
-                        "`allow_cast=True` to automatically cast the output."
-                    )
-
-                raise ValueError(msg)
 
         if (
             check_output_for_nodata
