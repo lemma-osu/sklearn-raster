@@ -252,37 +252,6 @@ def test_ufunc_raises_with_unsupported_nodata_output_dtype(
 
 
 @parametrize_feature_array_types()
-@pytest.mark.parametrize(
-    "dtypes", [(np.float64, np.dtype(np.float32)), (np.float32, np.dtype(np.float16))]
-)
-@pytest.mark.parametrize("input_val", [np.nan, 0])
-def test_ufunc_raises_with_unsupported_nodata_output_float_precision(
-    feature_array_type: type[FeatureArrayType],
-    dtypes: tuple[np.dtype, np.dtype],
-    input_val: int | float,
-):
-    """Test that an error is raised when nodata_output is the wrong float precision."""
-    a = np.array([[[input_val]]])
-    array = wrap_features(a, type=feature_array_type)
-    features = FeatureArray.from_feature_array(array, nodata_input=0)
-
-    chosen_dtype, return_dtype = dtypes
-    expected_msg = "Consider casting `nodata_output` to a lower precision"
-    ufunc = FeaturewiseUfunc(
-        lambda x: np.ones_like(x).astype(return_dtype),
-        outputs=[Output.from_1d("variable", size=a.shape[0], dtype=a.dtype)],
-    )
-    with pytest.raises(ValueError, match=expected_msg):
-        # Unwrap to force computation for lazy arrays
-        unwrap_features(
-            ufunc(
-                features,
-                nodata_output=chosen_dtype(np.nan),
-            )
-        )
-
-
-@parametrize_feature_array_types()
 @pytest.mark.parametrize("skip_nodata", [True, False])
 @pytest.mark.parametrize("input_val", [np.nan, 0])
 @pytest.mark.parametrize(

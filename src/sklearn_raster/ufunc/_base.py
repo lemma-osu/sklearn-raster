@@ -13,7 +13,7 @@ from ..utils.decorators import (
     limit_inner_threads,
     with_inputs_reshaped_to_ndim,
 )
-from ..utils.features import get_minimum_precise_numeric_dtype
+from ..utils.features import can_cast_nodata_value, get_minimum_precise_numeric_dtype
 from ..utils.ufunc import _UfuncResult
 from ._meta import _UfuncMeta
 
@@ -435,27 +435,19 @@ class FeaturewiseUfunc:
         """
         nodata_output_type = get_minimum_precise_numeric_dtype(nodata_output)
 
-        if not np.can_cast(nodata_output_type, output.dtype):
+        # Use permissive casting rules to allow storing equivalent NoData values, e.g.
+        # whole-number floats in integer arrays or larger floats in smaller float arrays
+        # where precision isn't lost.
+        if not can_cast_nodata_value(nodata_output, output.dtype):
             if allow_cast:
                 output = output.astype(nodata_output_type)
             else:
-                msg = (
+                raise ValueError(
                     f"The selected `nodata_output` value {nodata_output} "
                     f"({nodata_output_type}) does not fit in the array dtype "
-                    f"({output.dtype}). "
+                    f"({output.dtype}). Consider choosing a different `nodata_output` "
+                    "value or set `allow_cast=True` to automatically cast the output."
                 )
-                if nodata_output_type.kind == output.dtype.kind == "f":
-                    msg += (
-                        "Consider casting `nodata_output` to a lower precision float "
-                        "or set `allow_cast=True` to automatically cast the output."
-                    )
-                else:
-                    msg += (
-                        "Consider choosing a different `nodata_output` value or set "
-                        "`allow_cast=True` to automatically cast the output."
-                    )
-
-                raise ValueError(msg)
 
         if (
             check_output_for_nodata
