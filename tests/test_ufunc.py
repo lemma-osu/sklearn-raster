@@ -216,7 +216,7 @@ def test_ufunc_does_not_mutate_input(
 
 @parametrize_feature_array_types()
 @pytest.mark.parametrize("skip_nodata", [True, False])
-@pytest.mark.parametrize("input_val", [np.nan, 0])
+@pytest.mark.parametrize("input_val", [np.nan, 99])
 @pytest.mark.parametrize(
     "val_dtype", [(-1, np.dtype(np.uint8)), (np.nan, np.dtype(np.int16))]
 )
@@ -253,7 +253,7 @@ def test_ufunc_raises_with_unsupported_nodata_output_dtype(
 
 @parametrize_feature_array_types()
 @pytest.mark.parametrize("skip_nodata", [True, False])
-@pytest.mark.parametrize("input_val", [np.nan, 0])
+@pytest.mark.parametrize("input_val", [np.nan, 99])
 @pytest.mark.parametrize(
     "val_dtypes", [(-1, np.uint8, np.int8), (np.nan, np.int16, np.float64)]
 )
