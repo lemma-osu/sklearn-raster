@@ -629,17 +629,20 @@ def test_ufunc_fills_nans(
     unwrap_features(result)
 
 
-@pytest.mark.parametrize("nodata_output", [np.nan, 0, -32768])
-def test_ufunc_sets_dataarray_fillvalue(nodata_output: int | float):
+@pytest.mark.parametrize(
+    ("dtype", "nodata_output"),
+    [(np.float64, np.nan), (np.uint8, 0), (np.int16, -32768)],
+)
+def test_ufunc_sets_dataarray_fillvalue(dtype, nodata_output: int | float):
     """Test that the output NoData value is stored as the _FillValue for a DataArray."""
-    a = np.array([[[1, 2, 3]]])
+    a = np.array([[[1, 2, 3]]], dtype=dtype)
     features = FeatureArray.from_feature_array(
         wrap_features(a, type=xr.DataArray), nodata_input=0
     )
 
     ufunc = FeaturewiseUfunc(
         lambda x: x,
-        outputs=[Output.from_1d("variable", size=a.shape[0], dtype=a.dtype)],
+        outputs=[Output.from_1d("variable", size=a.shape[0], dtype=dtype)],
     )
     result = ufunc(
         features,
@@ -647,26 +650,28 @@ def test_ufunc_sets_dataarray_fillvalue(nodata_output: int | float):
     )
 
     if np.isnan(nodata_output):
-        # NaN should not be stored as a _FillValue
-        assert "_FillValue" not in result.attrs
+        assert np.isnan(result.attrs.get("_FillValue"))
     else:
         assert result.attrs.get("_FillValue") == nodata_output
 
 
-@pytest.mark.parametrize("nodata_output", [np.nan, 0, -32768])
-def test_ufunc_sets_dataset_fillvalue(nodata_output: int | float):
+@pytest.mark.parametrize(
+    ("dtype", "nodata_output"),
+    [(np.float64, np.nan), (np.uint8, 0), (np.int16, -32768)],
+)
+def test_ufunc_sets_dataset_fillvalue(dtype, nodata_output: int | float):
     """
     Test that the output NoData value is stored as the _FillValue for each variable in a
     Dataset.
     """
-    a = np.array([[[1, 2, 3]]])
+    a = np.array([[[1, 2, 3]]], dtype=dtype)
     features = FeatureArray.from_feature_array(
         wrap_features(a, type=xr.Dataset), nodata_input=0
     )
 
     ufunc = FeaturewiseUfunc(
         lambda x: x,
-        outputs=[Output.from_1d("variable", size=a.shape[0], dtype=a.dtype)],
+        outputs=[Output.from_1d("variable", size=a.shape[0], dtype=dtype)],
     )
     result = ufunc(
         features,
@@ -674,9 +679,8 @@ def test_ufunc_sets_dataset_fillvalue(nodata_output: int | float):
     )
 
     for var in result.data_vars:
-        # NaN should not be stored as a _FillValue
         if np.isnan(nodata_output):
-            assert "_FillValue" not in result[var].attrs
+            assert np.isnan(result[var].attrs.get("_FillValue"))
         else:
             assert result[var].attrs.get("_FillValue") == nodata_output
 

@@ -300,7 +300,7 @@ class DataArrayFeatures(FeatureArray):
         attrs : dict[str, Any]
             Existing attributes to preserve or modify.
         fill_value : float | int, optional
-            The fill value to set for the _FillValue attribute. Ignored if None or NaN.
+            The fill value to set for the _FillValue attribute. Ignored if None.
         append_to_history : str, optional
             A string to append to the history attribute, typically the function name
             that was applied. If None, no history is appended.
@@ -321,7 +321,7 @@ class DataArrayFeatures(FeatureArray):
         elif prev_history:
             set_attrs["history"] = prev_history
 
-        if fill_value is not None and not np.isnan(fill_value):
+        if fill_value is not None:
             set_attrs["_FillValue"] = fill_value
 
         if new_attrs is not None:
