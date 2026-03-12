@@ -13,6 +13,7 @@ All notable changes to this project will be documented in this file.
 
 - The output dimension from `predict_proba` was changed from `class` to `label` to avoid downstream syntax errors.
 - `NaN` is now encoded as a `_FillValue` like any other NoData value.
+- Output NoData values are now validated against array data types regardless of whether input arrays contain masked values, preventing setting incompatible `_FillValue` metadata that would break downstream serialization.
 
 ### Removed
 

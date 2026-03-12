@@ -322,17 +322,20 @@ class FeaturewiseUfunc:
 
         def mask_nodata(result: NDArray, nodata_output: float | int) -> NDArray:
             """Replace NoData values in the input array with `output_nodata`."""
-            result = self._maybe_cast_for_nodata(
-                result,
-                nodata_output,
-                allow_cast=allow_cast,
-                check_output_for_nodata=check_output_for_nodata,
-            )
-
             result[nodata_mask] = nodata_output
             return result
 
-        result = self._validate_result(self.func(*arrays, **kwargs))
+        result = (
+            self._validate_result(self.func(*arrays, **kwargs))
+            # Validate and check for NoData even if there's no mask since we may store
+            # metadata like a _FillValue
+            .zip_map(
+                self._maybe_cast_for_nodata,
+                nodata_outputs,
+                allow_cast=allow_cast,
+                check_output_for_nodata=check_output_for_nodata,
+            )
+        )
 
         if nodata_mask is not None:
             return result.zip_map(mask_nodata, nodata_outputs)
@@ -381,13 +384,6 @@ class FeaturewiseUfunc:
             result: NDArray, nodata_output: float | int
         ) -> NDArray:
             """Insert the array result for valid samples into the full-shaped array."""
-            result = self._maybe_cast_for_nodata(
-                result,
-                nodata_output,
-                allow_cast=allow_cast,
-                check_output_for_nodata=check_output_for_nodata,
-            )
-
             # Ensure that the result has a feature dimension in case it was squeezed by
             # the ufunc. `atleast_2d` adds the new axis at the index 0, so transpose
             # twice to move it to the end.
@@ -411,9 +407,18 @@ class FeaturewiseUfunc:
             return full_result
 
         # Apply the func only to valid samples
-        return self._validate_result(
-            self.func(*[array[~nodata_mask] for array in arrays], **kwargs)
-        ).zip_map(populate_missing_samples, nodata_outputs)
+        result = self.func(*[array[~nodata_mask] for array in arrays], **kwargs)
+
+        return (
+            self._validate_result(result)
+            .zip_map(
+                self._maybe_cast_for_nodata,
+                nodata_outputs,
+                allow_cast=allow_cast,
+                check_output_for_nodata=check_output_for_nodata,
+            )
+            .zip_map(populate_missing_samples, nodata_outputs)
+        )
 
     def _maybe_cast_for_nodata(
         self,

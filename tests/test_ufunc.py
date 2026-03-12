@@ -216,17 +216,18 @@ def test_ufunc_does_not_mutate_input(
 
 @parametrize_feature_array_types()
 @pytest.mark.parametrize("skip_nodata", [True, False])
+@pytest.mark.parametrize("input_val", [np.nan, 0])
 @pytest.mark.parametrize(
     "val_dtype", [(-1, np.dtype(np.uint8)), (np.nan, np.dtype(np.int16))]
 )
 def test_ufunc_raises_with_unsupported_nodata_output_dtype(
+    input_val: int | float,
     val_dtype: tuple[int | float, np.dtype],
     feature_array_type: type[FeatureArrayType],
     skip_nodata: bool,
 ):
     """Test that an error is raised when nodata_output is the wrong dtype."""
-    # Make sure there's a value to mask in the input array
-    a = np.array([[[np.nan]]])
+    a = np.array([[[input_val]]])
     array = wrap_features(a, type=feature_array_type)
     features = FeatureArray.from_feature_array(array, nodata_input=0)
 
@@ -254,12 +255,14 @@ def test_ufunc_raises_with_unsupported_nodata_output_dtype(
 @pytest.mark.parametrize(
     "dtypes", [(np.float64, np.dtype(np.float32)), (np.float32, np.dtype(np.float16))]
 )
+@pytest.mark.parametrize("input_val", [np.nan, 0])
 def test_ufunc_raises_with_unsupported_nodata_output_float_precision(
-    feature_array_type: type[FeatureArrayType], dtypes: tuple[np.dtype, np.dtype]
+    feature_array_type: type[FeatureArrayType],
+    dtypes: tuple[np.dtype, np.dtype],
+    input_val: int | float,
 ):
     """Test that an error is raised when nodata_output is the wrong float precision."""
-    # Make sure there's a value to mask in the input array
-    a = np.array([[[np.nan]]])
+    a = np.array([[[input_val]]])
     array = wrap_features(a, type=feature_array_type)
     features = FeatureArray.from_feature_array(array, nodata_input=0)
 
@@ -281,17 +284,18 @@ def test_ufunc_raises_with_unsupported_nodata_output_float_precision(
 
 @parametrize_feature_array_types()
 @pytest.mark.parametrize("skip_nodata", [True, False])
+@pytest.mark.parametrize("input_val", [np.nan, 0])
 @pytest.mark.parametrize(
     "val_dtypes", [(-1, np.uint8, np.int8), (np.nan, np.int16, np.float64)]
 )
 def test_ufunc_allows_casting_of_unsupported_nodata_output(
     val_dtypes: tuple[int | float, np.dtype, np.dtype],
+    input_val: int | float,
     feature_array_type: type[FeatureArrayType],
     skip_nodata: bool,
 ):
-    """Test that an unsupported nodata_output value correctly casts if allowed."""
-    # Make sure there's a value to mask in the input array
-    a = np.array([[[np.nan]]])
+    """Test that an unsupported nodata_output value correctly casts when allowed."""
+    a = np.array([[[input_val]]])
     array = wrap_features(a, type=feature_array_type)
     features = FeatureArray.from_feature_array(array, nodata_input=0)
 
@@ -311,34 +315,6 @@ def test_ufunc_allows_casting_of_unsupported_nodata_output(
     )
 
     assert result.dtype == expected_dtype
-
-
-@parametrize_feature_array_types()
-@pytest.mark.parametrize("input_dtype", [np.uint8, np.float32])
-def test_ufunc_skips_nodata_output_validation_if_unmasked(
-    feature_array_type: type[FeatureArrayType],
-    input_dtype: np.dtype,
-):
-    """If the input doesn't contain NoData, we shouldn't test nodata_output's dtype."""
-    # Make a feature array without any NoData
-    a = np.ones((4, 4), dtype=input_dtype)
-    array = wrap_features(a, type=feature_array_type)
-    features = FeatureArray.from_feature_array(array, nodata_input=0)
-
-    ufunc = FeaturewiseUfunc(
-        lambda x: x,
-        outputs=[Output.from_1d("variable", size=a.shape[0], dtype=a.dtype)],
-    )
-    # Unwrap to force computation for lazy arrays
-    unwrap_features(
-        ufunc(
-            features,
-            # Set a value that doesn't fit in the feature array type
-            nodata_output=np.float64(np.nan),
-            skip_nodata=True,
-            allow_cast=False,
-        )
-    )
 
 
 @pytest.mark.parametrize("nodata_output", [np.nan, 42.0])
