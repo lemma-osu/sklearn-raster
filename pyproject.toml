@@ -72,8 +72,8 @@ dependencies = [
 ]
 
 [tool.hatch.envs.test.scripts]
-all = "pytest . {args} --doctest-modules"
-cov = "pytest . --cov=src/sklearn_raster {args} --doctest-modules"
+all = "pytest {args} --doctest-modules"
+cov = "pytest --cov=src/sklearn_raster {args} --doctest-modules"
 
 [tool.hatch.envs.test_matrix]
 template = "test"
