@@ -4,13 +4,12 @@ from abc import ABC, abstractmethod
 from collections import Counter
 from collections.abc import Callable, Sequence, Sized
 from datetime import UTC, datetime
-from typing import Any, Generic
+from typing import TYPE_CHECKING, Any, Generic
 
 import numpy as np
 import numpy.ma as ma
 import pandas as pd
 import xarray as xr
-from numpy.typing import NDArray
 
 from .types import (
     FeatureArrayType,
@@ -19,6 +18,9 @@ from .types import (
     NoDataType,
 )
 from .utils.features import can_cast_nodata_value
+
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
 
 
 class FeatureArray(Generic[FeatureArrayType], ABC):

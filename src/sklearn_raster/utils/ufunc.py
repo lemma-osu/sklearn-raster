@@ -1,9 +1,11 @@
 from __future__ import annotations
 
-from collections.abc import Callable, Collection
-from typing import Generic
+from typing import TYPE_CHECKING, Generic
 
 from ..types import RT, MaybeTuple, T
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Collection
 
 
 class _UfuncResult(Generic[T]):

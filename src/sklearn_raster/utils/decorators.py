@@ -1,18 +1,20 @@
 from __future__ import annotations
 
-from collections.abc import Callable
 from functools import wraps
 from typing import TYPE_CHECKING, Concatenate
 
 import threadpoolctl
-from numpy.typing import NDArray
 from sklearn.utils.validation import check_is_fitted
 
-from ..types import RT, MaybeTuple, P
 from .ufunc import _UfuncResult
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from numpy.typing import NDArray
+
     from ..estimator import FeatureArrayEstimator
+    from ..types import RT, MaybeTuple, P
 
 
 # Global threadpool controller instance for limiting threads in decorated ufuncs.

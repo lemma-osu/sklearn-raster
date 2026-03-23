@@ -486,7 +486,9 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
 
         features = FeatureArray.from_feature_array(X, nodata_input=nodata_input)
         self._check_feature_names(features.feature_names)
-        k = n_neighbors or cast(int, getattr(self.wrapped_estimator, "n_neighbors", 5))
+        k = n_neighbors or cast(
+            "int", getattr(self.wrapped_estimator, "n_neighbors", 5)
+        )
 
         neighbor_dim = Dimension(
             name="neighbor", size=k, coords=generate_sequential_names(k, "neighbor")

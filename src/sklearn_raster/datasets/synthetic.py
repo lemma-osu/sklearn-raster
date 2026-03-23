@@ -3,8 +3,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Literal, overload
 
 import numpy as np
-import pandas as pd
-from numpy.typing import NDArray
 from sklearn.decomposition import PCA
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
@@ -13,7 +11,9 @@ from sklearn_raster import FeatureArrayEstimator
 from sklearn_raster.utils.estimator import generate_sequential_names
 
 if TYPE_CHECKING:
+    import pandas as pd
     import xarray as xr
+    from numpy.typing import NDArray
 
 
 @overload
