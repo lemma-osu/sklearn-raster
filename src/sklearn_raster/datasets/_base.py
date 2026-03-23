@@ -2,14 +2,16 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Literal, overload
+from typing import TYPE_CHECKING, Any, Literal, overload
 
 import numpy as np
-import pandas as pd
-from numpy.typing import NDArray
 
 from sklearn_raster import __version__
 from sklearn_raster.datasets._registry import registry
+
+if TYPE_CHECKING:
+    import pandas as pd
+    from numpy.typing import NDArray
 
 try:
     import pooch

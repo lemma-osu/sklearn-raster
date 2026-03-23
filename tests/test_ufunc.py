@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
@@ -10,7 +11,6 @@ import xarray as xr
 from numpy.testing import assert_array_equal
 
 from sklearn_raster.features import FeatureArray
-from sklearn_raster.types import FeatureArrayType
 from sklearn_raster.ufunc import FeaturewiseUfunc, Output
 from sklearn_raster.utils.features import get_minimum_precise_numeric_dtype
 
@@ -19,6 +19,9 @@ from .feature_utils import (
     unwrap_features,
     wrap_features,
 )
+
+if TYPE_CHECKING:
+    from sklearn_raster.types import FeatureArrayType
 
 
 @parametrize_feature_array_types()

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import numpy as np
 
@@ -12,7 +12,11 @@ from ..features import (
     FeatureArray,
     NDArrayFeatures,
 )
-from ..types import MaybeTuple
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Sequence
+
+    from ..types import MaybeTuple
 
 
 @dataclass

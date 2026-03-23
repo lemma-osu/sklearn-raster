@@ -1,14 +1,16 @@
 from __future__ import annotations
 
-from typing import Any, Generic, Literal
+from typing import TYPE_CHECKING, Any, Generic, Literal
 
 import numpy as np
 import pandas as pd
 import pytest
 import xarray as xr
-from numpy.typing import NDArray
 
 from sklearn_raster.types import FeatureArrayType
+
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
 
 # Dimension names to use when building Xarray features, in order of increasing
 # dimensionality, excluding the first "variable" dimension.

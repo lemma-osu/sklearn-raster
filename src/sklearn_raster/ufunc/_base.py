@@ -6,9 +6,7 @@ from warnings import warn
 import numpy as np
 import numpy.ma as ma
 import xarray as xr
-from numpy.typing import NDArray
 
-from ..types import ArrayUfunc, FeatureArrayType, MaybeTuple
 from ..utils.decorators import (
     limit_inner_threads,
     with_inputs_reshaped_to_ndim,
@@ -18,7 +16,10 @@ from ..utils.ufunc import _UfuncResult
 from ._meta import _UfuncMeta
 
 if TYPE_CHECKING:
+    from numpy.typing import NDArray
+
     from ..features import FeatureArray
+    from ..types import ArrayUfunc, FeatureArrayType, MaybeTuple
     from ._meta import Output
 
 
@@ -359,7 +360,7 @@ class FeaturewiseUfunc:
 
         # The NoData mask is guaranteed to exist since this method is only called when
         # there are masked samples, so we can safely cast it for type checking.
-        nodata_mask = cast(NDArray, nodata_mask)
+        nodata_mask = cast("NDArray", nodata_mask)
         num_unmasked = (~nodata_mask).sum()
 
         if inserted_dummy_values := num_unmasked < ensure_min_samples:
