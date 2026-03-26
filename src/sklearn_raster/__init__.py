@@ -1,6 +1,11 @@
+from importlib.metadata import PackageNotFoundError, version
+
 from .estimator import FeatureArrayEstimator, wrap
 
-__version__ = "0.1.0.dev2"
+try:
+    __version__ = version("sklearn-raster")
+except PackageNotFoundError:
+    __version__ = "unknown"
 
 
 __all__ = [
