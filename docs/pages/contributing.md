@@ -3,7 +3,6 @@
 This project is developed with [uv](https://docs.astral.sh/uv/) and [poe](https://poethepoet.natn.io/index.html). Install the project, development tooling, and pre-commit hooks with:
 
 ```bash
-uv sync
 uv run poe install
 ```
 

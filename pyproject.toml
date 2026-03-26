@@ -66,9 +66,7 @@ dev = [
 source-exclude = ["src/sklearn_raster/datasets/data/**"]
 
 [tool.poe.tasks]
-_sync = "uv sync"
-_pre-commit-install = "pre-commit install"
-install = ["_sync", "_pre-commit-install"]
+install = "pre-commit install"
 check = "pre-commit run --all-files"
 test = "pytest --doctest-modules"
 coverage = "pytest --cov=src/sklearn_raster --doctest-modules"
