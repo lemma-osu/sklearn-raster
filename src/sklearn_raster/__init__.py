@@ -1,6 +1,8 @@
+from importlib.metadata import version
+
 from .estimator import FeatureArrayEstimator, wrap
 
-__version__ = "0.1.0.dev2"
+__version__ = version("sklearn-raster")
 
 
 __all__ = [

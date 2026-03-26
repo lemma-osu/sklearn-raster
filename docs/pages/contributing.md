@@ -1,43 +1,49 @@
 ## Setup
 
-Install pre-commit hooks to auto-run linting and formatting:
+This project is developed with [uv](https://docs.astral.sh/uv/) and [poe](https://poethepoet.natn.io/index.html). Install the project, development tooling, and pre-commit hooks with:
 
 ```bash
-hatch run pre-commit install
+uv sync
+poe install
 ```
 
 ## Linting and Formatting
 
-Run linting and formatting manually with Hatch:
+Run linting, formatting, and type checking with:
 
 ```bash
-hatch run pre-commit run --all-files
+poe check
 ```
 
 ## Tests
 
-Add tests to the `tests` dir. Run pytest via the Hatch `test` environment scripts:
+Add tests to the `tests` dir. Run pytest with:
 
 ```bash
-hatch run test:all
-hatch run test:cov
+poe test
+poe coverage
+```
+
+To test against different Python versions, use:
+
+```bash
+uv run --python 3.14 poe test
 ```
 
 ## Docs
 
-Write new documentation in the `docs/pages` directory. Add them to the `nav` in `docs/mkdocs.yml`. Build and serve mkdocs documentation via the Hatch `docs` environment scripts:
+Write new documentation in the `docs/pages` directory. Add them to the `nav` in `docs/mkdocs.yml`. Serve documentation with:
 
 ```bash
-hatch run docs:serve
-hatch run docs:build
+poe docs
 ```
 
 ## Releasing
 
-First, use `hatch` to [update the version number](https://hatch.pypa.io/latest/version/#updating) in a new release branch and merge into `main`.
+First, use `uv` to update the version number in a new release branch and merge into `main`.
 
 ```bash
-$ hatch version [major|minor|patch|alpha|beta|rc|post|dev]
+$ uv version --bump [major|minor|patch|alpha|beta|rc|post|dev]
 ```
 
 Checkout `main` and confirm that it is up-to-date with the remote, including the bumped version. Finally, create and push the release tag.
@@ -45,7 +51,7 @@ Checkout `main` and confirm that it is up-to-date with the remote, including the
 ```bash
 $ git checkout main
 $ git pull
-$ git tag "$(hatch version)"
+$ git tag "$(uv version --short)"
 $ git push --tags
 ```
 
