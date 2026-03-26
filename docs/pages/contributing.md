@@ -4,7 +4,7 @@ This project is developed with [uv](https://docs.astral.sh/uv/) and [poe](https:
 
 ```bash
 uv sync
-poe install
+uv run poe install
 ```
 
 ## Linting and Formatting
@@ -12,7 +12,7 @@ poe install
 Run linting, formatting, and type checking with:
 
 ```bash
-poe check
+uv run poe check
 ```
 
 ## Tests
@@ -20,8 +20,8 @@ poe check
 Add tests to the `tests` dir. Run pytest with:
 
 ```bash
-poe test
-poe coverage
+uv run poe test
+uv run poe coverage
 ```
 
 To test against different Python versions, use:
@@ -35,7 +35,7 @@ uv run --python 3.14 poe test
 Write new documentation in the `docs/pages` directory. Add them to the `nav` in `docs/mkdocs.yml`. Serve documentation with:
 
 ```bash
-poe docs
+uv run poe docs
 ```
 
 ## Releasing
