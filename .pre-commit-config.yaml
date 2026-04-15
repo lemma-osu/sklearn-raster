@@ -10,3 +10,11 @@ repos:
     hooks:
       - id: mypy
         exclude: ^tests/
+        additional_dependencies:
+          - numpy
+          - pandas-stubs
+          - xarray
+          - rioxarray
+          - rasterio
+          - pooch
+          - sknnr
