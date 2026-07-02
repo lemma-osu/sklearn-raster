@@ -468,12 +468,12 @@ class FeaturewiseUfunc:
 
     def _validate_result(self, result: MaybeTuple[NDArray]) -> _UfuncResult[NDArray]:
         """Validate that the result from the ufunc is in the expected format."""
-        result = _UfuncResult(result)
+        validated_result = _UfuncResult(result)
 
-        if len(result) != self.meta.num_outputs:
+        if len(validated_result) != self.meta.num_outputs:
             raise ValueError(
-                f"The applied function returned {len(result)} outputs, but "
+                f"The applied function returned {len(validated_result)} outputs, but "
                 f"{self.meta.num_outputs} were expected based on the ufunc metadata."
             )
 
-        return result
+        return validated_result
