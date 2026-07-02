@@ -156,7 +156,7 @@ class _UfuncMeta:
 
     num_outputs: int
     output_sizes: dict[str, int]
-    output_dtypes: tuple[type[np.generic] | None, ...]
+    output_dtypes: tuple[np.dtype | None, ...]
     output_core_dims: tuple[list[str], ...]
     output_coords: tuple[dict[str, Sequence[str | int]], ...]
     nodata_outputs: tuple[float | int, ...]
@@ -186,7 +186,7 @@ class _UfuncMeta:
     @staticmethod
     def _get_output_dtypes(
         outputs: list[Output],
-    ) -> tuple[type[np.generic] | None, ...]:
+    ) -> tuple[np.dtype | None, ...]:
         """Get a list of output data types for each output array."""
         return tuple([output.dtype for output in outputs])
 

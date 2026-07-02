@@ -27,9 +27,9 @@ if TYPE_CHECKING:
     from .types import FeatureArrayType, MaybeTuple, NoDataType
 
 ESTIMATOR_OUTPUT_DTYPES: dict[str, np.dtype] = {
-    "classifier": np.int32,
-    "clusterer": np.int32,
-    "regressor": np.float64,
+    "classifier": np.dtype(np.int32),
+    "clusterer": np.dtype(np.int32),
+    "regressor": np.dtype(np.float64),
 }
 
 
@@ -200,7 +200,7 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
         # Any estimator with an undefined type should fall back to floating
         # point for safety.
         estimator_type = getattr(self.wrapped_estimator, "_estimator_type", "")
-        output_dtype = ESTIMATOR_OUTPUT_DTYPES.get(estimator_type, np.float64)
+        output_dtype = ESTIMATOR_OUTPUT_DTYPES.get(estimator_type, np.dtype(np.float64))
 
         ufunc = FeaturewiseUfunc(
             suppress_feature_name_warnings(self.wrapped_estimator.predict),
@@ -325,7 +325,7 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
                     name="label",
                     size=len(self.wrapped_estimator.classes_),
                     coords=list(self.wrapped_estimator.classes_),
-                    dtype=np.float64,
+                    dtype=np.dtype(np.float64),
                 )
             ],
         )
@@ -493,8 +493,8 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
         neighbor_dim = Dimension(
             name="neighbor", size=k, coords=generate_sequential_names(k, "neighbor")
         )
-        dist_output_meta = Output(dims=[neighbor_dim], dtype=np.float64)
-        idx_output_meta = Output(dims=[neighbor_dim], dtype=np.int32)
+        dist_output_meta = Output(dims=[neighbor_dim], dtype=np.dtype(np.float64))
+        idx_output_meta = Output(dims=[neighbor_dim], dtype=np.dtype(np.int32))
         ufunc = FeaturewiseUfunc(
             suppress_feature_name_warnings(self.wrapped_estimator.kneighbors),
             outputs=[dist_output_meta, idx_output_meta]
@@ -611,7 +611,7 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
                     name="feature",
                     size=len(feature_names),
                     coords=list(feature_names),
-                    dtype=np.float64,
+                    dtype=np.dtype(np.float64),
                 )
             ],
         )
@@ -719,7 +719,7 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
                     size=self.n_features_in_,
                     coords=self.feature_names_in_
                     or generate_sequential_names(self.n_features_in_, "feature"),
-                    dtype=np.float64,
+                    dtype=np.dtype(np.float64),
                 )
             ],
         )
