@@ -76,12 +76,17 @@ def _load_rasters_to_dataset(
     global_attrs: dict[str, str] | None = None,
 ) -> xr.Dataset:
     """Load a list of rasters as an xarray Dataset."""
-    das = []
+    das: list[xr.DataArray] = []
     for path, var_meta in zip(file_paths, variables, strict=True):
+        raster = rioxarray.open_rasterio(path, chunks=chunks)
+        if isinstance(raster, list):
+            msg = f"Expected one raster object for '{path.name}', got {len(raster)}."
+            raise TypeError(msg)
+
+        data_array = raster.to_dataarray() if isinstance(raster, xr.Dataset) else raster
         da = (
-            rioxarray.open_rasterio(path, chunks=chunks)
+            data_array.squeeze(drop=True)
             .rename(var_meta.name)
-            .squeeze(drop=True)
             .assign_attrs(var_meta.attrs)
         )
         das.append(da)
@@ -320,6 +325,7 @@ def load_swo_ecoplot(
     # Sort data paths to match their order in the X dataframe
     sorted_data_paths = sorted(data_paths, key=lambda x: X.columns.get_loc(x.stem))
 
+    X_image: NDArray | xr.Dataset
     if as_dataset:
         X_image = _load_rasters_to_dataset(
             sorted_data_paths,
