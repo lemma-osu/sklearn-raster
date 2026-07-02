@@ -63,16 +63,26 @@ def can_cast_nodata_value(value: float | int | bool, to_dtype: np.dtype) -> bool
     value_type = type(value)
 
     # Allow casting integer or whole-number floats to integer types based on value range
-    if np.issubdtype(to_dtype, np.integer) and (
-        np.issubdtype(value_type, np.integer)
-        or (np.issubdtype(value_type, np.floating) and value % 1 == 0)
-    ):
-        info = np.iinfo(to_dtype)
-        return value >= info.min and value <= info.max
+    if np.issubdtype(to_dtype, np.integer):
+        if np.issubdtype(value_type, np.bool_):
+            return False
+
+        if np.issubdtype(value_type, np.integer):
+            info = np.iinfo(to_dtype)
+            integer_value = int(value)
+            return info.min <= integer_value <= info.max
+
+        if np.issubdtype(value_type, np.floating):
+            float_value = float(value)
+            if not float_value.is_integer():
+                return False
+
+            info = np.iinfo(to_dtype)
+            return info.min <= float_value <= info.max
 
     # Disallow casting from boolean to numeric types
     if np.issubdtype(value_type, np.bool_) and not np.issubdtype(to_dtype, np.bool_):
         return False
 
     # Use Numpy casting rules for everything else
-    return np.can_cast(np.min_scalar_type(value), to_dtype)
+    return bool(np.can_cast(np.min_scalar_type(value), to_dtype))
