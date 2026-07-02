@@ -14,7 +14,9 @@ from ..features import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Sequence
+    from collections.abc import Callable, Hashable, Sequence
+
+    import numpy.ma as ma
 
     from ..types import MaybeTuple
 
@@ -235,10 +237,10 @@ class _UfuncMeta:
 class _CalledUfuncMeta(_UfuncMeta):
     """Extension of UfuncMeta that includes call-specific input metadata."""
 
-    feature_dim_name: str | None
-    nodata_inputs: tuple[float | int]
-    input_core_dims: tuple[list[str | None], ...]
-    exclude_dims: set[str | None]
+    feature_dim_name: Hashable | None
+    nodata_inputs: tuple[ma.MaskedArray, ...]
+    input_core_dims: tuple[list[Hashable | None], ...]
+    exclude_dims: set[Hashable | None]
     postprocessor: Callable
 
     @classmethod
@@ -267,7 +269,7 @@ class _CalledUfuncMeta(_UfuncMeta):
         )
 
     @staticmethod
-    def _get_feature_dim_name(arrays: tuple[FeatureArray, ...]) -> str | None:
+    def _get_feature_dim_name(arrays: tuple[FeatureArray, ...]) -> Hashable | None:
         """Validate the feature dimension name and return it."""
         # Validate non-empty array inputs
         if not arrays:
