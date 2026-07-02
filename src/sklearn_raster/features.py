@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from collections import Counter
 from collections.abc import Callable, Hashable, Sequence, Sized
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any, Generic
+from typing import TYPE_CHECKING, Any, Generic, overload
 
 import numpy as np
 import numpy.ma as ma
@@ -193,6 +193,34 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
         This method should be overridden by subclasses to handle any necessary
         transformations to the output data, e.g. transposing dimensions.
         """
+
+    @staticmethod
+    @overload
+    def from_feature_array(
+        feature_array: NDArray,
+        nodata_input: NoDataType | MissingType = MissingType.MISSING,
+    ) -> NDArrayFeatures: ...
+
+    @staticmethod
+    @overload
+    def from_feature_array(
+        feature_array: xr.DataArray,
+        nodata_input: NoDataType | MissingType = MissingType.MISSING,
+    ) -> DataArrayFeatures: ...
+
+    @staticmethod
+    @overload
+    def from_feature_array(
+        feature_array: xr.Dataset,
+        nodata_input: NoDataType | MissingType = MissingType.MISSING,
+    ) -> DatasetFeatures: ...
+
+    @staticmethod
+    @overload
+    def from_feature_array(
+        feature_array: pd.DataFrame,
+        nodata_input: NoDataType | MissingType = MissingType.MISSING,
+    ) -> DataFrameFeatures: ...
 
     @staticmethod
     def from_feature_array(
