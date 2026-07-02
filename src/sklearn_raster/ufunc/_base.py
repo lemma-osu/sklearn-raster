@@ -1,26 +1,26 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, Generic, cast, overload
 from warnings import warn
 
 import numpy as np
 import numpy.ma as ma
 import xarray as xr
 
+from ..types import T
 from ..utils.decorators import (
     limit_inner_threads,
     with_inputs_reshaped_to_ndim,
 )
 from ..utils.features import can_cast_nodata_value, get_minimum_precise_numeric_dtype
 from ..utils.ufunc import _UfuncResult
-from ._meta import _UfuncMeta
+from ._meta import Output, _UfuncMeta
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
 
     from ..features import FeatureArray
     from ..types import ArrayUfunc, FeatureArrayType, MaybeTuple
-    from ._meta import Output
 
 
 class _UfuncInput:
@@ -117,7 +117,7 @@ class _UfuncInputs:
         return [uinput.samples for uinput in self.inputs]
 
 
-class FeaturewiseUfunc:
+class FeaturewiseUfunc(Generic[T]):
     """
     Build a feature-wise universal function with NoData filling, skipping, and masking.
 
@@ -127,20 +127,51 @@ class FeaturewiseUfunc:
         A function to apply to flattened array(s). The function should accept one or
         more arrays of shape (samples, features) and return one or more arrays of shape
         (samples, size) defined by `outputs`.
-    outputs : list[Output]
-        A list of metadata for each output array returned by `func`. The length of the
-        list determines the number of arrays returned by the ufunc, and the metadata
-        defines the dimensions, data types, coordinates, and NoData values of each
-        output array.
+    outputs : Output or tuple[Output, ...]
+        Metadata for the output array or arrays returned by `func`. A single `Output`
+        indicates a single returned array, while a tuple of `Output` instances
+        indicates multiple returned arrays. The metadata defines the dimensions, data
+        types, coordinates, and NoData values of each output array.
     """
 
-    def __init__(self, func: ArrayUfunc, *, outputs: list[Output]):
-        self.func = func
-        self.meta = _UfuncMeta.from_outputs(outputs)
+    @overload
+    def __init__(
+        self: FeaturewiseUfunc[Output],
+        func: ArrayUfunc,
+        *,
+        outputs: Output,
+    ) -> None: ...
 
-    def __call__(
+    @overload
+    def __init__(
+        self: FeaturewiseUfunc[tuple[Output, Output]],
+        func: ArrayUfunc,
+        *,
+        outputs: tuple[Output, Output],
+    ) -> None: ...
+
+    @overload
+    def __init__(
+        self: FeaturewiseUfunc[tuple[Output, ...]],
+        func: ArrayUfunc,
+        *,
+        outputs: tuple[Output, ...],
+    ) -> None: ...
+
+    def __init__(
         self,
-        *arrays: FeatureArray,
+        func: ArrayUfunc,
+        *,
+        outputs: Output | tuple[Output, ...],
+    ):
+        self.func = func
+        normalized_outputs = (outputs,) if isinstance(outputs, Output) else outputs
+        self.meta = _UfuncMeta.from_outputs(normalized_outputs)
+
+    @overload
+    def __call__(
+        self: FeaturewiseUfunc[Output],
+        *arrays: FeatureArray[FeatureArrayType],
         skip_nodata: bool = True,
         nodata_output: MaybeTuple[float | int] | None = None,
         nan_fill: float | int | None = None,
@@ -150,7 +181,51 @@ class FeaturewiseUfunc:
         keep_attrs: bool = False,
         inner_thread_limit: int | None = 1,
         **ufunc_kwargs,
-    ) -> MaybeTuple[FeatureArrayType]:
+    ) -> FeatureArrayType: ...
+
+    @overload
+    def __call__(
+        self: FeaturewiseUfunc[tuple[Output, Output]],
+        *arrays: FeatureArray[FeatureArrayType],
+        skip_nodata: bool = True,
+        nodata_output: MaybeTuple[float | int] | None = None,
+        nan_fill: float | int | None = None,
+        ensure_min_samples: int = 1,
+        allow_cast: bool = False,
+        check_output_for_nodata: bool = True,
+        keep_attrs: bool = False,
+        inner_thread_limit: int | None = 1,
+        **ufunc_kwargs,
+    ) -> tuple[FeatureArrayType, FeatureArrayType]: ...
+
+    @overload
+    def __call__(
+        self: FeaturewiseUfunc[tuple[Output, ...]],
+        *arrays: FeatureArray[FeatureArrayType],
+        skip_nodata: bool = True,
+        nodata_output: MaybeTuple[float | int] | None = None,
+        nan_fill: float | int | None = None,
+        ensure_min_samples: int = 1,
+        allow_cast: bool = False,
+        check_output_for_nodata: bool = True,
+        keep_attrs: bool = False,
+        inner_thread_limit: int | None = 1,
+        **ufunc_kwargs,
+    ) -> tuple[FeatureArrayType, ...]: ...
+
+    def __call__(
+        self,
+        *arrays: FeatureArray[Any],
+        skip_nodata: bool = True,
+        nodata_output: MaybeTuple[float | int] | None = None,
+        nan_fill: float | int | None = None,
+        ensure_min_samples: int = 1,
+        allow_cast: bool = False,
+        check_output_for_nodata: bool = True,
+        keep_attrs: bool = False,
+        inner_thread_limit: int | None = 1,
+        **ufunc_kwargs,
+    ) -> Any:
         """
         Apply a function to feature arrays with NoData filling, skipping, and masking.
 
@@ -232,7 +307,8 @@ class FeaturewiseUfunc:
             ).unwrap()
 
         preprocessed = [
-            array._preprocess_ufunc_input(array.feature_array) for array in arrays
+            input_array._preprocess_ufunc_input(input_array.feature_array)
+            for input_array in arrays
         ]
 
         raw_result = _UfuncResult(

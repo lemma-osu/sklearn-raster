@@ -4,12 +4,13 @@ from abc import ABC, abstractmethod
 from collections import Counter
 from collections.abc import Callable, Hashable, Sequence, Sized
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any, Generic, overload
+from typing import Any, Generic, TypeVar, cast, overload
 
 import numpy as np
 import numpy.ma as ma
 import pandas as pd
 import xarray as xr
+from numpy.typing import NDArray
 
 from .types import (
     FeatureArrayType,
@@ -20,8 +21,9 @@ from .types import (
 )
 from .utils.features import can_cast_nodata_value
 
-if TYPE_CHECKING:
-    from numpy.typing import NDArray
+_DataArrayBackedArrayType = TypeVar(
+    "_DataArrayBackedArrayType", NDArray, xr.DataArray, xr.Dataset, pd.DataFrame
+)
 
 
 class FeatureArray(Generic[FeatureArrayType], ABC):
@@ -41,7 +43,7 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
     ):
         self.feature_array = feature_array
         self.feature_names = self._validate_feature_names()
-        self.n_features = self.feature_array.shape[self.feature_dim]
+        self.n_features = self._get_n_features()
         self.nodata_input = self._validate_nodata_input(nodata_input)
 
     @abstractmethod
@@ -51,6 +53,10 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
     @abstractmethod
     def _get_feature_dtype(self) -> np.dtype:
         """Return the dtype used for NoData validation and masking."""
+
+    def _get_n_features(self) -> int:
+        """Return the number of features in the wrapped array."""
+        return self.feature_array.shape[self.feature_dim]
 
     def _validate_nodata_input(
         self, nodata_input: NoDataType | MissingType
@@ -171,7 +177,7 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
             fill_value=missing_fill_value,
         )
 
-    def _preprocess_ufunc_input(self, features: FeatureArrayType) -> FeatureArrayType:
+    def _preprocess_ufunc_input(self, features: FeatureArrayType) -> Any:
         """
         Preprocess the input of an applied ufunc. No-op unless overridden by subclasses.
         """
@@ -180,7 +186,7 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
     @abstractmethod
     def _postprocess_ufunc_output(
         self,
-        result: FeatureArrayType,
+        result: Any,
         *,
         nodata_output: float | int,
         func: Callable,
@@ -225,7 +231,7 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
     @staticmethod
     def from_feature_array(
         feature_array: Any, nodata_input: NoDataType | MissingType = MissingType.MISSING
-    ) -> FeatureArray:
+    ) -> FeatureArray[Any]:
         """Create a FeatureArray from a supported feature type."""
         if isinstance(feature_array, np.ndarray):
             return NDArrayFeatures(feature_array, nodata_input=nodata_input)
@@ -243,7 +249,7 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
         raise TypeError(msg)
 
 
-class NDArrayFeatures(FeatureArray):
+class NDArrayFeatures(FeatureArray[NDArray]):
     """Features stored in a Numpy NDArray of shape (features, ...)."""
 
     def _get_feature_dtype(self) -> np.dtype:
@@ -275,23 +281,39 @@ class NDArrayFeatures(FeatureArray):
         return np.moveaxis(result, -1, 0)
 
 
-class DataArrayFeatures(FeatureArray):
-    """Features stored in an xarray DataArray of shape (features, ...)."""
+class _DataArrayBackedFeatureArray(
+    FeatureArray[_DataArrayBackedArrayType], Generic[_DataArrayBackedArrayType], ABC
+):
+    """Shared logic for feature arrays processed through an Xarray DataArray."""
 
-    def _get_feature_dtype(self) -> np.dtype:
-        return self.feature_array.dtype
+    data_array: xr.DataArray
 
     def __init__(
         self,
-        features: xr.DataArray,
+        feature_array: _DataArrayBackedArrayType,
         nodata_input: NoDataType | MissingType = MissingType.MISSING,
     ):
-        self.feature_dim_name = features.dims[self.feature_dim]
-        super().__init__(features, nodata_input=nodata_input)
+        self.data_array = self._as_data_array(feature_array)
+        self.feature_dim_name = self.data_array.dims[self.feature_dim]
+        FeatureArray.__init__(self, feature_array, nodata_input=nodata_input)
 
-    def _validate_feature_names(self) -> NDArray[np.object_]:
-        names = self.feature_array[self.feature_dim_name].values.astype(object)
+    @abstractmethod
+    def _as_data_array(self, feature_array: _DataArrayBackedArrayType) -> xr.DataArray:
+        """Convert the wrapped feature array into a DataArray used for processing."""
+
+    def _get_n_features(self) -> int:
+        """Return the number of features in the underlying DataArray."""
+        return self.data_array.shape[self.feature_dim]
+
+    def _get_feature_dtype(self) -> np.dtype:
+        """Return the dtype used for NoData validation and masking."""
+        return self.data_array.dtype
+
+    def _validate_dataarray_feature_names(
+        self, data_array: xr.DataArray
+    ) -> NDArray[np.object_]:
         # Feature names must be unique to allow mapping NoData values by name
+        names = data_array[self.feature_dim_name].values.astype(object)
         duplicated_names = [name for name, count in Counter(names).items() if count > 1]
         if duplicated_names:
             msg = (
@@ -301,12 +323,7 @@ class DataArrayFeatures(FeatureArray):
             raise ValueError(msg)
         return names
 
-    def _get_default_nodata_mapping(self) -> NoDataMap:
-        # Infer NoData from global _FillValue (or None) for all features
-        global_fill_value = self.feature_array.attrs.get("_FillValue")
-        return {name: global_fill_value for name in self.feature_names}
-
-    def _postprocess_ufunc_output(
+    def _postprocess_dataarray_output(
         self,
         result: xr.DataArray,
         *,
@@ -330,7 +347,6 @@ class DataArrayFeatures(FeatureArray):
             append_to_history=func.__qualname__,
             keep_attrs=keep_attrs,
         )
-
         return result
 
     def _get_attrs(
@@ -381,25 +397,57 @@ class DataArrayFeatures(FeatureArray):
 
         return set_attrs
 
+    def _validate_feature_names(self) -> NDArray[np.object_]:
+        """Validate and return feature names from the processing DataArray."""
+        return self._validate_dataarray_feature_names(self.data_array)
 
-class DatasetFeatures(DataArrayFeatures):
+    def _get_default_nodata_mapping(self) -> NoDataMap:
+        """Infer NoData from a global _FillValue (or None) for all features."""
+        global_fill_value = self.data_array.attrs.get("_FillValue")
+        return {name: global_fill_value for name in self.feature_names}
+
+    def _preprocess_ufunc_input(self, features: Any) -> xr.DataArray:
+        """Preprocess by converting wrapped features into the processing DataArray."""
+        return self.data_array
+
+
+class DataArrayFeatures(_DataArrayBackedFeatureArray[xr.DataArray]):
+    """Features stored in an xarray DataArray of shape (features, ...)."""
+
+    def _as_data_array(self, feature_array: xr.DataArray) -> xr.DataArray:
+        return feature_array
+
+    def _postprocess_ufunc_output(
+        self,
+        result: xr.DataArray,
+        *,
+        nodata_output: float | int,
+        func: Callable,
+        output_coords: dict[str, list[str | int]],
+        keep_attrs: bool = False,
+    ) -> xr.DataArray:
+        return self._postprocess_dataarray_output(
+            result=result,
+            nodata_output=nodata_output,
+            func=func,
+            output_coords=output_coords,
+            keep_attrs=keep_attrs,
+        )
+
+
+class DatasetFeatures(_DataArrayBackedFeatureArray[xr.Dataset]):
     """Features stored in an xarray Dataset with features as variables."""
 
-    def __init__(
-        self,
-        features: xr.Dataset,
-        nodata_input: NoDataType | MissingType = MissingType.MISSING,
-    ):
-        # The data will be stored as a DataArray, but keep the Dataset for metadata
-        # like _FillValues.
-        self.dataset = features
-        super().__init__(features.to_dataarray(), nodata_input=nodata_input)
+    def _as_data_array(self, feature_array: xr.Dataset) -> xr.DataArray:
+        # The data are processed through a DataArray, but keep the Dataset for
+        # metadata like variable-level _FillValues.
+        return feature_array.to_dataarray()
 
     def _get_default_nodata_mapping(self) -> NoDataMap:
         # Infer NoData from variable-level _FillValues (or None) per-feature
         return {
-            var: self.dataset[var].attrs.get("_FillValue")
-            for var in self.dataset.data_vars
+            var: self.feature_array[var].attrs.get("_FillValue")
+            for var in self.feature_array.data_vars
         }
 
     def _postprocess_ufunc_output(
@@ -412,7 +460,7 @@ class DatasetFeatures(DataArrayFeatures):
         keep_attrs: bool = False,
     ) -> xr.Dataset:
         """Process the ufunc output converting from DataArray to Dataset."""
-        result = super()._postprocess_ufunc_output(
+        result = self._postprocess_dataarray_output(
             result=result,
             output_coords=output_coords,
             nodata_output=nodata_output,
@@ -436,19 +484,11 @@ class DatasetFeatures(DataArrayFeatures):
         return ds
 
 
-class DataFrameFeatures(DataArrayFeatures):
+class DataFrameFeatures(_DataArrayBackedFeatureArray[pd.DataFrame]):
     """Features stored in a Pandas DataFrame of shape (samples, features)."""
 
-    def __init__(
-        self,
-        features: pd.DataFrame,
-        nodata_input: NoDataType | MissingType = MissingType.MISSING,
-    ):
-        # The data will be stored as a DataArray, but keep the DataFrame for metadata
-        # like the index name.
-        self.dataframe = features
-        data_array = xr.Dataset.from_dataframe(features).to_dataarray()
-        super().__init__(data_array, nodata_input=nodata_input)
+    def _as_data_array(self, feature_array: pd.DataFrame) -> xr.DataArray:
+        return xr.Dataset.from_dataframe(feature_array).to_dataarray()
 
     def _postprocess_ufunc_output(
         self,
@@ -460,7 +500,7 @@ class DataFrameFeatures(DataArrayFeatures):
         keep_attrs: bool = False,
     ) -> pd.DataFrame:
         """Process the ufunc output converting from DataArray to DataFrame."""
-        result = super()._postprocess_ufunc_output(
+        result = self._postprocess_dataarray_output(
             result=result,
             output_coords=output_coords,
             nodata_output=nodata_output,
@@ -468,12 +508,9 @@ class DataFrameFeatures(DataArrayFeatures):
             keep_attrs=False,
         )
 
-        df = (
-            result
-            # Transpose from (target, samples) back to (samples, target)
-            .T.to_pandas()
-            # Preserve the input index name(s)
-            .rename_axis(self.dataframe.index.names, axis=0)
-        )
-        df.columns.name = self.dataframe.columns.name
+        # to_pandas always returns a DataFrame for a 2D input
+        pandas_result = cast("pd.DataFrame", result.T.to_pandas())
+
+        df = pandas_result.rename_axis(self.feature_array.index.names, axis=0)
+        df.columns.name = self.feature_array.columns.name
         return df

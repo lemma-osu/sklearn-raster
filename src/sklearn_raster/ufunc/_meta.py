@@ -164,7 +164,7 @@ class _UfuncMeta:
     nodata_outputs: tuple[float | int, ...]
 
     @staticmethod
-    def _get_output_sizes(outputs: list[Output]) -> dict[str, int]:
+    def _get_output_sizes(outputs: Sequence[Output]) -> dict[str, int]:
         """Get a mapping from dimension names to sizes for all output dimensions."""
         output_sizes: dict[str, int] = {}
         for output in outputs:
@@ -187,19 +187,19 @@ class _UfuncMeta:
 
     @staticmethod
     def _get_output_dtypes(
-        outputs: list[Output],
+        outputs: Sequence[Output],
     ) -> tuple[np.dtype | None, ...]:
         """Get a list of output data types for each output array."""
         return tuple([output.dtype for output in outputs])
 
     @staticmethod
-    def _get_output_core_dims(outputs: list[Output]) -> tuple[list[str], ...]:
+    def _get_output_core_dims(outputs: Sequence[Output]) -> tuple[list[str], ...]:
         """Get a list of output core dimension names for each output array."""
         return tuple([[dim.name for dim in output.dims] for output in outputs])
 
     @staticmethod
     def _get_output_coords(
-        outputs: list[Output],
+        outputs: Sequence[Output],
     ) -> tuple[dict[str, Sequence[str | int]], ...]:
         return tuple(
             [
@@ -209,7 +209,7 @@ class _UfuncMeta:
         )
 
     @classmethod
-    def from_outputs(cls, outputs: list[Output]) -> _UfuncMeta:
+    def from_outputs(cls, outputs: Sequence[Output]) -> _UfuncMeta:
         """Construct ufunc metadata from a list of outputs."""
         return cls(
             num_outputs=len(outputs),

@@ -204,15 +204,13 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
 
         ufunc = FeaturewiseUfunc(
             suppress_feature_name_warnings(self.wrapped_estimator.predict),
-            outputs=[
-                Output.from_1d(
-                    name="target",
-                    size=self.n_targets_in_,
-                    coords=self.target_names_in_
-                    or generate_sequential_names(self.n_targets_in_, "target"),
-                    dtype=output_dtype,
-                )
-            ],
+            outputs=Output.from_1d(
+                name="target",
+                size=self.n_targets_in_,
+                coords=self.target_names_in_
+                or generate_sequential_names(self.n_targets_in_, "target"),
+                dtype=output_dtype,
+            ),
         )
         return ufunc(
             features,
@@ -320,14 +318,12 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
 
         ufunc = FeaturewiseUfunc(
             suppress_feature_name_warnings(self.wrapped_estimator.predict_proba),
-            outputs=[
-                Output.from_1d(
-                    name="label",
-                    size=len(self.wrapped_estimator.classes_),
-                    coords=list(self.wrapped_estimator.classes_),
-                    dtype=np.dtype(np.float64),
-                )
-            ],
+            outputs=Output.from_1d(
+                name="label",
+                size=len(self.wrapped_estimator.classes_),
+                coords=list(self.wrapped_estimator.classes_),
+                dtype=np.dtype(np.float64),
+            ),
         )
         return ufunc(
             features,
@@ -495,13 +491,29 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
         )
         dist_output_meta = Output(dims=[neighbor_dim], dtype=np.dtype(np.float64))
         idx_output_meta = Output(dims=[neighbor_dim], dtype=np.dtype(np.int32))
-        ufunc = FeaturewiseUfunc(
+        if return_distance:
+            return FeaturewiseUfunc(
+                suppress_feature_name_warnings(self.wrapped_estimator.kneighbors),
+                outputs=(dist_output_meta, idx_output_meta),
+            )(
+                features,
+                skip_nodata=skip_nodata,
+                nodata_output=nodata_output,
+                ensure_min_samples=ensure_min_samples,
+                allow_cast=allow_cast,
+                check_output_for_nodata=check_output_for_nodata,
+                nan_fill=0.0,
+                keep_attrs=keep_attrs,
+                inner_thread_limit=inner_thread_limit,
+                return_distance=True,
+                n_neighbors=k,
+                **kneighbors_kwargs,
+            )
+
+        return FeaturewiseUfunc(
             suppress_feature_name_warnings(self.wrapped_estimator.kneighbors),
-            outputs=[dist_output_meta, idx_output_meta]
-            if return_distance
-            else [idx_output_meta],
-        )
-        return ufunc(
+            outputs=idx_output_meta,
+        )(
             features,
             skip_nodata=skip_nodata,
             nodata_output=nodata_output,
@@ -511,8 +523,7 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
             nan_fill=0.0,
             keep_attrs=keep_attrs,
             inner_thread_limit=inner_thread_limit,
-            # Arguments below are passed through to `kneighbors`
-            return_distance=return_distance,
+            return_distance=False,
             n_neighbors=k,
             **kneighbors_kwargs,
         )
@@ -606,14 +617,12 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
 
         ufunc = FeaturewiseUfunc(
             suppress_feature_name_warnings(self.wrapped_estimator.transform),
-            outputs=[
-                Output.from_1d(
-                    name="feature",
-                    size=len(feature_names),
-                    coords=list(feature_names),
-                    dtype=np.dtype(np.float64),
-                )
-            ],
+            outputs=Output.from_1d(
+                name="feature",
+                size=len(feature_names),
+                coords=list(feature_names),
+                dtype=np.dtype(np.float64),
+            ),
         )
         return ufunc(
             features,
@@ -713,15 +722,13 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
 
         ufunc = FeaturewiseUfunc(
             suppress_feature_name_warnings(self.wrapped_estimator.inverse_transform),
-            outputs=[
-                Output.from_1d(
-                    name="feature",
-                    size=self.n_features_in_,
-                    coords=self.feature_names_in_
-                    or generate_sequential_names(self.n_features_in_, "feature"),
-                    dtype=np.dtype(np.float64),
-                )
-            ],
+            outputs=Output.from_1d(
+                name="feature",
+                size=self.n_features_in_,
+                coords=self.feature_names_in_
+                or generate_sequential_names(self.n_features_in_, "feature"),
+                dtype=np.dtype(np.float64),
+            ),
         )
         return ufunc(
             features,
