@@ -169,7 +169,9 @@ def synthesize_feature_array(
     nodata: float = np.nan,
     as_dataset: bool = False,
     random_state: int | np.random.RandomState | None = None,
-) -> xr.Dataset: ...
+) -> NDArray | xr.Dataset: ...
+
+
 def synthesize_feature_array(
     X: np.ndarray | pd.DataFrame,
     *,
@@ -257,15 +259,6 @@ def synthesize_feature_array(
     >>> X_img["feature0"].sel(time=1).shape
     (256, 256)
     """
-    noise = _generate_fractal_noise(
-        shape=(n_components, *shape),
-        roughness=roughness,
-        standardize=True,
-        as_dataset=as_dataset,
-        percentile_mask=percentile_mask,
-        random_state=random_state,
-    )
-
     # A transformer from unstandardized feature space to standardized PCA space. This
     # will be inverted to project standardized noise arrays representing synthetic PC
     # components into feature space.
@@ -282,8 +275,31 @@ def synthesize_feature_array(
         )
     ).fit(X)
 
+    if as_dataset:
+        dataset_noise = _generate_fractal_noise(
+            shape=(n_components, *shape),
+            roughness=roughness,
+            standardize=True,
+            as_dataset=True,
+            percentile_mask=percentile_mask,
+            random_state=random_state,
+        )
+        return sample_to_component.inverse_transform(
+            dataset_noise,
+            nodata_output=nodata,
+            keep_attrs=True,
+        )
+
+    array_noise = _generate_fractal_noise(
+        shape=(n_components, *shape),
+        roughness=roughness,
+        standardize=True,
+        as_dataset=False,
+        percentile_mask=percentile_mask,
+        random_state=random_state,
+    )
     return sample_to_component.inverse_transform(
-        noise,
+        array_noise,
         nodata_output=nodata,
         keep_attrs=True,
     )
