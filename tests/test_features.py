@@ -7,7 +7,7 @@ import pytest
 import xarray as xr
 from numpy.testing import assert_array_equal
 
-from sklearn_raster.features import FeatureArray, FeatureArrayType
+from sklearn_raster.features import FeatureArray, T_FeatureArrayType
 from sklearn_raster.types import MissingType
 
 from .feature_utils import (
@@ -84,7 +84,7 @@ def test_nodata_positive_value_cast_to_signed_dtype():
 
 
 @parametrize_feature_array_types(feature_array_types=(xr.DataArray, xr.Dataset))
-def test_nodata_name_dict(feature_array_type: type[FeatureArrayType]):
+def test_nodata_name_dict(feature_array_type: type[T_FeatureArrayType]):
     """Test that NoData values can be assigned by name."""
     n_features = 3
     nodata_input = {"b0": -32768, "b2": 255}
@@ -122,7 +122,7 @@ def test_nodata_index_dict():
 
 @parametrize_feature_array_types(feature_array_types=(xr.DataArray, xr.Dataset))
 def test_nodata_dict_raises_with_invalid_name(
-    feature_array_type: type[FeatureArrayType],
+    feature_array_type: type[T_FeatureArrayType],
 ):
     """Test that an invalid feature name raises a helpful error."""
     n_features = 3

@@ -7,7 +7,7 @@ import pandas as pd
 import pytest
 import xarray as xr
 
-from sklearn_raster.types import FeatureArrayType
+from sklearn_raster.types import T_FeatureArrayType
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
@@ -25,7 +25,7 @@ def parametrize_feature_array_types(
     return pytest.mark.parametrize(label, feature_array_types, ids=lambda t: t.__name__)
 
 
-class ModelData(Generic[FeatureArrayType]):
+class ModelData(Generic[T_FeatureArrayType]):
     """
     Data used to train and predict with raster-compatible estimators for testing.
 
@@ -59,7 +59,7 @@ class ModelData(Generic[FeatureArrayType]):
         X_image: NDArray,
         X: NDArray,
         y: NDArray,
-        feature_array_type: type[FeatureArrayType] = np.ndarray,
+        feature_array_type: type[T_FeatureArrayType] = np.ndarray,
     ):
         self._feature_array_type = feature_array_type
         self._X_image = X_image
@@ -93,7 +93,7 @@ class ModelData(Generic[FeatureArrayType]):
         return self._X_image.shape
 
     @property
-    def X_image(self) -> FeatureArrayType:
+    def X_image(self) -> T_FeatureArrayType:
         """Feature image."""
         return wrap_features(self._X_image, self._feature_array_type)
 
@@ -195,7 +195,9 @@ def parametrize_model_data(
     )
 
 
-def wrap_features(features: NDArray, type: type[FeatureArrayType]) -> FeatureArrayType:
+def wrap_features(
+    features: NDArray, type: type[T_FeatureArrayType]
+) -> T_FeatureArrayType:
     """
     Wrap a Numpy NDArray with features in the first dimension into the specified type.
 

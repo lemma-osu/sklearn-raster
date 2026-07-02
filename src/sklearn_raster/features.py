@@ -13,11 +13,11 @@ import xarray as xr
 from numpy.typing import NDArray
 
 from .types import (
-    FeatureArrayType,
     MissingType,
     NoDataMap,
     NoDataType,
     NoDataValue,
+    T_FeatureArrayType,
 )
 from .utils.features import can_cast_nodata_value
 
@@ -26,10 +26,10 @@ _DataArrayBackedArrayType = TypeVar(
 )
 
 
-class FeatureArray(Generic[FeatureArrayType], ABC):
+class FeatureArray(Generic[T_FeatureArrayType], ABC):
     """A wrapper around an n-dimensional array of features."""
 
-    feature_array: FeatureArrayType
+    feature_array: T_FeatureArrayType
     feature_names: NDArray[np.object_]
     feature_dim_name: Hashable | None = None
     feature_dim: int = 0
@@ -38,7 +38,7 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
 
     def __init__(
         self,
-        feature_array: FeatureArrayType,
+        feature_array: T_FeatureArrayType,
         nodata_input: NoDataType | MissingType = MissingType.MISSING,
     ):
         self.feature_array = feature_array
@@ -177,7 +177,7 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
             fill_value=missing_fill_value,
         )
 
-    def _preprocess_ufunc_input(self, features: FeatureArrayType) -> Any:
+    def _preprocess_ufunc_input(self, features: T_FeatureArrayType) -> Any:
         """
         Preprocess the input of an applied ufunc. No-op unless overridden by subclasses.
         """
@@ -192,7 +192,7 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
         func: Callable,
         output_coords: dict[str, list[str | int]],
         keep_attrs: bool = False,
-    ) -> FeatureArrayType:
+    ) -> T_FeatureArrayType:
         """
         Postprocess the output of an applied ufunc.
 

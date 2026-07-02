@@ -7,7 +7,7 @@ import numpy as np
 from sklearn.base import BaseEstimator, clone
 
 from .features import FeatureArray
-from .types import EstimatorType, MissingType
+from .types import MissingType, T_EstimatorType
 from .ufunc import Dimension, FeaturewiseUfunc, Output
 from .utils.decorators import (
     requires_attributes,
@@ -24,7 +24,7 @@ if TYPE_CHECKING:
     import pandas as pd
     from numpy.typing import NDArray
 
-    from .types import FeatureArrayType, MaybeTuple, NoDataType
+    from .types import MaybeTuple, NoDataType, T_FeatureArrayType
 
 ESTIMATOR_OUTPUT_DTYPES: dict[str, np.dtype] = {
     "classifier": np.dtype(np.int32),
@@ -33,7 +33,7 @@ ESTIMATOR_OUTPUT_DTYPES: dict[str, np.dtype] = {
 }
 
 
-class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
+class FeatureArrayEstimator(Generic[T_EstimatorType], BaseEstimator):
     """
     An estimator wrapper with overriden methods for n-dimensional feature arrays.
 
@@ -75,11 +75,11 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
     (128, 128)
     """
 
-    def __init__(self, wrapped_estimator: EstimatorType):
+    def __init__(self, wrapped_estimator: T_EstimatorType):
         self.wrapped_estimator = self._reset_estimator(wrapped_estimator)
 
     @requires_implementation
-    def fit(self, X, y=None, **kwargs) -> FeatureArrayEstimator[EstimatorType]:
+    def fit(self, X, y=None, **kwargs) -> FeatureArrayEstimator[T_EstimatorType]:
         """
         Fit an estimator from a training set (X, y).
 
@@ -118,7 +118,7 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
     @requires_fitted
     def predict(
         self,
-        X: FeatureArrayType,
+        X: T_FeatureArrayType,
         *,
         skip_nodata: bool = True,
         nodata_input: NoDataType | MissingType = MissingType.MISSING,
@@ -129,7 +129,7 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
         keep_attrs: bool = False,
         inner_thread_limit: int | None = 1,
         **predict_kwargs,
-    ) -> FeatureArrayType:
+    ) -> T_FeatureArrayType:
         """
         Predict target(s) for n-dimensional X features.
 
@@ -230,7 +230,7 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
     @requires_attributes("classes_")
     def predict_proba(
         self,
-        X: FeatureArrayType,
+        X: T_FeatureArrayType,
         *,
         skip_nodata: bool = True,
         nodata_input: NoDataType | MissingType = MissingType.MISSING,
@@ -241,7 +241,7 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
         keep_attrs: bool = False,
         inner_thread_limit: int | None = 1,
         **predict_proba_kwargs,
-    ) -> FeatureArrayType:
+    ) -> T_FeatureArrayType:
         """
         Predict class probabilities for n-dimensional X features.
 
@@ -343,7 +343,7 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
     @overload
     def kneighbors(
         self,
-        X: FeatureArrayType,
+        X: T_FeatureArrayType,
         *,
         n_neighbors: int | None = None,
         return_distance: Literal[True] = True,
@@ -356,14 +356,14 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
         keep_attrs: bool = False,
         inner_thread_limit: int | None = 1,
         **kneighbors_kwargs,
-    ) -> tuple[FeatureArrayType, FeatureArrayType]: ...
+    ) -> tuple[T_FeatureArrayType, T_FeatureArrayType]: ...
 
     @requires_implementation
     @requires_fitted
     @overload
     def kneighbors(
         self,
-        X: FeatureArrayType,
+        X: T_FeatureArrayType,
         *,
         n_neighbors: int | None = None,
         return_distance: Literal[False] = False,
@@ -376,13 +376,13 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
         keep_attrs: bool = False,
         inner_thread_limit: int | None = 1,
         **kneighbors_kwargs,
-    ) -> FeatureArrayType: ...
+    ) -> T_FeatureArrayType: ...
 
     @requires_implementation
     @requires_fitted
     def kneighbors(
         self,
-        X: FeatureArrayType,
+        X: T_FeatureArrayType,
         *,
         n_neighbors: int | None = None,
         return_distance: bool = True,
@@ -395,7 +395,7 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
         keep_attrs: bool = False,
         inner_thread_limit: int | None = 1,
         **kneighbors_kwargs,
-    ) -> FeatureArrayType | tuple[FeatureArrayType, FeatureArrayType]:
+    ) -> T_FeatureArrayType | tuple[T_FeatureArrayType, T_FeatureArrayType]:
         """
         Find the K-neighbors of each sample in a feature array.
 
@@ -533,7 +533,7 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
     @requires_attributes("get_feature_names_out")
     def transform(
         self,
-        X: FeatureArrayType,
+        X: T_FeatureArrayType,
         *,
         skip_nodata: bool = True,
         nodata_input: NoDataType | MissingType = MissingType.MISSING,
@@ -544,7 +544,7 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
         keep_attrs: bool = False,
         inner_thread_limit: int | None = 1,
         **transform_kwargs,
-    ) -> FeatureArrayType:
+    ) -> T_FeatureArrayType:
         """
         Apply the transformation to n-dimensional X features.
 
@@ -641,7 +641,7 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
     @requires_fitted
     def inverse_transform(
         self,
-        X: FeatureArrayType,
+        X: T_FeatureArrayType,
         *,
         skip_nodata: bool = True,
         nodata_input: NoDataType | MissingType = MissingType.MISSING,
@@ -652,7 +652,7 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
         keep_attrs: bool = False,
         inner_thread_limit: int | None = 1,
         **inverse_transform_kwargs,
-    ) -> FeatureArrayType:
+    ) -> T_FeatureArrayType:
         """
         Apply the inverse transformation to n-dimensional X features.
 
@@ -768,7 +768,7 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
         return "https://sklearn-raster.readthedocs.io/en/latest/api/feature_array_estimator/#sklearn_raster.FeatureArrayEstimator"
 
     @staticmethod
-    def _reset_estimator(estimator: EstimatorType) -> EstimatorType:
+    def _reset_estimator(estimator: T_EstimatorType) -> T_EstimatorType:
         """Take an estimator and reset and warn if it was previously fitted."""
         if is_fitted(estimator):
             warn(
@@ -859,7 +859,7 @@ class FeatureArrayEstimator(Generic[EstimatorType], BaseEstimator):
 
 
 # TODO: Remove in a future release.
-def wrap(estimator: EstimatorType) -> FeatureArrayEstimator[EstimatorType]:
+def wrap(estimator: T_EstimatorType) -> FeatureArrayEstimator[T_EstimatorType]:
     """
     Wrap an estimator with overriden methods for n-dimensional feature arrays.
 

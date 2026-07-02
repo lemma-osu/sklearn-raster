@@ -20,7 +20,7 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray
 
     from ..features import FeatureArray
-    from ..types import ArrayUfunc, FeatureArrayType, MaybeTuple
+    from ..types import ArrayUfunc, MaybeTuple, T_FeatureArrayType
 
 
 class _UfuncInput:
@@ -171,7 +171,7 @@ class FeaturewiseUfunc(Generic[T]):
     @overload
     def __call__(
         self: FeaturewiseUfunc[Output],
-        *arrays: FeatureArray[FeatureArrayType],
+        *arrays: FeatureArray[T_FeatureArrayType],
         skip_nodata: bool = True,
         nodata_output: MaybeTuple[float | int] | None = None,
         nan_fill: float | int | None = None,
@@ -181,12 +181,12 @@ class FeaturewiseUfunc(Generic[T]):
         keep_attrs: bool = False,
         inner_thread_limit: int | None = 1,
         **ufunc_kwargs,
-    ) -> FeatureArrayType: ...
+    ) -> T_FeatureArrayType: ...
 
     @overload
     def __call__(
         self: FeaturewiseUfunc[tuple[Output, Output]],
-        *arrays: FeatureArray[FeatureArrayType],
+        *arrays: FeatureArray[T_FeatureArrayType],
         skip_nodata: bool = True,
         nodata_output: MaybeTuple[float | int] | None = None,
         nan_fill: float | int | None = None,
@@ -196,12 +196,12 @@ class FeaturewiseUfunc(Generic[T]):
         keep_attrs: bool = False,
         inner_thread_limit: int | None = 1,
         **ufunc_kwargs,
-    ) -> tuple[FeatureArrayType, FeatureArrayType]: ...
+    ) -> tuple[T_FeatureArrayType, T_FeatureArrayType]: ...
 
     @overload
     def __call__(
         self: FeaturewiseUfunc[tuple[Output, ...]],
-        *arrays: FeatureArray[FeatureArrayType],
+        *arrays: FeatureArray[T_FeatureArrayType],
         skip_nodata: bool = True,
         nodata_output: MaybeTuple[float | int] | None = None,
         nan_fill: float | int | None = None,
@@ -211,7 +211,7 @@ class FeaturewiseUfunc(Generic[T]):
         keep_attrs: bool = False,
         inner_thread_limit: int | None = 1,
         **ufunc_kwargs,
-    ) -> tuple[FeatureArrayType, ...]: ...
+    ) -> tuple[T_FeatureArrayType, ...]: ...
 
     def __call__(
         self,
