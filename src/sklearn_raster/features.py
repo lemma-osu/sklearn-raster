@@ -16,6 +16,7 @@ from .types import (
     MissingType,
     NoDataMap,
     NoDataType,
+    NoDataValue,
 )
 from .utils.features import can_cast_nodata_value
 
@@ -102,14 +103,14 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
         """Return a mapping from feature names or indices to default NoData values."""
 
     def _build_masked_nodata_array(
-        self, values: Sequence[float | None]
+        self, values: Sequence[NoDataValue]
     ) -> ma.MaskedArray:
         """
         Build a masked NoData array from a sequence of NoData values.
 
         Parameters
         ----------
-        values : Sequence[float | None]
+        values : Sequence[NoDataValue]
             A sequence of NoData values, one per feature, where None indicates a missing
             value. Values that can't be safely cast to the feature array dtype will
             result in an error.
@@ -135,7 +136,7 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
 
         # Raise if any NoData values can't be safely cast to the feature array dtype,
         # to avoid masking with a rounded or truncated value.
-        uncastable = []
+        uncastable: list[NoDataValue] = []
         for i, val in enumerate(original_values):
             if missing_values[i]:
                 continue
