@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import enum
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Hashable, Sequence
 from typing import Any, Concatenate, ParamSpec, TypeAlias, TypeVar
 
 import pandas as pd
@@ -16,7 +16,7 @@ FeatureArrayType = TypeVar(
 EstimatorType = TypeVar("EstimatorType", bound=BaseEstimator)
 AnyType = TypeVar("AnyType", bound=Any)
 NoDataValue = float | int | bool | None
-NoDataMap = dict[str | int, NoDataValue]
+NoDataMap = dict[Hashable, NoDataValue]
 NoDataType = NoDataValue | Sequence[NoDataValue] | NoDataMap
 
 # A sentinel value to distinguish missing parameters from None
