@@ -76,7 +76,7 @@ class _UfuncInput:
 
     def _fill_nans(self, nan_fill: float | None) -> NDArray:
         """Fill the flat input array with NaNs filled."""
-        if self._input_supports_nan:
+        if self._input_supports_nan and nan_fill is not None:
             return np.where(np.isnan(self.samples), nan_fill, self.samples)
 
         return self.samples
