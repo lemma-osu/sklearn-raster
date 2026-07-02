@@ -97,7 +97,7 @@ def _load_rasters_to_dataset(
 
 def _load_rasters_to_array(file_paths: list[Path]) -> NDArray:
     """Load single-band rasters as a multi-band numpy array of shape (band, y, x)."""
-    arr = None
+    arr: NDArray | None = None
     for path in file_paths:
         with rasterio.open(path) as src:
             band = src.read(1)
@@ -105,6 +105,9 @@ def _load_rasters_to_array(file_paths: list[Path]) -> NDArray:
             band = band[np.newaxis, ...]
 
             arr = band if arr is None else np.concatenate((arr, band), axis=0)
+
+    if arr is None:
+        raise ValueError("Expected at least one raster path.")
 
     return arr
 
