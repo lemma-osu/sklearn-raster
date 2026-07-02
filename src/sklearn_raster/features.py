@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections import Counter
-from collections.abc import Callable, Sequence, Sized
+from collections.abc import Callable, Hashable, Sequence, Sized
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, Generic
 
@@ -27,8 +27,12 @@ if TYPE_CHECKING:
 class FeatureArray(Generic[FeatureArrayType], ABC):
     """A wrapper around an n-dimensional array of features."""
 
-    feature_dim_name: str | None = None
+    feature_array: FeatureArrayType
+    feature_names: NDArray[np.object_]
+    feature_dim_name: Hashable | None = None
     feature_dim: int = 0
+    n_features: int
+    nodata_input: ma.MaskedArray
 
     def __init__(
         self,
@@ -41,7 +45,7 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
         self.nodata_input = self._validate_nodata_input(nodata_input)
 
     @abstractmethod
-    def _validate_feature_names(self) -> NDArray:
+    def _validate_feature_names(self) -> NDArray[np.object_]:
         """Validate and return feature names from the feature array."""
 
     def _validate_nodata_input(
@@ -206,9 +210,9 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
 class NDArrayFeatures(FeatureArray):
     """Features stored in a Numpy NDArray of shape (features, ...)."""
 
-    def _validate_feature_names(self) -> NDArray:
+    def _validate_feature_names(self) -> NDArray[np.object_]:
         # NDArrays are unnamed, so no validation checks are needed
-        return np.array([])
+        return np.array([], dtype=object)
 
     def _get_default_nodata_mapping(self) -> NoDataMap:
         # Use sequential indices with no inferred NoData value for all features
@@ -243,7 +247,7 @@ class DataArrayFeatures(FeatureArray):
         self.feature_dim_name = features.dims[self.feature_dim]
         super().__init__(features, nodata_input=nodata_input)
 
-    def _validate_feature_names(self) -> NDArray:
+    def _validate_feature_names(self) -> NDArray[np.object_]:
         names = self.feature_array[self.feature_dim_name].values.astype(object)
         # Feature names must be unique to allow mapping NoData values by name
         duplicated_names = [name for name, count in Counter(names).items() if count > 1]
