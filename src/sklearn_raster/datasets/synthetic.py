@@ -112,12 +112,12 @@ def _generate_fractal_noise(
             raise ImportError(msg) from None
 
         feature_coords = generate_sequential_names(shape[0], "component")
-        coords = {"variable": feature_coords}
+        coords: dict[str, list[str] | NDArray[np.int_]] = {"variable": feature_coords}
         coords.update({f"d{i}": np.arange(s) for i, s in enumerate(shape[1:])})
-        noise = (
+        return (
             xr.DataArray(
                 noise,
-                dims=coords.keys(),
+                dims=tuple(coords.keys()),
                 coords=coords,
             )
             .to_dataset(dim="variable")
