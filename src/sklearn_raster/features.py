@@ -48,6 +48,10 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
     def _validate_feature_names(self) -> NDArray[np.object_]:
         """Validate and return feature names from the feature array."""
 
+    @abstractmethod
+    def _get_feature_dtype(self) -> np.dtype:
+        """Return the dtype used for NoData validation and masking."""
+
     def _validate_nodata_input(
         self, nodata_input: NoDataType | MissingType
     ) -> ma.MaskedArray:
@@ -135,8 +139,7 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
 
         # Replace missing NoData values with zero since it fits in any dtype
         missing_fill_value = 0
-        filled_values = np.where(missing_values, missing_fill_value, values)
-        target_dtype = self.feature_array.dtype
+        target_dtype = self._get_feature_dtype()
 
         # Raise if any NoData values can't be safely cast to the feature array dtype,
         # to avoid masking with a rounded or truncated value.
@@ -155,6 +158,11 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
                 "check the `_FillValue` attribute(s) of the input data."
             )
             raise ValueError(msg)
+
+        filled_values = np.asarray(
+            [missing_fill_value if value is None else value for value in values],
+            dtype=target_dtype,
+        )
 
         return ma.masked_array(
             filled_values,
@@ -210,6 +218,9 @@ class FeatureArray(Generic[FeatureArrayType], ABC):
 class NDArrayFeatures(FeatureArray):
     """Features stored in a Numpy NDArray of shape (features, ...)."""
 
+    def _get_feature_dtype(self) -> np.dtype:
+        return self.feature_array.dtype
+
     def _validate_feature_names(self) -> NDArray[np.object_]:
         # NDArrays are unnamed, so no validation checks are needed
         return np.array([], dtype=object)
@@ -238,6 +249,9 @@ class NDArrayFeatures(FeatureArray):
 
 class DataArrayFeatures(FeatureArray):
     """Features stored in an xarray DataArray of shape (features, ...)."""
+
+    def _get_feature_dtype(self) -> np.dtype:
+        return self.feature_array.dtype
 
     def __init__(
         self,
