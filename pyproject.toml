@@ -1,10 +1,10 @@
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["uv_build>=0.11.1,<0.12"]
+build-backend = "uv_build"
 
 [project]
 name = "sklearn-raster"
-dynamic = ["version"]
+version = "0.1.0.dev2"
 description = "Spatial raster prediction with scikit-learn estimators."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -23,66 +23,26 @@ dependencies = [
 [project.optional-dependencies]
 datasets = [
     "sknnr",
-    "rioxarray", 
-    "rasterio", 
+    "rioxarray",
+    "rasterio",
     "pooch",
 ]
 tutorials = [
     "sklearn-raster[datasets]",
     "ipykernel",
     "matplotlib",
+    "dask[diagnostics,distributed]",
 ]
-
-[project.urls]
-Homepage = "https://github.com/lemma-osu/sklearn-raster"
-
-[tool.hatch.version]
-path = "src/sklearn_raster/__init__.py"
-
-[tool.hatch.build]
-exclude = ["src/sklearn_raster/datasets/data/"]
-
-[tool.hatch.build.targets.wheel]
-packages = ["src/sklearn_raster"]
-
-[tool.hatch.build.targets.sdist]
-include = ["/src"]
-
-[tool.hatch.envs.default]
-dependencies = [
-    "pre-commit",
+test = [
     "sklearn-raster[datasets]",
-]
-
-[tool.hatch.envs.test]
-dependencies = [
     "pytest",
     "pytest-cov",
     "pytest-mock",
     "pytest-xdist",
     "freezegun",
     "xarray-regressions",
-    "sklearn-raster[datasets]",
 ]
-
-[tool.hatch.envs.tutorials]
-dependencies = [
-    "sklearn-raster[tutorials]",
-    "dask[diagnostics,distributed]",
-]
-
-[tool.hatch.envs.test.scripts]
-all = "pytest {args} --doctest-modules"
-cov = "pytest --cov=src/sklearn_raster {args} --doctest-modules"
-
-[tool.hatch.envs.test_matrix]
-template = "test"
-
-[[tool.hatch.envs.test_matrix.matrix]]
-python = ["3.11", "3.12", "3.13", "3.14"]
-
-[tool.hatch.envs.docs]
-dependencies = [
+docs = [
     "sklearn-raster[tutorials]",
     "mkdocs<2.0.0",
     "mkdocs-material",
@@ -91,9 +51,26 @@ dependencies = [
     "ruff",
 ]
 
-[tool.hatch.envs.docs.scripts]
-serve = "mkdocs serve --config-file docs/mkdocs.yml {args}" 
-build = "mkdocs build --config-file docs/mkdocs.yml {args}" 
+[project.urls]
+Homepage = "https://github.com/lemma-osu/sklearn-raster"
+
+[dependency-groups]
+dev = [
+    "sklearn-raster[test]",
+    "sklearn-raster[docs]",
+    "pre-commit",
+    "poethepoet",
+]
+
+[tool.uv.build-backend]
+source-exclude = ["src/sklearn_raster/datasets/data/**"]
+
+[tool.poe.tasks]
+install = "pre-commit install"
+check = "pre-commit run --all-files"
+test = "pytest --doctest-modules"
+coverage = "pytest --cov=src/sklearn_raster --doctest-modules"
+docs = "mkdocs serve --config-file docs/mkdocs.yml"
 
 [tool.ruff]
 fix = true
@@ -103,11 +80,8 @@ show-fixes = true
 select = ["E", "I", "F", "B", "FA", "UP", "PT", "Q", "RET", "SIM", "PERF", "TC"]
 isort.known-first-party = ["sklearn_raster"]
 
-[tool.hatch.metadata]
-allow-direct-references = true
-
 [tool.coverage.report]
 exclude_also = [
-    # Ignore TYPE_CHECKING blocks
+    # Ignore TYPE_CHECKING blocks from test coverage
     "if TYPE_CHECKING:"
 ]
